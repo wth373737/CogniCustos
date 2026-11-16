@@ -1,0 +1,8 @@
+bin/
+obj/
+_run/
+state/
+.vs/
+*.user
+*.suo
+__pycache__/

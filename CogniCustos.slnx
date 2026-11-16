@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CogniCustos.Adapters/CogniCustos.Adapters.csproj" />
+    <Project Path="src/CogniCustos.Contracts/CogniCustos.Contracts.csproj" />
+    <Project Path="src/CogniCustos.Core/CogniCustos.Core.csproj" />
+    <Project Path="src/CogniCustos.Desktop/CogniCustos.Desktop.csproj" />
+    <Project Path="src/CogniCustos.Selftest/CogniCustos.Selftest.csproj" />
+  </Folder>
+</Solution>
