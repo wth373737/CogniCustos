@@ -36,6 +36,8 @@ public interface IToolRegistry
     void Register(ITool tool);
     IReadOnlyList<ITool> All { get; }
     ITool? Find(string name);
+    /// <summary>Invoke by name. Errors are returned as a failed ToolResult, never thrown.</summary>
+    Task<ToolResult> InvokeAsync(string name, IReadOnlyDictionary<string, string> args, CancellationToken ct = default);
     /// <summary>Compact catalog injected into the reasoning prompt.</summary>
     string DescribeForPrompt();
 }
@@ -93,13 +95,24 @@ public interface ISandbox
     Task<string> ReadAsync(string? section = null, CancellationToken ct = default);
 }
 
-public sealed record TaskItem(int Id, string Title, string? Due, bool Done);
+public sealed record TaskItem(int Id, string Title, string? Due, bool Done, string Level = "short", int? ParentId = null);
 
 public interface ITaskStore
 {
     Task<int> AddAsync(string title, string? due, CancellationToken ct = default);
+    Task<int> AddPlannedAsync(string title, string? due, string level, int? parentId, CancellationToken ct = default);
     Task<IReadOnlyList<TaskItem>> ListAsync(CancellationToken ct = default);
     Task<bool> CompleteAsync(int id, CancellationToken ct = default);
+}
+
+/// <summary>One block on the calendar. Times are local and stored as "HH:mm".</summary>
+public sealed record ScheduleBlock(int Id, string Date, string Start, string End, string Title, int? TaskId);
+
+public interface IScheduleStore
+{
+    Task<int> AddAsync(string date, string start, string end, string title, int? taskId, CancellationToken ct = default);
+    Task<IReadOnlyList<ScheduleBlock>> ListDayAsync(string date, CancellationToken ct = default);
+    Task<IReadOnlyList<ScheduleBlock>> ListRangeAsync(string fromDate, string toDate, CancellationToken ct = default);
 }
 
 public sealed record KnowledgeHit(string Source, string Snippet, double Score);

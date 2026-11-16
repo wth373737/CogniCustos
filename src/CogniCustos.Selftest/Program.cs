@@ -232,6 +232,90 @@ internal static class Program
             return Task.FromResult(r.Ok && r.Content.Contains("sent") && r.Content.Split('\n').Length <= 3);
         });
 
+        // ---- planning horizons and the calendar ----
+
+        await Check("plan.add: stages a long-horizon proposal, writes nothing yet", async () =>
+        {
+            var t = rt.Tools.Find("plan.add")!;
+            var before = (await rt.Tasks.ListAsync()).Count;
+            var r = await t.InvokeAsync(new Dictionary<string, string>
+            {
+                ["title"] = "完成 CAT304 终稿",
+                ["level"] = "long",
+                ["due"] = "2026-12-27"
+            });
+            var after = await rt.Tasks.ListAsync();
+            return r.Ok && after.Count == before && rt.Gate.Pending().Any(p => p.Target == PlannerTools.TargetPlanAdd);
+        });
+
+        await Check("plan.add: approving writes the item at the long horizon", async () =>
+        {
+            var p = rt.Gate.Pending().First(x => x.Target == PlannerTools.TargetPlanAdd);
+            var r = rt.Gate.Approve(p.Id);
+            var items = await rt.Tasks.ListAsync();
+            return r.Ok && items.Any(t => t.Level == "long" && t.Title.Contains("CAT304"));
+        });
+
+        await Check("plan.tree: groups items by horizon", async () =>
+        {
+            var r = await rt.Tools.InvokeAsync("plan.tree", new Dictionary<string, string>());
+            return r.Ok && r.Content.Contains("长期") && r.Content.Contains("短期");
+        });
+
+        await Check("schedule.add: stages a block and rejects a malformed date", async () =>
+        {
+            var t = rt.Tools.Find("schedule.add")!;
+            var bad = await t.InvokeAsync(new Dictionary<string, string>
+            {
+                ["date"] = "27/12/2026", ["start"] = "09:00", ["end"] = "10:00", ["title"] = "x"
+            });
+            var good = await t.InvokeAsync(new Dictionary<string, string>
+            {
+                ["date"] = "2026-12-27", ["start"] = "09:00", ["end"] = "11:00", ["title"] = "写终稿 §5 实现"
+            });
+            return !bad.Ok && good.Ok && rt.Gate.Pending().Any(p => p.Target == PlannerTools.TargetScheduleAdd);
+        });
+
+        await Check("schedule.add: approving puts the block in the calendar", async () =>
+        {
+            var p = rt.Gate.Pending().First(x => x.Target == PlannerTools.TargetScheduleAdd);
+            var r = rt.Gate.Approve(p.Id);
+            var blocks = await rt.Schedule.ListDayAsync("2026-12-27");
+            return r.Ok && blocks.Count == 1 && blocks[0].Title.Contains("§5");
+        });
+
+        await Check("schedule.day: shows the block for that date and nothing for another", async () =>
+        {
+            var hit = await rt.Tools.InvokeAsync("schedule.day", new Dictionary<string, string> { ["date"] = "2026-12-27" });
+            var miss = await rt.Tools.InvokeAsync("schedule.day", new Dictionary<string, string> { ["date"] = "2026-12-28" });
+            return hit.Ok && hit.Content.Contains("§5") && miss.Ok && miss.Content.Contains("空");
+        });
+
+        await Check("schedule.week: the block's week contains that day", async () =>
+        {
+            var r = await rt.Tools.InvokeAsync("schedule.week", new Dictionary<string, string> { ["date"] = "2026-12-27" });
+            return r.Ok && r.Content.Contains("12-27") && r.Content.Contains("§5");
+        });
+
+        await Check("migration: an old tasks table without level is upgraded in place", () =>
+        {
+            var legacyRoot = Path.Combine(AppContext.BaseDirectory, "selftest-legacy-" + Guid.NewGuid().ToString("N")[..6]);
+            Directory.CreateDirectory(legacyRoot);
+            var dbPath = Path.Combine(legacyRoot, "old.db");
+            using (var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}"))
+            {
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, due TEXT NULL, done INTEGER NOT NULL DEFAULT 0, created TEXT NOT NULL); INSERT INTO tasks(title, created) VALUES ('legacy row', '2026-01-01');";
+                cmd.ExecuteNonQuery();
+            }
+            var store = new SqliteTaskStore(dbPath);
+            var items = store.ListAsync().GetAwaiter().GetResult();
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            Directory.Delete(legacyRoot, true);
+            return Task.FromResult(items.Count == 1 && items[0].Level == "short");
+        });
+
         if (Environment.GetEnvironmentVariable("COGNICUSTOS_LIVE_MODEL") == "1")
         {
             Console.WriteLine();
@@ -257,6 +341,26 @@ internal static class Program
                 var tasks = await live.Tasks.ListAsync();
                 Console.WriteLine($"  approve -> {r.Content}; tasks={tasks.Count}");
                 return r.Ok && tasks.Count == 1;
+            });
+
+            await Check("live: a planning request yields a long-horizon item AND a calendar block", async () =>
+            {
+                var reply = await live.ChatAsync("把「这学期完成终稿」放进长期计划，再安排 12 月 27 日上午九点到十一点写草稿。");
+                Console.WriteLine("  reply: " + reply.Replace("\n", " ")[..Math.Min(200, reply.Length)]);
+                var pending = live.Gate.Pending();
+                Console.WriteLine("  pending targets: " + string.Join(", ", pending.Select(p => p.Target)));
+
+                foreach (var p in pending.ToList())
+                {
+                    var r = live.Gate.Approve(p.Id);
+                    Console.WriteLine($"  approve {p.Target}: {(r.Ok ? "ok" : "FAILED: " + r.Content)}");
+                }
+
+                var items = await live.Tasks.ListAsync();
+                var blocks = await live.Schedule.ListRangeAsync("2026-12-01", "2026-12-31");
+                Console.WriteLine("  levels: " + string.Join(",", items.Select(t => t.Level)));
+                Console.WriteLine("  blocks: " + string.Join(",", blocks.Select(b => $"{b.Date} {b.Start}-{b.End}")));
+                return items.Any(t => t.Level == "long") && blocks.Count > 0;
             });
 
             try { Directory.Delete(liveRoot, true); } catch { }

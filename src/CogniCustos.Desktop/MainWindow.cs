@@ -34,6 +34,8 @@ public sealed class MainWindow : Window
     private readonly ListBox _proposals = new();
     private readonly ListBox _tasks = new();
     private readonly ListBox _tools = new();
+    private readonly TextBox _scheduleView = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas, Microsoft YaHei UI, monospace"), FontSize = 12 };
+    private readonly TextBox _scheduleDate = new() { Watermark = "yyyy-MM-dd（留空=今天）", Width = 140 };
     private readonly TextBox _taskTitle = new() { Watermark = "新任务标题" };
     private readonly TextBox _taskDue = new() { Watermark = "截止（如 2026-11-20）", Width = 160 };
     private Button _sendButton = new() { Content = "发送", Width = 80 };
@@ -183,6 +185,7 @@ public sealed class MainWindow : Window
         var tabs = new TabControl { Margin = new Thickness(8, 0, 0, 0) };
         tabs.Items.Add(BuildProposalTab());
         tabs.Items.Add(BuildTaskTab());
+        tabs.Items.Add(BuildScheduleTab());
         tabs.Items.Add(BuildSandboxTab());
         tabs.Items.Add(BuildSettingsTab());
         Grid.SetColumn(tabs, 2);
@@ -232,11 +235,30 @@ public sealed class MainWindow : Window
         panel.Children.Add(new ScrollViewer { Content = _tasks });
         _tasks.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<TaskItem>((t, _) => new TextBlock
         {
-            Text = $"#{(t.Done ? "✓" : "")}{t.Id} {t.Title}{(string.IsNullOrWhiteSpace(t.Due) ? "" : "   (" + t.Due + ")")}",
+            Text = $"[{t.Level}] #{(t.Done ? "✓" : "")}{t.Id} {t.Title}{(string.IsNullOrWhiteSpace(t.Due) ? "" : "   (" + t.Due + ")")}",
             FontSize = 12,
             Margin = new Thickness(2, 4)
         });
-        return new TabItem { Header = "任务 / 日程", Content = panel };
+        return new TabItem { Header = "任务 / 规划", Content = panel };
+    }
+
+    private TabItem BuildScheduleTab()
+    {
+        var panel = new DockPanel();
+        var bar = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 6, Margin = new Thickness(0, 8, 0, 0),
+            Children =
+            {
+                _scheduleDate,
+                MakeButton("这一日", () => _ = ShowScheduleAsync(day: true)),
+                MakeButton("这一周", () => _ = ShowScheduleAsync(day: false)),
+            }
+        };
+        DockPanel.SetDock(bar, Dock.Bottom);
+        panel.Children.Add(bar);
+        panel.Children.Add(new ScrollViewer { Content = _scheduleView });
+        return new TabItem { Header = "日程", Content = panel };
     }
 
     private TabItem BuildSandboxTab()
@@ -384,6 +406,15 @@ public sealed class MainWindow : Window
         RefreshAll();
     }
 
+    private async Task ShowScheduleAsync(bool day)
+    {
+        var args = new Dictionary<string, string>();
+        var date = _scheduleDate.Text?.Trim();
+        if (!string.IsNullOrWhiteSpace(date)) args["date"] = date!;
+        var r = await _rt.Tools.InvokeAsync(day ? "schedule.day" : "schedule.week", args);
+        _scheduleView.Text = r.Content;
+    }
+
     private void ShowSandbox()
     {
         try
@@ -421,6 +452,7 @@ public sealed class MainWindow : Window
 
         _tasks.ItemsSource = _rt.Tasks.ListAsync().GetAwaiter().GetResult();
         ShowSandbox();
+        _ = ShowScheduleAsync(day: true);
 
         var modelText = _ollama is null
             ? "模型：未配置"

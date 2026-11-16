@@ -18,6 +18,8 @@ UI 是占位的，随时会被替换；不要在这个版本上设计视觉。
 | AI 私有沙箱（文本分区，`brief/notes/proposals/output`，append-only 思考日志） | ✅ |
 | 确认处理器（提议 → 批准/驳回 → 应用；重启不丢） | ✅ 持久化 JSON |
 | 主数据库（SQLite：任务 / 截止） | ✅ |
+| **规划层次（长期 / 中期 / 短期 + 父子归属）** | ✅ 原地迁移旧库 |
+| **日程（日 / 周视图，时段块）** | ✅ 与任务同库，独立表 |
 | 提醒（轮询已到期任务，25 小时内触达一次） | ✅ |
 | 本地模型对话（Ollama，`/api/chat`、`/api/embeddings`） | ✅ 已连 qwen2.5:7b |
 | 模型按角色路由 + 无模型时的备用回答（不编造内容） | ✅ |
@@ -31,12 +33,12 @@ UI 是占位的，随时会被替换；不要在这个版本上设计视觉。
 | 图像识别 | ❌ 仅预留 `ModelRole.Vision`，未接 |
 | MCP 协议的真正实现（JSON-RPC over stdio/HTTP） | ❌ 工具已是 MCP 形状，但还没有协议层 |
 
-自检：**27 条不变式**（其中 6 条专测出站闸门与权限边界）+ 2 条真模型往返，全过。
+自检：**37 条离线不变式** + 3 条真模型往返（工具调用、计划+日程、确认落库），全过。
 
 ```bash
 dotnet build -c Debug
-dotnet run --project src/CogniCustos.Selftest -c Debug          # 27/27
-$env:COGNICUSTOS_LIVE_MODEL="1"; dotnet run --project src/CogniCustos.Selftest -c Debug   # + 2 条真模型
+dotnet run --project src/CogniCustos.Selftest -c Debug          # 37/37
+$env:COGNICUSTOS_LIVE_MODEL="1"; dotnet run --project src/CogniCustos.Selftest -c Debug   # + 3 条真模型
 dotnet run --project src/CogniCustos.Desktop                    # 打开窗口
 ```
 

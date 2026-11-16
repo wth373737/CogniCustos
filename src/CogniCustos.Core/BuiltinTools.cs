@@ -54,15 +54,18 @@ public static class BuiltinTools
                 {
                     new ToolParameter("title", "string", "Task title", true),
                     new ToolParameter("due", "string", "Due date, e.g. 2026-11-20 or 'Friday'"),
+                    new ToolParameter("level", "string", "long | mid | short (default short)"),
                 }, ToolKind.Write),
             async (args, _) =>
             {
                 args.TryGetValue("title", out var title);
                 args.TryGetValue("due", out var due);
+                args.TryGetValue("level", out var rawLevel);
                 if (string.IsNullOrWhiteSpace(title)) return ToolResult.Fail("title is required");
 
-                var payload = JsonSerializer.Serialize(new { title, due });
-                var p = gate.Propose($"Add task: {title}", $"Due: {(string.IsNullOrWhiteSpace(due) ? "(none)" : due)}", TargetTasksAdd, payload);
+                var level = SqliteTaskStore.NormalizeLevel(rawLevel);
+                var payload = JsonSerializer.Serialize(new { title, due, level });
+                var p = gate.Propose($"[{level}] Add task: {title}", $"Due: {(string.IsNullOrWhiteSpace(due) ? "(none)" : due)}", TargetTasksAdd, payload);
                 await sandbox.WriteSectionAsync("proposals", $"- [{p.CreatedAt:HH:mm:ss}] {p.Title}  ({p.Id})\n", CancellationToken.None).ConfigureAwait(false);
                 await sandbox.AppendThoughtAsync($"proposed task '{title}' -> {p.Id}", CancellationToken.None).ConfigureAwait(false);
                 return ToolResult.Ok0($"staged as proposal {p.Id}: \"{title}\". Waiting for the student to confirm.", p);

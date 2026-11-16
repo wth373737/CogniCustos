@@ -3,18 +3,25 @@ using Microsoft.Data.Sqlite;
 
 namespace CogniCustos.Core;
 
-/// <summary>SQLite main database: tasks and deadlines. AI writes here are refused by design.</summary>
+/// <summary>
+/// SQLite main database: tasks and deadlines. AI writes here are refused by design.
+/// Scheme is migrated in place so an existing database keeps working.
+/// </summary>
 public sealed class SqliteTaskStore : ITaskStore
 {
     private readonly string _connectionString;
+    private readonly string _dbPath;
 
     public SqliteTaskStore(string dbPath)
     {
-        var dir = Path.GetDirectoryName(Path.GetFullPath(dbPath));
+        _dbPath = Path.GetFullPath(dbPath);
+        var dir = Path.GetDirectoryName(_dbPath);
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-        _connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ToString();
+        _connectionString = new SqliteConnectionStringBuilder { DataSource = _dbPath }.ToString();
         Init();
     }
+
+    public string DbPath => _dbPath;
 
     private void Init()
     {
@@ -30,6 +37,29 @@ public sealed class SqliteTaskStore : ITaskStore
             );
             """;
         cmd.ExecuteNonQuery();
+
+        var columns = Columns(conn, "tasks");
+        if (!columns.Contains("level"))
+            Exec(conn, "ALTER TABLE tasks ADD COLUMN level TEXT NOT NULL DEFAULT 'short';");
+        if (!columns.Contains("parent_id"))
+            Exec(conn, "ALTER TABLE tasks ADD COLUMN parent_id INTEGER NULL;");
+    }
+
+    private static HashSet<string> Columns(SqliteConnection conn, string table)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"PRAGMA table_info({table});";
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read()) set.Add(reader.GetString(1));
+        return set;
+    }
+
+    private static void Exec(SqliteConnection conn, string sql)
+    {
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
     }
 
     private SqliteConnection Open()
@@ -40,23 +70,44 @@ public sealed class SqliteTaskStore : ITaskStore
     }
 
     public Task<int> AddAsync(string title, string? due, CancellationToken ct = default)
+        => AddPlannedAsync(title, due, "short", null, ct);
+
+    public Task<int> AddPlannedAsync(string title, string? due, string level, int? parentId, CancellationToken ct = default)
     {
+        level = NormalizeLevel(level);
         using var conn = Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT INTO tasks(title, due, created) VALUES ($t, $d, $c); SELECT last_insert_rowid();";
+        cmd.CommandText = """
+            INSERT INTO tasks(title, due, level, parent_id, created) VALUES ($t, $d, $l, $p, $c);
+            SELECT last_insert_rowid();
+            """;
         cmd.Parameters.AddWithValue("$t", title);
         cmd.Parameters.AddWithValue("$d", (object?)due ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$l", level);
+        cmd.Parameters.AddWithValue("$p", (object?)parentId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$c", DateTimeOffset.Now.ToString("O"));
         var id = Convert.ToInt32(cmd.ExecuteScalar());
         return Task.FromResult(id);
     }
+
+    public static string NormalizeLevel(string? level) => (level ?? "").Trim().ToLowerInvariant() switch
+    {
+        "long" or "长期" or "long-term" => "long",
+        "mid" or "中期" or "mid-term" or "medium" => "mid",
+        _ => "short"
+    };
 
     public Task<IReadOnlyList<TaskItem>> ListAsync(CancellationToken ct = default)
     {
         var list = new List<TaskItem>();
         using var conn = Open();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT id, title, due, done FROM tasks ORDER BY done ASC, (due IS NULL), due ASC, id DESC;";
+        cmd.CommandText = """
+            SELECT id, title, due, done, level, parent_id FROM tasks
+            ORDER BY done ASC,
+                     CASE level WHEN 'long' THEN 0 WHEN 'mid' THEN 1 ELSE 2 END,
+                     (due IS NULL), due ASC, id DESC;
+            """;
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
@@ -64,7 +115,9 @@ public sealed class SqliteTaskStore : ITaskStore
                 reader.GetInt32(0),
                 reader.GetString(1),
                 reader.IsDBNull(2) ? null : reader.GetString(2),
-                reader.GetInt32(3) != 0));
+                reader.GetInt32(3) != 0,
+                reader.IsDBNull(4) ? "short" : reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetInt32(5)));
         }
         return Task.FromResult<IReadOnlyList<TaskItem>>(list);
     }
@@ -76,5 +129,86 @@ public sealed class SqliteTaskStore : ITaskStore
         cmd.CommandText = "UPDATE tasks SET done = 1 WHERE id = $id;";
         cmd.Parameters.AddWithValue("$id", id);
         return Task.FromResult(cmd.ExecuteNonQuery() > 0);
+    }
+}
+
+/// <summary>Schedule blocks live in the same SQLite file as tasks, under their own table.</summary>
+public sealed class SqliteScheduleStore : IScheduleStore
+{
+    private readonly string _connectionString;
+
+    public SqliteScheduleStore(string dbPath)
+    {
+        var path = Path.GetFullPath(dbPath);
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+        _connectionString = new SqliteConnectionStringBuilder { DataSource = path }.ToString();
+
+        using var conn = new SqliteConnection(_connectionString);
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            CREATE TABLE IF NOT EXISTS schedule_blocks (
+                id      INTEGER PRIMARY KEY AUTOINCREMENT,
+                date    TEXT NOT NULL,
+                start   TEXT NOT NULL,
+                end     TEXT NOT NULL,
+                title   TEXT NOT NULL,
+                task_id INTEGER NULL
+            );
+            """;
+        cmd.ExecuteNonQuery();
+    }
+
+    private SqliteConnection Open()
+    {
+        var conn = new SqliteConnection(_connectionString);
+        conn.Open();
+        return conn;
+    }
+
+    public Task<int> AddAsync(string date, string start, string end, string title, int? taskId, CancellationToken ct = default)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO schedule_blocks(date, start, end, title, task_id) VALUES ($d, $s, $e, $t, $id);
+            SELECT last_insert_rowid();
+            """;
+        cmd.Parameters.AddWithValue("$d", date);
+        cmd.Parameters.AddWithValue("$s", start);
+        cmd.Parameters.AddWithValue("$e", end);
+        cmd.Parameters.AddWithValue("$t", title);
+        cmd.Parameters.AddWithValue("$id", (object?)taskId ?? DBNull.Value);
+        return Task.FromResult(Convert.ToInt32(cmd.ExecuteScalar()));
+    }
+
+    public Task<IReadOnlyList<ScheduleBlock>> ListDayAsync(string date, CancellationToken ct = default)
+        => ListRangeAsync(date, date, ct);
+
+    public Task<IReadOnlyList<ScheduleBlock>> ListRangeAsync(string fromDate, string toDate, CancellationToken ct = default)
+    {
+        var list = new List<ScheduleBlock>();
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT id, date, start, end, title, task_id FROM schedule_blocks
+            WHERE date >= $from AND date <= $to
+            ORDER BY date ASC, start ASC;
+            """;
+        cmd.Parameters.AddWithValue("$from", fromDate);
+        cmd.Parameters.AddWithValue("$to", toDate);
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            list.Add(new ScheduleBlock(
+                reader.GetInt32(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetInt32(5)));
+        }
+        return Task.FromResult<IReadOnlyList<ScheduleBlock>>(list);
     }
 }

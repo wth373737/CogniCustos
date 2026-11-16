@@ -13,13 +13,14 @@ public sealed class CogniCustosRuntime
     private readonly ToolRegistry _registry;
 
     private CogniCustosRuntime(string root, SandboxStore sandbox, ApprovalGate gate, SqliteTaskStore tasks,
-        KeywordKnowledgeBase knowledge, ToolRegistry registry, ModelRouter models,
+        SqliteScheduleStore schedule, KeywordKnowledgeBase knowledge, ToolRegistry registry, ModelRouter models,
         SelfDocs selfDocs, ISensitiveContentChecker checker, IOutboundAudit audit)
     {
         Root = root;
         Sandbox = sandbox;
         Gate = gate;
         Tasks = tasks;
+        Schedule = schedule;
         Knowledge = knowledge;
         _registry = registry;
         Models = models;
@@ -32,6 +33,7 @@ public sealed class CogniCustosRuntime
     public ISandbox Sandbox { get; }
     public IApprovalGate Gate { get; }
     public ITaskStore Tasks { get; }
+    public IScheduleStore Schedule { get; }
     public IKnowledgeBase Knowledge { get; }
     public IModelRouter Models { get; }
     public ISelfDocs SelfDocs { get; }
@@ -51,6 +53,7 @@ public sealed class CogniCustosRuntime
         var sandbox = new SandboxStore(Path.Combine(root, "sandbox"));
         var gate = new ApprovalGate(Path.Combine(state, "proposals.json"));
         var tasks = new SqliteTaskStore(Path.Combine(state, "cognicustos.db"));
+        var schedule = new SqliteScheduleStore(tasks.DbPath);
         var knowledge = new KeywordKnowledgeBase(Path.Combine(state, "knowledge.json"));
         var registry = new ToolRegistry();
         var models = new ModelRouter();
@@ -58,7 +61,7 @@ public sealed class CogniCustosRuntime
         var checker = new SensitiveContentChecker(models);
         var audit = new OutboundAudit(Path.Combine(state, "outbound-audit.jsonl"));
 
-        var rt = new CogniCustosRuntime(root, sandbox, gate, tasks, knowledge, registry, models, selfDocs, checker, audit);
+        var rt = new CogniCustosRuntime(root, sandbox, gate, tasks, schedule, knowledge, registry, models, selfDocs, checker, audit);
         if (log is not null) rt.Log += log;
 
         // The confirmation handler owns the only path from a proposal to the real stores.
@@ -67,7 +70,9 @@ public sealed class CogniCustosRuntime
             using var doc = JsonDocument.Parse(payload);
             var title = doc.RootElement.GetProperty("title").GetString() ?? "";
             var due = doc.RootElement.TryGetProperty("due", out var d) ? d.GetString() : null;
-            var id = tasks.AddAsync(title, string.IsNullOrWhiteSpace(due) ? null : due).GetAwaiter().GetResult();
+            var level = doc.RootElement.TryGetProperty("level", out var l) ? l.GetString() : "short";
+            var id = tasks.AddPlannedAsync(title, string.IsNullOrWhiteSpace(due) ? null : due, SqliteTaskStore.NormalizeLevel(level), null)
+                .GetAwaiter().GetResult();
             return ToolResult.Ok0($"task #{id} added: {title}");
         });
 
@@ -88,7 +93,37 @@ public sealed class CogniCustosRuntime
             return ToolResult.Ok0($"indexed '{source}' ({text.Length} chars)");
         });
 
+        // Planning horizon: a plan item is just a task with a level and an optional parent.
+        gate.RegisterApplier(PlannerTools.TargetPlanAdd, payload =>
+        {
+            using var doc = JsonDocument.Parse(payload);
+            var title = doc.RootElement.GetProperty("title").GetString() ?? "";
+            var due = doc.RootElement.TryGetProperty("due", out var d) ? d.GetString() : null;
+            var level = doc.RootElement.TryGetProperty("level", out var l) ? l.GetString() : "short";
+            int? parent = doc.RootElement.TryGetProperty("parentId", out var p) && p.ValueKind == JsonValueKind.Number
+                ? p.GetInt32() : null;
+            var id = tasks.AddPlannedAsync(title, string.IsNullOrWhiteSpace(due) ? null : due,
+                SqliteTaskStore.NormalizeLevel(level), parent).GetAwaiter().GetResult();
+            return ToolResult.Ok0($"plan item #{id} added ({level}): {title}");
+        });
+
+        gate.RegisterApplier(PlannerTools.TargetScheduleAdd, payload =>
+        {
+            using var doc = JsonDocument.Parse(payload);
+            var date = doc.RootElement.GetProperty("date").GetString() ?? "";
+            var start = doc.RootElement.GetProperty("start").GetString() ?? "";
+            var end = doc.RootElement.GetProperty("end").GetString() ?? "";
+            var title = doc.RootElement.GetProperty("title").GetString() ?? "";
+            int? taskId = doc.RootElement.TryGetProperty("taskId", out var t) && t.ValueKind == JsonValueKind.Number
+                ? t.GetInt32() : null;
+            var id = schedule.AddAsync(date, start, end, title, taskId).GetAwaiter().GetResult();
+            return ToolResult.Ok0($"block #{id} added: {date} {start}-{end} {title}");
+        });
+
         foreach (var tool in BuiltinTools.Create(sandbox, gate, tasks, knowledge, gate.Pending, () => models.All))
+            registry.Register(tool);
+
+        foreach (var tool in PlannerTools.Create(sandbox, gate, tasks, schedule))
             registry.Register(tool);
 
         foreach (var tool in ObjectiveTools.Create(selfDocs, checker, () => rt.Cloud, audit, selfDocs.Root))
@@ -132,7 +167,7 @@ public sealed class CogniCustosRuntime
         if (provider is StandbyModelProvider)
             return await provider.CompleteAsync("", userMessage, ct).ConfigureAwait(false);
 
-        const int maxSteps = 3;
+        const int maxSteps = 4;
         var transcript = new StringBuilder();
         var workingUser = userMessage;
 
@@ -224,8 +259,25 @@ public sealed class CogniCustosRuntime
                 var r = await _registry.InvokeAsync("cloud.ask", new Dictionary<string, string> { ["text"] = rest }, ct).ConfigureAwait(false);
                 return r.Content;
             }
+            case "/plan":
+            {
+                var r = await _registry.InvokeAsync("plan.tree", new Dictionary<string, string>(), ct).ConfigureAwait(false);
+                return r.Content;
+            }
+            case "/today":
+            {
+                var args = string.IsNullOrWhiteSpace(rest) ? new Dictionary<string, string>() : new Dictionary<string, string> { ["date"] = rest };
+                var r = await _registry.InvokeAsync("schedule.day", args, ct).ConfigureAwait(false);
+                return r.Content;
+            }
+            case "/week":
+            {
+                var args = string.IsNullOrWhiteSpace(rest) ? new Dictionary<string, string>() : new Dictionary<string, string> { ["date"] = rest };
+                var r = await _registry.InvokeAsync("schedule.week", args, ct).ConfigureAwait(false);
+                return r.Content;
+            }
             default:
-                return $"未知命令 {cmd}。可用：/tools /tasks /sandbox /pending /add /search /models /audit /docs /check /cloud";
+                return $"未知命令 {cmd}。可用：/tools /tasks /sandbox /pending /add /search /models /audit /docs /check /cloud /plan /today /week";
         }
     }
 
@@ -243,5 +295,12 @@ public sealed class CogniCustosRuntime
         输出格式：只输出一个 JSON 对象，不要代码块、不要解释。
         - 调用工具：{"action":"tool","tool":"<名字>","args":{"<参数>":"<值>"} }
         - 最终回答：{"action":"answer","text":"<给学生看的回答>"}
+
+        参数写法（照抄格式，不要自创）：
+        - task.add  / plan.add : {"title":"写终稿","level":"long","due":"2026-12-27"}
+          level 只能是 long / mid / short 这三个英文词。
+        - schedule.add : {"date":"2026-12-27","start":"09:00","end":"11:00","title":"写草稿"}
+          date 是 yyyy-MM-dd，start/end 是 HH:mm，不要写成完整日期时间。
+        - 一次只调用一个工具；拿到结果后再决定下一步或回答。
         """;
 }
