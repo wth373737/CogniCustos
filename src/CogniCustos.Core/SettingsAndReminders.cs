@@ -10,6 +10,11 @@ public sealed record AppSettings
     public string OllamaModel { get; init; } = "qwen2.5:7b";
     public string? PortalSidecarUrl { get; init; }
     public string AiName { get; init; } = "CogniCustos 助手";
+
+    /// <summary>Any OpenAI-compatible endpoint. Ollama's /v1 shim works for testing the outbound gate.</summary>
+    public string? CloudBaseUrl { get; init; }
+    public string? CloudModel { get; init; } = "qwen2.5:7b";
+    public string? CloudApiKey { get; init; }
 }
 
 public static class SettingsStore

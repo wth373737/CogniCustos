@@ -13,7 +13,8 @@ public sealed class CogniCustosRuntime
     private readonly ToolRegistry _registry;
 
     private CogniCustosRuntime(string root, SandboxStore sandbox, ApprovalGate gate, SqliteTaskStore tasks,
-        KeywordKnowledgeBase knowledge, ToolRegistry registry, ModelRouter models)
+        KeywordKnowledgeBase knowledge, ToolRegistry registry, ModelRouter models,
+        SelfDocs selfDocs, ISensitiveContentChecker checker, IOutboundAudit audit)
     {
         Root = root;
         Sandbox = sandbox;
@@ -22,6 +23,9 @@ public sealed class CogniCustosRuntime
         Knowledge = knowledge;
         _registry = registry;
         Models = models;
+        SelfDocs = selfDocs;
+        Checker = checker;
+        Audit = audit;
     }
 
     public string Root { get; }
@@ -30,10 +34,14 @@ public sealed class CogniCustosRuntime
     public ITaskStore Tasks { get; }
     public IKnowledgeBase Knowledge { get; }
     public IModelRouter Models { get; }
+    public ISelfDocs SelfDocs { get; }
+    public ISensitiveContentChecker Checker { get; }
+    public IOutboundAudit Audit { get; }
+    public CloudGateway? Cloud { get; private set; }
     public IToolRegistry Tools => _registry;
     public event Action<string>? Log;
 
-    public static CogniCustosRuntime Create(string root, Action<string>? log = null)
+    public static CogniCustosRuntime Create(string root, Action<string>? log = null, string? appRoot = null)
     {
         root = Path.GetFullPath(root);
         Directory.CreateDirectory(root);
@@ -46,8 +54,11 @@ public sealed class CogniCustosRuntime
         var knowledge = new KeywordKnowledgeBase(Path.Combine(state, "knowledge.json"));
         var registry = new ToolRegistry();
         var models = new ModelRouter();
+        var selfDocs = new SelfDocs(appRoot ?? CogniCustos.Core.SelfDocs.ResolveAppRoot());
+        var checker = new SensitiveContentChecker(models);
+        var audit = new OutboundAudit(Path.Combine(state, "outbound-audit.jsonl"));
 
-        var rt = new CogniCustosRuntime(root, sandbox, gate, tasks, knowledge, registry, models);
+        var rt = new CogniCustosRuntime(root, sandbox, gate, tasks, knowledge, registry, models, selfDocs, checker, audit);
         if (log is not null) rt.Log += log;
 
         // The confirmation handler owns the only path from a proposal to the real stores.
@@ -80,7 +91,20 @@ public sealed class CogniCustosRuntime
         foreach (var tool in BuiltinTools.Create(sandbox, gate, tasks, knowledge, gate.Pending, () => models.All))
             registry.Register(tool);
 
+        foreach (var tool in ObjectiveTools.Create(selfDocs, checker, () => rt.Cloud, audit, selfDocs.Root))
+            registry.Register(tool);
+
+        // Index the application's own docs/source once so doc.search works from the first turn.
+        try { selfDocs.IndexAsync().GetAwaiter().GetResult(); } catch (Exception ex) { log?.Invoke("self-docs index failed: " + ex.Message); }
+
         return rt;
+    }
+
+    /// <summary>The only way a cloud model becomes reachable: through the gated gateway.</summary>
+    public void AddCloud(ICloudModelProvider provider)
+    {
+        Cloud = new CloudGateway(provider, Checker, Audit);
+        Log?.Invoke($"cloud registered: {provider.Endpoint} (available={provider.IsAvailable})");
     }
 
     /// <summary>Adapters register their models here; the runtime never constructs one.</summary>
@@ -180,8 +204,28 @@ public sealed class CogniCustosRuntime
                 var r = await _registry.InvokeAsync("model.list", new Dictionary<string, string>(), ct).ConfigureAwait(false);
                 return r.Content;
             }
+            case "/audit":
+            {
+                var r = await _registry.InvokeAsync("audit.recent", new Dictionary<string, string>(), ct).ConfigureAwait(false);
+                return r.Content;
+            }
+            case "/docs":
+            {
+                var r = await _registry.InvokeAsync("doc.search", new Dictionary<string, string> { ["query"] = rest }, ct).ConfigureAwait(false);
+                return r.Content;
+            }
+            case "/check":
+            {
+                var r = await _registry.InvokeAsync("sensitive.check", new Dictionary<string, string> { ["text"] = rest }, ct).ConfigureAwait(false);
+                return r.Content;
+            }
+            case "/cloud":
+            {
+                var r = await _registry.InvokeAsync("cloud.ask", new Dictionary<string, string> { ["text"] = rest }, ct).ConfigureAwait(false);
+                return r.Content;
+            }
             default:
-                return $"未知命令 {cmd}。可用：/tools /tasks /sandbox /pending /add /search /models";
+                return $"未知命令 {cmd}。可用：/tools /tasks /sandbox /pending /add /search /models /audit /docs /check /cloud";
         }
     }
 

@@ -111,3 +111,49 @@ public interface IKnowledgeBase
 }
 
 public sealed record Reminder(string Id, string Text, DateTimeOffset DueAt, bool Fired);
+
+/// <summary>Result of the local check that runs before anything is sent to a cloud model.</summary>
+public sealed record SensitiveCheckResult(bool Flagged, IReadOnlyList<string> Reasons, string RedactedPreview)
+{
+    public static SensitiveCheckResult Clean(string text) =>
+        new(false, Array.Empty<string>(), text.Length <= 200 ? text : text[..200] + "…");
+}
+
+/// <summary>
+/// The privacy gatekeeper: local checks decide whether text may leave the device.
+/// A cloud provider must never be reachable without passing through this.
+/// </summary>
+public interface ISensitiveContentChecker
+{
+    Task<SensitiveCheckResult> CheckAsync(string text, CancellationToken ct = default);
+}
+
+/// <summary>Every outbound attempt is recorded, including the ones that were refused.</summary>
+public sealed record OutboundRecord(
+    DateTimeOffset At,
+    string Provider,
+    string TextHash,
+    int Length,
+    bool Flagged,
+    string Decision,
+    IReadOnlyList<string> Reasons);
+
+public interface IOutboundAudit
+{
+    void Record(OutboundRecord record);
+    IReadOnlyList<OutboundRecord> Recent(int count = 20);
+}
+
+/// <summary>A model that leaves the device. Always wrapped by the outbound guard.</summary>
+public interface ICloudModelProvider : IModelProvider
+{
+    string Endpoint { get; }
+}
+
+/// <summary>Search over the application's own documentation and source, so the AI can explain the system.</summary>
+public interface ISelfDocs
+{
+    Task<int> IndexAsync(CancellationToken ct = default);
+    IReadOnlyList<KnowledgeHit> Search(string query, int topK = 5);
+    string Root { get; }
+}

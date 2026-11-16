@@ -56,6 +56,7 @@ public sealed class MainWindow : Window
 
         _rt = CogniCustosRuntime.Create(home, msg => AppendLine("[log] " + msg));
         TryWireOllama();
+        TryWireCloud();
         _rt.AddTool(new PortalSidecarTool(_settings.PortalSidecarUrl));
 
         _reminders = new ReminderService(_rt.Tasks, TimeSpan.FromSeconds(20));
@@ -96,6 +97,13 @@ public sealed class MainWindow : Window
     {
         _ollama = new OllamaModelProvider(_settings.OllamaBaseUrl, _settings.OllamaModel);
         _rt.AddModel(_ollama);
+    }
+
+    private void TryWireCloud()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.CloudBaseUrl) || string.IsNullOrWhiteSpace(_settings.CloudModel))
+            return;
+        _rt.AddCloud(new OpenAiCompatibleProvider(_settings.CloudBaseUrl!, _settings.CloudModel!, _settings.CloudApiKey));
     }
 
     private Control BuildLayout()
@@ -247,32 +255,44 @@ public sealed class MainWindow : Window
 
     private TabItem BuildSettingsTab()
     {
-        var url = new TextBox { Text = _settings.OllamaBaseUrl, Width = 260 };
+        var url = new TextBox { Text = _settings.OllamaBaseUrl, Width = 300 };
         var model = new TextBox { Text = _settings.OllamaModel, Width = 200 };
-        var sidecar = new TextBox { Text = _settings.PortalSidecarUrl ?? "", Width = 260, Watermark = "留空表示不启用门户链路" };
+        var sidecar = new TextBox { Text = _settings.PortalSidecarUrl ?? "", Width = 300, Watermark = "留空表示不启用门户链路" };
+        var cloudBase = new TextBox { Text = _settings.CloudBaseUrl ?? "", Width = 300, Watermark = "如 http://127.0.0.1:11434/v1（用它就能离线验证出站闸门）" };
+        var cloudModel = new TextBox { Text = _settings.CloudModel ?? "", Width = 200 };
+        var cloudKey = new TextBox { Text = _settings.CloudApiKey ?? "", Width = 300, PasswordChar = '•', Watermark = "可留空（本地端点通常不需要）" };
+
         var save = MakeButton("保存并重连", () =>
         {
             _settings = _settings with
             {
                 OllamaBaseUrl = url.Text?.Trim() ?? _settings.OllamaBaseUrl,
                 OllamaModel = model.Text?.Trim() ?? _settings.OllamaModel,
-                PortalSidecarUrl = string.IsNullOrWhiteSpace(sidecar.Text) ? null : sidecar.Text!.Trim()
+                PortalSidecarUrl = string.IsNullOrWhiteSpace(sidecar.Text) ? null : sidecar.Text!.Trim(),
+                CloudBaseUrl = string.IsNullOrWhiteSpace(cloudBase.Text) ? null : cloudBase.Text!.Trim(),
+                CloudModel = string.IsNullOrWhiteSpace(cloudModel.Text) ? null : cloudModel.Text!.Trim(),
+                CloudApiKey = string.IsNullOrWhiteSpace(cloudKey.Text) ? null : cloudKey.Text!.Trim()
             };
             SettingsStore.Save(_settingsPath, _settings);
             Reconnect();
         });
 
         var stack = new StackPanel { Spacing = 8, Margin = new Thickness(0, 10) };
-        stack.Children.Add(new TextBlock { Text = "Ollama 地址", FontWeight = FontWeight.SemiBold });
+        stack.Children.Add(new TextBlock { Text = "本地模型 · Ollama 地址", FontWeight = FontWeight.SemiBold });
         stack.Children.Add(url);
-        stack.Children.Add(new TextBlock { Text = "模型名", FontWeight = FontWeight.SemiBold });
+        stack.Children.Add(new TextBlock { Text = "本地模型 · 模型名", FontWeight = FontWeight.SemiBold });
         stack.Children.Add(model);
-        stack.Children.Add(new TextBlock { Text = "门户 sidecar（cookie-whitelist 接口）", FontWeight = FontWeight.SemiBold });
+        stack.Children.Add(new TextBlock { Text = "云端模型 · OpenAI 兼容端点（出站前必过本地检查）", FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
+        stack.Children.Add(cloudBase);
+        stack.Children.Add(cloudModel);
+        stack.Children.Add(cloudKey);
+        stack.Children.Add(new TextBlock { Text = "门户 sidecar（cookie-whitelist 接口）", FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 8, 0, 0) });
         stack.Children.Add(sidecar);
         stack.Children.Add(save);
         stack.Children.Add(new TextBlock
         {
-            Text = "说明：模型按角色选择；门户链路通过本地 HTTP 接口复用既有 JS 实现，未配置时如实报错。",
+            Text = "说明：模型按角色选择；门户链路通过本地 HTTP 接口复用既有 JS 实现，未配置时如实报错；"
+                 + "cloud.ask 会先跑本地敏感内容检查，被判定敏感就拒绝发送并写入审计。",
             TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Brushes.Gray
         });
         return new TabItem { Header = "设置", Content = new ScrollViewer { Content = stack } };
@@ -292,8 +312,12 @@ public sealed class MainWindow : Window
     private void Reconnect()
     {
         TryWireOllama();
+        TryWireCloud();
         RefreshAll();
         AppendLine($"[log] 模型：{_settings.OllamaBaseUrl} / {_settings.OllamaModel}，可用={_ollama?.IsAvailable}");
+        AppendLine(_rt.Cloud is null
+            ? "[log] 云端：未配置（cloud.ask 会如实拒绝）"
+            : $"[log] 云端：{_rt.Cloud.Endpoint}，可用={_rt.Cloud.IsAvailable}（出站前本地检查）");
     }
 
     private async Task SendAsync()
@@ -401,7 +425,8 @@ public sealed class MainWindow : Window
         var modelText = _ollama is null
             ? "模型：未配置"
             : $"模型：{_settings.OllamaModel}（{(_ollama.IsAvailable ? "已连接" : "未连接")}）";
-        _status.Text = $"{modelText} · 待确认 {_rt.Gate.Pending().Count} 条 · 工具 {_rt.Tools.All.Count} 个";
+        var cloudText = _rt.Cloud is null ? "云端：未配置" : $"云端：{(_rt.Cloud.IsAvailable ? "可用" : "不可达")}";
+        _status.Text = $"{modelText} · {cloudText} · 待确认 {_rt.Gate.Pending().Count} 条 · 工具 {_rt.Tools.All.Count} 个";
     }
 
     private void AppendLine(string line)

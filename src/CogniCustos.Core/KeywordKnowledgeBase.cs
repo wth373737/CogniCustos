@@ -58,7 +58,7 @@ public sealed class KeywordKnowledgeBase : IKnowledgeBase
         return (double)matched / q.Length;
     }
 
-    private static string Snippet(string text, string[] q)
+    public static string Snippet(string text, string[] q)
     {
         foreach (var t in q)
         {
@@ -73,7 +73,7 @@ public sealed class KeywordKnowledgeBase : IKnowledgeBase
         return text.Length <= 200 ? text : text[..200];
     }
 
-    private static string[] Tokenize(string text)
+    public static string[] Tokenize(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return Array.Empty<string>();
         var tokens = new List<string>();

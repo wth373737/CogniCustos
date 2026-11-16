@@ -150,6 +150,88 @@ internal static class Program
             return tasks.Count == 1;
         });
 
+        // ---- objectives 2, 3 and 7: read-only files, self-docs, outbound gate ----
+
+        await Check("checker: flags an email and masks it in the preview", async () =>
+        {
+            var r = await rt.Checker.CheckAsync("请联系我：student@usm.my");
+            return r.Flagged && r.Reasons.Any(x => x.StartsWith("email")) && !r.RedactedPreview.Contains("student@usm.my");
+        });
+
+        await Check("checker: leaves ordinary study text alone", async () =>
+        {
+            var r = await rt.Checker.CheckAsync("周三之前把 SDLC 那一章的用例图补完");
+            return !r.Flagged;
+        });
+
+        await Check("fs.read: reads a file inside the application root", async () =>
+        {
+            var t = rt.Tools.Find("fs.read")!;
+            var r = await t.InvokeAsync(new Dictionary<string, string> { ["path"] = "README.md" });
+            return r.Ok && r.Content.Contains("CogniCustos");
+        });
+
+        await Check("fs.read: refuses a path outside the root", async () =>
+        {
+            var t = rt.Tools.Find("fs.read")!;
+            var r = await t.InvokeAsync(new Dictionary<string, string> { ["path"] = @"C:\Windows\win.ini" });
+            return !r.Ok && r.Content.Contains("拒绝");
+        });
+
+        await Check("fs.read: is read-only (no write tool exists)", () =>
+            Task.FromResult(rt.Tools.All.All(t => !t.Describe().Name.StartsWith("fs.w"))));
+
+        await Check("doc.search: answers from the app's own README", () =>
+        {
+            var t = rt.Tools.Find("doc.search")!;
+            var r = t.InvokeAsync(new Dictionary<string, string> { ["query"] = "确认处理器 沙箱" }).GetAwaiter().GetResult();
+            return Task.FromResult(r.Ok && r.Content.Contains("README"));
+        });
+
+        await Check("cloud.ask: refuses honestly when no cloud model is configured", async () =>
+        {
+            var t = rt.Tools.Find("cloud.ask")!;
+            var r = await t.InvokeAsync(new Dictionary<string, string> { ["text"] = "你好" });
+            return !r.Ok && r.Content.Contains("未配置");
+        });
+
+        rt.AddCloud(new StubCloud());
+
+        await Check("gate-outbound: clean text is sent and audited as 'sent'", async () =>
+        {
+            var t = rt.Tools.Find("cloud.ask")!;
+            var r = await t.InvokeAsync(new Dictionary<string, string> { ["text"] = "解释一下 RAG" });
+            var audit = rt.Audit.Recent(5);
+            return r.Ok && r.Content == "STUB_REPLY" && audit.Any(a => a.Decision == "sent");
+        });
+
+        await Check("gate-outbound: flagged text is refused and audited as 'refused'", async () =>
+        {
+            var t = rt.Tools.Find("cloud.ask")!;
+            var r = await t.InvokeAsync(new Dictionary<string, string> { ["text"] = "我的学号是 23300348，帮我填表" });
+            var audit = rt.Audit.Recent(5);
+            return !r.Ok && r.Content.Contains("拦截") && audit.Any(a => a.Decision == "refused");
+        });
+
+        await Check("gate-outbound: the human can explicitly override, and it is audited", async () =>
+        {
+            var t = rt.Tools.Find("cloud.ask")!;
+            var r = await t.InvokeAsync(new Dictionary<string, string>
+            {
+                ["text"] = "我的学号是 23300348，帮我填表",
+                ["allowFlagged"] = "true"
+            });
+            var audit = rt.Audit.Recent(5);
+            return r.Ok && audit.Any(a => a.Decision == "sent-overridden");
+        });
+
+        await Check("audit.recent: lists the attempts newest-first", () =>
+        {
+            var t = rt.Tools.Find("audit.recent")!;
+            var r = t.InvokeAsync(new Dictionary<string, string> { ["count"] = "3" }).GetAwaiter().GetResult();
+            return Task.FromResult(r.Ok && r.Content.Contains("sent") && r.Content.Split('\n').Length <= 3);
+        });
+
         if (Environment.GetEnvironmentVariable("COGNICUSTOS_LIVE_MODEL") == "1")
         {
             Console.WriteLine();
@@ -186,8 +268,22 @@ internal static class Program
         return _failed == 0 ? 0 : 1;
     }
 
-    private static async Task Check(string name, Func<Task<bool>> body)
+    /// <summary>A cloud that never leaves the machine: lets the outbound gate be tested offline.</summary>
+    private sealed class StubCloud : ICloudModelProvider
     {
+        public string Endpoint => "stub://cloud";
+        public string Id => "stub";
+        public ModelRole Role => ModelRole.Reasoning;
+        public bool IsAvailable => true;
+
+        public Task<string> CompleteAsync(string system, string user, CancellationToken ct = default)
+            => Task.FromResult("STUB_REPLY");
+
+        public Task<float[]> EmbedAsync(string text, CancellationToken ct = default)
+            => Task.FromResult(Array.Empty<float>());
+    }
+
+    private static async Task Check(string name, Func<Task<bool>> body)    {
         try
         {
             var ok = await body();

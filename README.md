@@ -22,15 +22,20 @@ UI 是占位的，随时会被替换；不要在这个版本上设计视觉。
 | 本地模型对话（Ollama，`/api/chat`、`/api/embeddings`） | ✅ 已连 qwen2.5:7b |
 | 模型按角色路由 + 无模型时的备用回答（不编造内容） | ✅ |
 | 知识库检索（关键词占位实现，接口与 LanceDB 一致） | ✅ 占位 |
+| **敏感内容本地检查（规则层，9 类）** | ✅ 不联网，只报告不静默改写 |
+| **云端模型 + 出站闸门**（OpenAI 兼容端点） | ✅ 检查→拦截/放行→审计 |
+| **出站审计**（含被拒记录） | ✅ JSONL，`/audit` 可查 |
+| **只读文件访问**（限制在应用目录内，≤512 KB） | ✅ 无任何写工具 |
+| **自文档检索**（README + 源码，AI 能解释系统怎么用） | ✅ 启动时自动索引 |
 | 大学门户只读读取（经本地 HTTP 接口复用 cookie-whitelist） | ✅ 接口就位，sidecar 未配置时如实报错 |
 | 图像识别 | ❌ 仅预留 `ModelRole.Vision`，未接 |
 | MCP 协议的真正实现（JSON-RPC over stdio/HTTP） | ❌ 工具已是 MCP 形状，但还没有协议层 |
 
-自检：19 条不变式 + 2 条真模型往返，全过。
+自检：**27 条不变式**（其中 6 条专测出站闸门与权限边界）+ 2 条真模型往返，全过。
 
 ```bash
 dotnet build -c Debug
-dotnet run --project src/CogniCustos.Selftest -c Debug          # 19/19
+dotnet run --project src/CogniCustos.Selftest -c Debug          # 27/27
 $env:COGNICUSTOS_LIVE_MODEL="1"; dotnet run --project src/CogniCustos.Selftest -c Debug   # + 2 条真模型
 dotnet run --project src/CogniCustos.Desktop                    # 打开窗口
 ```
@@ -114,4 +119,17 @@ GET {base}/v1/read?url=...&domain=...   -> { ok, title, text, links: [] }
 
 ## 七、状态
 
-2026-11-16 建立。`passed=20 failed=0`。截图：`docs/screenshot-main.png`。
+2026-11-17 第二轮：补上提案目标 2（只读文件工具）、目标 3（本地敏感检查 + 云端通路）、目标 7（自文档检索），
+并加了出站审计（§5.2.6 要求“包括被拒的请求”）。`passed=29 failed=0`。截图：`docs/screenshot-main.png`。
+
+第一轮（2026-11-16）：分层骨架、确认处理器、沙箱、SQLite、提醒、Ollama 对话、关键词检索、门户接口位。
+
+**出站闸门的行为**（这是本轮最需要验收的部分）：
+
+```
+cloud.ask → 本地规则检查（9 类：邮箱/电话/学号/密钥/密码/银行卡/身份证…）
+          ├─ 干净      → 发送 → 审计 "sent"
+          ├─ 命中      → 拒发 → 审计 "refused"，返回理由 + 脱敏预览
+          └─ 命中+人工放行 → 发送 → 审计 "sent-overridden"
+```
+
