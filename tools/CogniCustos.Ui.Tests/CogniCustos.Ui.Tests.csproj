@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Regression harness for the UI sandbox. It is a console program rather than
+    xunit on purpose: Avalonia.Headless.XUnit 12.x pulls xunit.v3, and a plain
+    runner keeps this project dependency-free. It prints PASS/FAIL and returns
+    a non-zero exit code, so it can gate a build or a task.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CogniCustos.Ui.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless" />
+    <PackageReference Include="Avalonia.Skia" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CogniCustos.Ui\CogniCustos.Ui.csproj" />
+  </ItemGroup>
+
+</Project>

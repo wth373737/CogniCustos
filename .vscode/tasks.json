@@ -63,6 +63,23 @@
       "dependsOn": "build-shots",
       "group": "none",
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "test",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/tools/CogniCustos.Ui.Tests/CogniCustos.Ui.Tests.csproj",
+        "-c",
+        "Debug"
+      ],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
     }
   ]
 }

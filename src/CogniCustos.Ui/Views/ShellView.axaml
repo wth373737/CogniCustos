@@ -187,6 +187,7 @@
               HorizontalAlignment="Right" VerticalAlignment="Stretch"
               Background="{StaticResource DrawerBg}"
               BorderBrush="#FFE2E0EE" BorderThickness="1,0,0,0"
+              ClipToBounds="True"
               Opacity="{Binding DrawerOpacity}"
               IsHitTestVisible="{Binding DrawerHitTest}">
         <Border.RenderTransform>
@@ -200,13 +201,19 @@
         </Border.RenderTransform>
         <Border.Transitions>
           <Transitions>
+            <DoubleTransition Property="Width" Duration="0:0:0.24" Easing="CubicEaseOut" />
             <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
           </Transitions>
         </Border.Transitions>
 
-        <Grid ColumnDefinitions="Auto,208">
-          <!-- reserved area, only visible when expanded -->
-          <Border Grid.Column="0" Width="352" IsVisible="{Binding DrawerExpanded}">
+        <Grid Width="560" HorizontalAlignment="Right" ColumnDefinitions="352,208">
+          <!-- reserved area: always laid out, faded in when the drawer expands -->
+          <Border Grid.Column="0" Opacity="{Binding FutureAreaOpacity}">
+            <Border.Transitions>
+              <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.22" />
+              </Transitions>
+            </Border.Transitions>
             <TextBlock Text="{Binding S.FutureAreaText}"
                        FontSize="26" FontWeight="Thin"
                        Foreground="#FF4B4B58"

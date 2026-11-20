@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using CogniCustos.Ui.ViewModels;
 
@@ -19,4 +20,19 @@ public sealed partial class ShellWindow : Window
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    /// <summary>
+    /// Escape is handled at the window level on purpose: right after launch nothing
+    /// has focus, so a key handler on the view would never see the key.
+    /// </summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && DataContext is ShellViewModel vm)
+        {
+            vm.CloseOverlays();
+            e.Handled = true;
+        }
+
+        base.OnKeyDown(e);
+    }
 }

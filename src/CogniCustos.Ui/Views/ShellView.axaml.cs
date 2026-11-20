@@ -16,17 +16,6 @@ public sealed partial class ShellView : UserControl
         if (Design.IsDesignMode) DataContext = new ShellViewModel();
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
-    {
-        if (e.Key == Key.Escape && DataContext is ShellViewModel vm)
-        {
-            vm.CloseOverlays();
-            e.Handled = true;
-        }
-
-        base.OnKeyDown(e);
-    }
-
     /// <summary>Click outside the drawer or the help panel closes it.</summary>
     private void OnBackdropPressed(object? sender, PointerPressedEventArgs e)
     {

@@ -16,6 +16,17 @@
       }
     },
     {
+      "name": "UI: run regression tests",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-all",
+      "program": "${workspaceFolder}/tools/CogniCustos.Ui.Tests/bin/Debug/net8.0/CogniCustos.Ui.Tests.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
       "name": "UI: render screenshots headlessly",
       "type": "coreclr",
       "request": "launch",

@@ -21,16 +21,19 @@
     <!-- body: section list + content -->
     <Grid Grid.Row="1" ColumnDefinitions="250,*" Margin="30,0,22,0">
 
-      <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
-                    HorizontalScrollBarVisibility="Disabled" Margin="0,0,18,0">
-        <ListBox Classes="settings"
-                 ItemsSource="{Binding S.SettingsSections}"
-                 SelectedIndex="{Binding SelectedSectionIndex, Mode=TwoWay}" />
-      </ScrollViewer>
+      <ListBox Grid.Column="0" Classes="settings" Margin="0,0,18,0"
+               ItemsSource="{Binding Settings.Sections}"
+               SelectedItem="{Binding Settings.Selected, Mode=TwoWay}">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="vm:SettingsSectionViewModel">
+            <TextBlock Text="{Binding Title}" FontSize="11.5" />
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
 
       <Border Grid.Column="1" CornerRadius="14" Background="#FFE7EFED" Padding="26,22">
         <Grid RowDefinitions="Auto,Auto,*">
-          <TextBlock Grid.Row="0" Text="{Binding SelectedSection}" FontSize="15" FontWeight="SemiBold"
+          <TextBlock Grid.Row="0" Text="{Binding Settings.SelectedTitle}" FontSize="15" FontWeight="SemiBold"
                      Foreground="#FF3C4A47" />
           <Border Grid.Row="1" Height="1" Background="#FFD7E2DF" Margin="0,12,0,0" />
           <TextBlock Grid.Row="2" Text="{Binding S.SettingsPlaceholder}" FontSize="12"

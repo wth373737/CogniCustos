@@ -9,5 +9,6 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/CogniCustos.Ui.Shots/CogniCustos.Ui.Shots.csproj" />
+    <Project Path="tools/CogniCustos.Ui.Tests/CogniCustos.Ui.Tests.csproj" />
   </Folder>
 </Solution>

@@ -9,6 +9,26 @@ namespace CogniCustos.Ui.Localization;
 /// </summary>
 public sealed class Strings : ObservableObject
 {
+    /// <summary>Number of settings sections; the titles live in two fixed arrays.</summary>
+    public const int SectionCount = 16;
+
+    private static readonly string[] SectionsEn =
+    [
+        "General", "Model Configuration", "Email Retrieval Configuration",
+        "Chat Retrieval Configuration", "Website Browsing Configuration",
+        "Student Network Configuration", "Prompt Configuration", "Hotkey Settings",
+        "Privacy Settings", "Knowledge Base Configuration", "Database Configuration",
+        "Sandbox Configuration", "Storage & Data", "Software Details",
+        "Notification Setting", "Offline & Network",
+    ];
+
+    private static readonly string[] SectionsZh =
+    [
+        "通用", "模型配置", "邮件抓取配置", "聊天抓取配置", "网页浏览配置",
+        "学生网络配置", "提示词配置", "快捷键设置", "隐私设置", "知识库配置",
+        "数据库配置", "沙箱配置", "存储与数据", "软件详情", "通知设置", "离线与网络",
+    ];
+
     private bool _isChinese;
 
     public bool IsChinese
@@ -52,21 +72,17 @@ public sealed class Strings : ObservableObject
     public string HelpTitle => _isChinese ? "帮助" : "Help";
     public string HelpPlaceholder => _isChinese ? "帮助内容面试装区" : "Help content placeholder";
 
-    /// <summary>Settings navigation, in the order of the sketch.</summary>
-    public IReadOnlyList<string> SettingsSections => _isChinese
-        ? new[]
-        {
-            "通用", "模型配置", "邮件抓取配置", "聊天抓取配置", "网页浏览配置",
-            "学生网络配置", "提示词配置", "快捷键设置", "隐私设置", "知识库配置",
-            "数据库配置", "沙箱配置", "存储与数据", "软件详情", "通知设置", "离线与网络",
-        }
-        : new[]
-        {
-            "General", "Model Configuration", "Email Retrieval Configuration",
-            "Chat Retrieval Configuration", "Website Browsing Configuration",
-            "Student Network Configuration", "Prompt Configuration", "Hotkey Settings",
-            "Privacy Settings", "Knowledge Base Configuration", "Database Configuration",
-            "Sandbox Configuration", "Storage & Data", "Software Details",
-            "Notification Setting", "Offline & Network",
-        };
+    /// <summary>Label of a row added by the "+" button or the input box (sandbox data).</summary>
+    public string NewRowLabel => _isChinese ? "新条目" : "New entry";
+
+    /// <summary>
+    /// Section title by stable index. Stable identity matters: the settings list
+    /// keeps its item instances across a language switch, so the ListBox selection
+    /// is not reset when the titles change.
+    /// </summary>
+    public string SectionTitle(int index)
+    {
+        if (index < 0 || index >= SectionCount) return string.Empty;
+        return _isChinese ? SectionsZh[index] : SectionsEn[index];
+    }
 }

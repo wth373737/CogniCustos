@@ -6,6 +6,6 @@
     "artifacts": true
   },
   "editor.formatOnSave": false,
-  "axaml.previewer.renderingMode": "software",
-  "omnisharp.enableEditorConfigSupport": true
+  "avalonia.preview.autoOpen": true,
+  "avalonia.preview.syncWithLaunchConfig": true
 }

@@ -3,36 +3,51 @@ using CogniCustos.Ui.Mvvm;
 
 namespace CogniCustos.Ui.ViewModels;
 
+/// <summary>Visual variant of a board card; each value maps to a style class in Controls.axaml.</summary>
+public enum CardVariant
+{
+    Plain,
+    Pink,
+    Olive,
+}
+
 /// <summary>
 /// One board column. Text comes from a factory so switching language does not
-/// destroy collapse state or the current contents.
+/// destroy collapse state, and the seed rows are kept separate from the rows the
+/// user added at runtime.
 /// </summary>
 public sealed class CardViewModel : ObservableObject
 {
     private readonly Func<(string Title, string Empty, IReadOnlyList<CardItem> Items)> _source;
+    private readonly Func<string> _newRowText;
+    private int _seedCount;
     private bool _collapsed;
     private string _title = string.Empty;
     private string _emptyText = string.Empty;
 
-    public CardViewModel(string glyph, string styleClass, bool isPink, bool isOlive,
-        Func<(string Title, string Empty, IReadOnlyList<CardItem> Items)> source)
+    public CardViewModel(string glyph, CardVariant variant,
+        Func<(string Title, string Empty, IReadOnlyList<CardItem> Items)> source,
+        Func<string> newRowText)
     {
         Glyph = glyph;
-        StyleClass = styleClass;
-        IsPink = isPink;
-        IsOlive = isOlive;
+        Variant = variant;
         _source = source;
+        _newRowText = newRowText;
 
         ToggleCollapseCommand = new RelayCommand(ToggleCollapse);
-        AddCommand = new RelayCommand(AddDemoRow);
+        AddCommand = new RelayCommand(AddRow);
 
         Refresh();
     }
 
+    /// <summary>MDL2 glyph shown in the card header.</summary>
     public string Glyph { get; }
-    public string StyleClass { get; }
-    public bool IsPink { get; }
-    public bool IsOlive { get; }
+
+    public CardVariant Variant { get; }
+
+    // Style-class bindings (Classes.pink / Classes.olive in the template).
+    public bool IsPink => Variant == CardVariant.Pink;
+    public bool IsOlive => Variant == CardVariant.Olive;
 
     public ObservableCollection<CardItem> Items { get; } = [];
 
@@ -72,24 +87,28 @@ public sealed class CardViewModel : ObservableObject
 
     public bool IsEmpty => Items.Count == 0;
 
-    /// <summary>Re-read every localised string (called when the language changes).</summary>
+    /// <summary>
+    /// Re-read every localised string (called when the language changes).
+    /// Only the seed rows are replaced; rows added at runtime stay where they are.
+    /// </summary>
     public void Refresh()
     {
         var (title, empty, items) = _source();
         Title = title;
         EmptyText = empty;
 
-        Items.Clear();
-        foreach (var item in items) Items.Add(item);
+        for (var i = 0; i < _seedCount && Items.Count > 0; i++) Items.RemoveAt(0);
+        for (var i = 0; i < items.Count; i++) Items.Insert(i, items[i]);
+        _seedCount = items.Count;
 
         OnPropertyChanged(nameof(IsEmpty));
     }
 
     private void ToggleCollapse() => IsCollapsed = !_collapsed;
 
-    private void AddDemoRow()
+    private void AddRow()
     {
-        Items.Add(new CardItem("New entry", DateTime.Now.ToString("HH:mm")));
+        Items.Add(new CardItem(_newRowText(), DateTime.Now.ToString("HH:mm")));
         OnPropertyChanged(nameof(IsEmpty));
     }
 }

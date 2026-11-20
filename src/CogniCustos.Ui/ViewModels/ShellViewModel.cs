@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CogniCustos.Ui.Localization;
 using CogniCustos.Ui.Mvvm;
 
@@ -13,34 +14,45 @@ public sealed class ShellViewModel : ObservableObject
     private const double MenuWidth = 208;
     private const double ExpandedWidth = 560;
 
+    private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(6) };
+
     private bool _drawerOpen;
     private bool _drawerExpanded;
     private bool _settingsOpen;
     private bool _helpOpen;
-    private int _selectedSectionIndex;
     private string _inputText = string.Empty;
     private string _toast = string.Empty;
 
     public ShellViewModel()
     {
+        S = new Strings();
+        Settings = new SettingsViewModel(S);
+
         ToggleDrawerCommand = new RelayCommand(ToggleDrawer);
         ExpandDrawerCommand = new RelayCommand(ExpandDrawer);
         ToggleSettingsCommand = new RelayCommand(ToggleSettings);
         ToggleHelpCommand = new RelayCommand(ToggleHelp);
-        ToggleLanguageCommand = new RelayCommand(ToggleLanguage);
+        ToggleLanguageCommand = new RelayCommand(() => ApplyLanguage(!S.IsChinese));
         GoHomeCommand = new RelayCommand(GoHome);
         SubmitInputCommand = new RelayCommand(SubmitInput);
-        CloseOverlaysCommand = new RelayCommand(CloseOverlays);
 
         Cards =
         [
-            new CardViewModel("\uE787", "today", isPink: false, isOlive: false, BuildToday),
-            new CardViewModel("\uE9D5", "pending", isPink: true, isOlive: false, BuildPending),
-            new CardViewModel("\uE8FD", "note", isPink: false, isOlive: true, BuildNote),
+            new CardViewModel("\uE787", CardVariant.Plain, BuildToday, () => S.NewRowLabel),
+            new CardViewModel("\uE9D5", CardVariant.Pink, BuildPending, () => S.NewRowLabel),
+            new CardViewModel("\uE8FD", CardVariant.Olive, BuildNote, () => S.NewRowLabel),
         ];
+
+        _toastTimer.Tick += (_, _) =>
+        {
+            _toastTimer.Stop();
+            Toast = string.Empty;
+        };
     }
 
-    public Strings S { get; } = new();
+    public Strings S { get; }
+
+    public SettingsViewModel Settings { get; }
 
     public ObservableCollection<CardViewModel> Cards { get; }
 
@@ -51,7 +63,6 @@ public sealed class ShellViewModel : ObservableObject
     public RelayCommand ToggleLanguageCommand { get; }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand SubmitInputCommand { get; }
-    public RelayCommand CloseOverlaysCommand { get; }
 
     public string InputText
     {
@@ -96,6 +107,7 @@ public sealed class ShellViewModel : ObservableObject
             OnPropertyChanged(nameof(DrawerWidth));
             OnPropertyChanged(nameof(DrawerOffset));
             OnPropertyChanged(nameof(ExpandGlyph));
+            OnPropertyChanged(nameof(FutureAreaOpacity));
         }
     }
 
@@ -138,29 +150,11 @@ public sealed class ShellViewModel : ObservableObject
 
     public bool DrawerHitTest => _drawerOpen;
 
+    /// <summary>Fades the reserved area in while the drawer grows.</summary>
+    public double FutureAreaOpacity => _drawerExpanded ? 1 : 0;
+
     /// <summary>Chevron in the drawer footer: "&lt;" expands, "&gt;" collapses (MDL2 glyphs).</summary>
     public string ExpandGlyph => _drawerExpanded ? "\uE76C" : "\uE76B";
-
-    public int SelectedSectionIndex
-    {
-        get => _selectedSectionIndex;
-        set
-        {
-            if (!Set(ref _selectedSectionIndex, value)) return;
-            OnPropertyChanged(nameof(SelectedSection));
-        }
-    }
-
-    public string SelectedSection
-    {
-        get
-        {
-            var sections = S.SettingsSections;
-            return _selectedSectionIndex >= 0 && _selectedSectionIndex < sections.Count
-                ? sections[_selectedSectionIndex]
-                : string.Empty;
-        }
-    }
 
     private void ToggleDrawer()
     {
@@ -188,11 +182,12 @@ public sealed class ShellViewModel : ObservableObject
         HelpOpen = !HelpOpen;
     }
 
-    private void ToggleLanguage()
+    /// <summary>Single path for language changes, so text refresh cannot be half-applied.</summary>
+    private void ApplyLanguage(bool chinese)
     {
-        S.IsChinese = !S.IsChinese;
+        S.IsChinese = chinese;
+        Settings.RefreshTitles();
         foreach (var card in Cards) card.Refresh();
-        OnPropertyChanged(nameof(SelectedSection));
         Toast = string.Empty;
     }
 
@@ -209,7 +204,14 @@ public sealed class ShellViewModel : ObservableObject
 
         Cards[0].Items.Add(new CardItem(text, DateTime.Now.ToString("HH:mm")));
         InputText = string.Empty;
-        Toast = S.IsChinese ? "已暂存到「今天」（沙箱假数据）" : "Added to today (sandbox data)";
+        SetToast(S.IsChinese ? "已暂存到「今天」（沙箱假数据）" : "Added to today (sandbox data)");
+    }
+
+    private void SetToast(string text)
+    {
+        Toast = text;
+        _toastTimer.Stop();
+        if (HasToast) _toastTimer.Start();
     }
 
     public void CloseOverlays()
@@ -253,9 +255,14 @@ public sealed class ShellViewModel : ObservableObject
                 SettingsOpen = true;
                 break;
             case "settings-zh":
-                S.IsChinese = true;
-                foreach (var card in Cards) card.Refresh();
+                ApplyLanguage(true);
                 SettingsOpen = true;
+                break;
+            case "settings-deep":
+                // Select first, switch language after: this used to clear the selection.
+                SettingsOpen = true;
+                Settings.Selected = Settings.Sections[5];
+                ApplyLanguage(true);
                 break;
             case "help":
                 HelpOpen = true;
