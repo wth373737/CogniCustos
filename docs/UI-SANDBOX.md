@@ -7,23 +7,45 @@
 src/CogniCustos.Ui/            ← WinExe，可单独运行（Avalonia 12.1.6 / net8.0）
   App.axaml / Program.cs
   ShellWindow.axaml            ← 窗口 + Viewbox（等比缩放），Esc 在窗口级处理
-  Views/ShellView.axaml        ← 1280×720 画布：顶栏 / 卡片 / 推理记录 / 输入条 / 竖排栏 / 抽屉 / 帮助
+  Views/ShellView.axaml        ← 1280×720 画布：左栏 / 顶栏 / 三张卡 / 输入 / 右栏 / 抽屉 / 浮层
   Views/SettingsPage.axaml     ← 设置页（盖住整块画布）
+  Views/ShellView.axaml.cs     ← 提醒条跑马灯（DispatcherTimer）
   Resources/Lang.en.axaml      ← 英文文案（可翻译资源）
   Resources/Lang.zh.axaml      ← 中文文案
   Localization/Localizer.cs    ← 语言切换：换资源字典 + 给 VM 提供取词
   Styles/Tokens.axaml          ← 颜色、字体、图标字形、手绘几何
   Styles/Controls.axaml        ← 按钮/卡片/导航等样式
   ViewModels/ShellViewModel.cs ← 窗口状态（抽屉、设置、语言、输入、Toast）
-  ViewModels/CardViewModel.cs  ← 单张卡片（标题、条目、折叠、加一条、变体）
+  ViewModels/TodayViewModel.cs ← 顶部「今天」提醒条（跑马灯 + 展开列表）
+  ViewModels/CardViewModel.cs  ← 单张卡片（种类、标题、条目、折叠）
   ViewModels/SettingsViewModel.cs, SettingsSectionViewModel.cs ← 设置页选中状态
   Mvvm/                        ← 极小的 ObservableObject / RelayCommand
 
 tools/CogniCustos.Ui.Shots/    ← 无头渲染：把每个状态导成 PNG（只看图）
-tools/CogniCustos.Ui.Tests/    ← 无头回归：21 条断言，非 0 退出码即失败
+tools/CogniCustos.Ui.Tests/    ← 无头回归：24 条断言，非 0 退出码即失败
 ```
 
-## 一、等比缩放（任何分辨率都保持示例图的比例）
+## 一、布局（按草稿实测比例）
+
+草稿窗口内宽 801px，换算到 1280 宽画布（×1.598）：
+
+| 区域 | 草稿 | 1280 画布 | 说明 |
+|---|---|---|---|
+| 左栏 | 0–117（14.6%） | **187** | 顶部大 logo；底部「推理记录」白面板 |
+| 内容区 | 118–745 | 1005 | 顶栏 76 高；卡片从 y=85 开始 |
+| 右栏 | 746–801（6.9%） | **88** | 顶部 `En`，下部 ≡ / ? / ⚙ |
+| 卡片 | 154 宽 / 28 间距 | **246 / 45** | 三张左对齐，起点 x=214 |
+| 输入框 | 155 宽 | **250** | 内容区水平居中，距底 62 |
+
+**语义（这里曾经读错，已纠正）**：
+
+- **顶部那一行是"今天"**：品牌 chip 之后是一条带闹钟图标的提醒条，文字**循环滚动**（跑马灯），
+  点它会向下展开**今天的列表**。输入框回车提交的内容也进这里。
+- **第一张卡是压缩日历**，不是今天的内容：日历图标 + 折叠箭头 + 右对齐日期；点开日历模式尚未实现（＋按钮暂时禁用）。
+- 第二张卡 `Pending Items`（粉色）在草稿里**没有 ＋**；第三张 `note`（淡黄）有 ＋。
+- 卡片标题**右对齐**，折叠箭头 ∧ 在标题左侧；卡片底部左侧的 ∨ 是"打开列表"入口。
+
+## 二、等比缩放（任何分辨率都保持示例图比例）
 
 `ShellWindow` 里是
 
@@ -33,137 +55,87 @@ tools/CogniCustos.Ui.Tests/    ← 无头回归：21 条断言，非 0 退出码
 </Viewbox>
 ```
 
-即：**整块界面按 1280×720 画布（16:9）排版，然后整体等比缩放到窗口**。
+- 1024×576 → 0.80×，1280×720 → 1.00×，1920×1080 → 1.50×，2560×1440 → 2.00×。
+- 16:9 显示器铺满；非 16:9（4:3、21:9）**留边**，不裁切不变形（已定方案）。
+- 缩放是矢量变换（字不糊），命中测试与焦点跟随缩放。
 
-- 1024×576 → 0.80×；1280×720 → 1.00×；1920×1080 → 1.50×；2560×1440 → 2.00×。
-- 16:9 显示器上刚好铺满，不留边。
-- 字、间距、卡片、图标全部同比例变化，不会出现"窗口变大只有空白变多"。
-- 缩放是**矢量变换**，文字不会糊（Skia 在最终变换下绘制）；命中测试与焦点跟随缩放。
+## 三、文本资源与翻译
 
-取舍（已定）：
+文案在 `Resources/Lang.en.axaml` / `Lang.zh.axaml`；XAML 用 `{DynamicResource Some.Key}`，视图模型用 `Localizer.Get("Some.Key")`。
 
-| 情况 | 处理 |
-|---|---|
-| 16:9 窗口 | 铺满 |
-| 非 16:9（4:3、21:9） | **留边**（`Uniform`），不裁切、不变形 —— 这是你选的方案 |
-| 想改成裁切填满 | 把 `Stretch` 换成 `UniformToFill`（会切掉约 5% 边缘） |
-| 想改设计基准 | 改 `ShellView` 的 `Width/Height` 与像素常量，整块画布比例随之变化 |
+切换：`Localizer.SetLanguage("zh")` 载入对应 axaml，替换 `Application.Resources` 里的语言字典；`DynamicResource` 自动重解析，VM 侧由 `ShellViewModel.ApplyLanguage` 重取。
 
-## 二、文本资源与翻译
+**新增一种语言**：复制 `Lang.en.axaml` → `Lang.ja.axaml`（只改值）→ `Localizer.KnownLanguages` 加 `"ja"` → 若要 UI 可切，改 `NextLanguage()`。
+键集合不一致、空值、缺键都会被测试抓住；运行时缺键显示 `!Some.Key!`。
 
-文案全部在 `Resources/Lang.en.axaml` / `Lang.zh.axaml`，键名分组：`App.*`、`Card.*`、`Tile.*`、`Section.*`、`Tip.*`、`Demo.*`、`Toast.*`、`Help.*`、`Settings.*`、`Drawer.*`、`Reasoning.*`。
-
-两种消费方式，同一份文件：
-
-```xml
-<!-- XAML：随语言切换自动刷新 -->
-<TextBlock Text="{DynamicResource App.Home}" />
-<Button ToolTip.Tip="{DynamicResource Tip.Menu}" />
-```
-
-```csharp
-// 视图模型：取当前语言的字符串
-var label = Localizer.Get("Card.Row.New");
-```
-
-切换机制：`Localizer.SetLanguage("zh")` 用 `AvaloniaXamlLoader` 载入 `Lang.zh.axaml`，替换 `Application.Resources` 里第 2 个合并字典；`DynamicResource` 自动重解析，VM 侧由 `ShellViewModel.ApplyLanguage` 重取一次。
-
-**新增一种语言**（例如日语）：
-1. 复制 `Lang.en.axaml` → `Lang.ja.axaml`，只改值、不改键；
-2. `Localizer.KnownLanguages` 加上 `"ja"`；
-3. 若要 UI 里能切到它，把 `NextLanguage()` 改成循环或加一个语言菜单。
-
-翻译质量由测试兜底：键集合不一致、空值、缺键都会让测试变红；运行时缺键会显示 `!Some.Key!` 而不是静默变空。
-
-## 三、运行与调试（VS Code）
+## 四、运行与调试（VS Code）
 
 | 目的 | 做法 |
 |---|---|
-| 跑窗口 | `F5` → `UI: run the window (CogniCustos.Ui)`；或 `dotnet run --project src/CogniCustos.Ui` |
-| 跑回归 | `F5` → `UI: run regression tests`；或 `dotnet run --project tools/CogniCustos.Ui.Tests` |
-| 出图 | `F5` → `UI: render screenshots headlessly`；或 `dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720` |
-| 只预览 XAML | 打开 `Views/ShellView.axaml`，Avalonia 扩展的预览器会加载它（构造函数里有 `Design.IsDesignMode` 分支给设计态 VM）。**这一条没能实测**，第一次用预览器时留意 |
+| 跑窗口 | `F5` → `UI: run the window (CogniCustos.Ui)` |
+| 跑回归 | `F5` → `UI: run regression tests` |
+| 出图 | `F5` → `UI: render screenshots headlessly`，或 `dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720` |
+| 预览 XAML | 打开 `Views/ShellView.axaml`，预览器会实例化它（`Design.IsDesignMode` 分支给设计态 VM）。**没实测过** |
 
-> 构建注意：这台机器上 `dotnet build` 在受限沙箱里会因 SChannel / 命名管道被拒，**在 VS Code 里跑不受影响**。
+> 构建注意：这台机器上 `dotnet build` 在受限沙箱里会因 SChannel / 命名管道被拒，在 VS Code 里跑不受影响。
 
-## 四、交互（已实现）
+## 五、交互（已实现）
 
-- 右侧竖排栏：`≡` 抽屉、`?` 帮助、`⚙` 设置页、`En/中` 切语言（当前项高亮）。
-- 抽屉：`‹` 向左展开预留区（宽度 208→560 带过渡、内容淡入），展开后变 `›`；抽屉从顶栏下方滑出。
-- 卡片：`∨` 折叠 / `∧` 展开（300 ↔ 78）；`＋` 加一条；空列表显示空态文案。
-- 输入条：输入后按 **Enter** 追加到第一张卡片，推理记录显示状态，6 秒后自动消失。
-- 关闭：`Esc`（窗口级，启动即生效）、点抽屉/帮助之外、顶栏 `Home`。
-- 设置页：左栏 16 个分区，选中项标题进右栏；`↩` 或 `Esc` 返回。
-- 语言切换：全局生效；**用户自己加的条目不会被翻译**（用户数据不是界面文案）。
-
-## 五、设计约定
-
-- 颜色/字体/图标全在 `Styles/Tokens.axaml`。图标用 Windows **Segoe MDL2 Assets** 字形；数据库图标该字体没有，手绘 `StreamGeometry`。
-- 画布 1280×720：顶栏 76、内容自适应、底部 140、右栏 64；卡片 300×300（折叠 78）。
-- 卡片变体：`CardVariant`（Plain/Pink/Olive）→ `Classes.pink/olive` → 样式。加变体 = 枚举 + 两个 bool + 样式类；要**结构不同**时改按 VM 子类型选模板。
-- 新文案先加进两个 Lang 文件，再在 XAML 用 `DynamicResource`、在 VM 用 `Localizer.Get`。
+- 顶部提醒条：循环滚动；点击展开/收起今天的列表（带 `!` 折叠箭头方向变化）。
+- 输入框：Enter 追加到今天的提醒里，并在左栏推理面板显示状态（6 秒后消失）。
+- 卡片：∧ 折叠 / ∨ 展开（300 ↔ 78）；`note` 卡的 ＋ 加一条；日历卡的 ＋ 与折叠在（+ 禁用）。
+- 抽屉：右栏 ≡；`‹` 向左展开预留区（208→560，带过渡与淡入），`›` 收起。
+- 设置页：右栏 ⚙；左栏 16 个分区，右栏显示选中标题；`↩` 或 `Esc` 返回。
+- 关闭：`Esc`（窗口级）、点抽屉/浮层以外、顶栏 `Home`、标签 `En/中` 切语言。
 
 ## 六、回归测试（tools/CogniCustos.Ui.Tests）
 
-21 条断言，跑在真实可视树上（真按键、真绑定、真缩放）。非 0 退出码即失败。
+24 条断言，跑在真实可视树上（真按键、真绑定、真缩放），非 0 退出即失败。
 
 ```
-PASS language_files_have_identical_non_empty_keys   en/zh 键集合完全一致且没有空值
-PASS settings_sections_all_have_resources           16 个分区键都在资源里
-PASS every_key_resolves_in_both_languages           两种语言下每个键都能取值
-PASS enter_adds_row_and_clears_input                回车提交
-PASS empty_enter_does_nothing                       空输入不提交
-PASS card_collapse_and_expand                       折叠 78 / 展开 300
+PASS language_files_have_identical_non_empty_keys
+PASS settings_sections_all_have_resources
+PASS every_key_resolves_in_both_languages
+PASS enter_adds_to_today_and_clears_input      回车进「今天」，不进日历卡
+PASS empty_enter_does_nothing
+PASS calendar_card_is_not_today                第一张卡是日历、没有条目
+PASS pending_card_has_no_add_button            草稿里 pending 卡没有 ＋
+PASS today_list_toggles                        提醒条列表开合 + 箭头
+PASS card_collapse_and_expand
 PASS added_rows_use_current_language_and_are_not_retranslated
-PASS language_switch_keeps_settings_selection       ← 设置选中不丢
-PASS language_switch_keeps_user_rows                ← 用户行不被清
-PASS dynamic_resource_text_updates_on_language_switch  ← DynamicResource 真刷新
-PASS escape_closes_drawer_without_inner_focus       ← Esc 无焦点也生效
+PASS language_switch_keeps_settings_selection
+PASS language_switch_keeps_user_rows
+PASS dynamic_resource_text_updates_on_language_switch
+PASS escape_closes_drawer_without_inner_focus
 PASS escape_closes_settings_with_inner_focus
 PASS drawer_and_settings_are_mutually_exclusive
 PASS backdrop_visibility_follows_overlays
 PASS drawer_expands_and_animates_width
-PASS canvas_scales_uniformly_at_1024x576            ← 0.80
-PASS canvas_scales_uniformly_at_1280x720            ← 1.00
-PASS canvas_scales_uniformly_at_1600x900            ← 1.25
-PASS canvas_scales_uniformly_at_1920x1080           ← 1.50
-PASS canvas_scales_uniformly_at_2560x1440           ← 2.00
-PASS canvas_letterboxes_at_4x3                      ← 4:3 只上下留边，仍等比
+PASS canvas_scales_uniformly_at_1024x576 / 1280x720 / 1600x900 / 1920x1080 / 2560x1440
+PASS canvas_letterboxes_at_4x3
 ```
-
-缩放断言的做法：外壳必须始终以 1280×720 布局（`Bounds`），再由 `TransformToVisual(window)` 读出的矩阵必须是预期的 `s` 且 M11==M22（等比、不拉伸）。
-
-用控制台断言而不是 xunit：`Avalonia.Headless.XUnit 12.x` 依赖 xunit.v3，多一层版本耦合不值得；退出码已经够当门禁。
 
 ## 七、出图
 
-9 个状态 → `artifacts/ui/`，文件名带尺寸：
-
-```
-home  drawer  expanded  settings  help  collapsed  toast  settings-zh  settings-deep
-```
-
-`settings-deep` 用来看"先选中第 6 项再切中文"是否还保持选中（历史 bug A）。
-常用尺寸：`1280 720`、`1024 576`、`1920 1080`、`2560 1440`、`1024 768`（看留边）。
+10 个状态 → `artifacts/ui/`：`home drawer expanded settings help collapsed toast settings-zh settings-deep today-list`。
+`toast` 之后的状态曾被语言污染（跑马灯/中文混排），现在每个状态都先复位到英文再演。
 
 ## 八、版本与依赖
 
-- Avalonia **12.1.6**、net8.0；包版本集中在根目录 `Directory.Packages.props`。
+- Avalonia **12.1.6**、net8.0；版本集中在根目录 `Directory.Packages.props`。
 - 12 的两处迁移：`TextBox.Watermark` → `PlaceholderText`；`Bitmap.Save(path,int)` → `Save(path, PngBitmapEncoderOptions.Default)`。
 
 ## 九、已知限制
 
-1. **比例锁在 16:9**：非 16:9 窗口会留边（这是"保持示例图比例"的直接结果）。
-2. **文字随窗口缩**：1024×576 时 11.5px 正文变成约 9px。觉得小就提高最小窗口尺寸（现在 1024×576）或把画布基准调大。
-3. **DPI**：缩放让比例与 DPI 无关，但 150%/200% 下的实际字号观感还没实测。
-4. 无边框标题栏、抽屉 7 个图标的目标页、设置分区表单、推理记录展开态都还没做——会改设计，等你拍板。
-5. 预览器的实际渲染没验证过。
-6. 译文过长可能撑出固定宽度（例如 52px 的抽屉图标标签）。加语言时留意长词，必要时给那几处放宽或改省略号。
+1. **日历模式没做**：日历卡目前只有外观，点开是后续工作；＋ 因此暂时禁用。
+2. 卡片底部 ∨（打开列表）与抽屉里 7 个图标**还没有目标页面**。
+3. **文字随窗口缩**：1024×576 时 11.5px 正文约 9px。
+4. **DPI**：比例与 DPI 无关，但 150%/200% 的实际观感未实测。
+5. 预览器渲染未实测。
+6. 译文过长会顶出固定宽度（卡片标题 90、抽屉标签 52）。
 
 ## 十、变更记录
 
-**第 5 轮（2026-11-21）**：画布从 1280×800 改为 **1280×720（16:9）**；窗口默认 1280×720、最小 1024×576；缩放断言扩到 6 组（含 4:3 留边）。
+**第 6 轮（2026-11-21）**：按草稿纠正三处误读——补左栏（logo + 推理记录）、顶部改成"今天"提醒条（跑马灯 + 展开列表）、第一张卡改成压缩日历；卡片几何按实测重排（246/45/起点 214），pending 卡去掉 ＋，输入框收窄到 250，右栏加宽到 88。
 
-**第 4 轮（2026-11-21）**：等比缩放（Viewbox）+ 文案资源化（`Lang.*.axaml` + `Localizer`），`Strings.cs` 删除；回归 12 → 19 条。
-
-**第 3 轮（2026-11-20）**：四个 bug + 回归工程（commit `3144fd5`）。
+**第 5 轮**：画布改 1280×720（16:9）。**第 4 轮**：等比缩放 + 文案资源化。**第 3 轮**：四个 bug + 回归工程。

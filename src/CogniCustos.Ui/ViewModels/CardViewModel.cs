@@ -3,12 +3,15 @@ using CogniCustos.Ui.Mvvm;
 
 namespace CogniCustos.Ui.ViewModels;
 
-/// <summary>Visual variant of a board card; each value maps to a style class in Controls.axaml.</summary>
-public enum CardVariant
+/// <summary>
+/// What a board card stands for. The first card is a compressed calendar, not a
+/// list of today's entries — today lives in the reminder pill at the top.
+/// </summary>
+public enum CardKind
 {
-    Plain,
-    Pink,
-    Olive,
+    Calendar,
+    Pending,
+    Note,
 }
 
 /// <summary>
@@ -25,12 +28,12 @@ public sealed class CardViewModel : ObservableObject
     private string _title = string.Empty;
     private string _emptyText = string.Empty;
 
-    public CardViewModel(string glyph, CardVariant variant,
+    public CardViewModel(CardKind kind, string glyph,
         Func<(string Title, string Empty, IReadOnlyList<CardItem> Items)> source,
         Func<string> newRowText)
     {
+        Kind = kind;
         Glyph = glyph;
-        Variant = variant;
         _source = source;
         _newRowText = newRowText;
 
@@ -40,14 +43,23 @@ public sealed class CardViewModel : ObservableObject
         Refresh();
     }
 
+    public CardKind Kind { get; }
+
     /// <summary>MDL2 glyph shown in the card header.</summary>
     public string Glyph { get; }
 
-    public CardVariant Variant { get; }
-
     // Style-class bindings (Classes.pink / Classes.olive in the template).
-    public bool IsPink => Variant == CardVariant.Pink;
-    public bool IsOlive => Variant == CardVariant.Olive;
+    public bool IsPink => Kind == CardKind.Pending;
+    public bool IsOlive => Kind == CardKind.Note;
+
+    /// <summary>The calendar card has no rows and no "+" (the sketch has none either... it has one, but no action yet).</summary>
+    public bool CanAdd => Kind != CardKind.Calendar;
+
+    /// <summary>True for cards that carry a list of rows (pending / note).</summary>
+    public bool HasRows => Kind != CardKind.Calendar;
+
+    /// <summary>The sketch shows "+" on the calendar and note cards, but not on pending.</summary>
+    public bool ShowAdd => Kind != CardKind.Pending;
 
     public ObservableCollection<CardItem> Items { get; } = [];
 
@@ -82,8 +94,8 @@ public sealed class CardViewModel : ObservableObject
 
     public double CardHeight => _collapsed ? 78 : 300;
 
-    /// <summary>MDL2 chevron: down when expanded, up when collapsed.</summary>
-    public string CollapseGlyph => _collapsed ? "\uE70E" : "\uE70D";
+    /// <summary>MDL2 chevron for the header: up while expanded (collapse), down while collapsed.</summary>
+    public string CollapseGlyph => _collapsed ? "\uE70D" : "\uE70E";
 
     public bool IsEmpty => Items.Count == 0;
 
@@ -108,6 +120,7 @@ public sealed class CardViewModel : ObservableObject
 
     private void AddRow()
     {
+        if (!CanAdd) return;
         Items.Add(new CardItem(_newRowText(), DateTime.Now.ToString("HH:mm")));
         OnPropertyChanged(nameof(IsEmpty));
     }

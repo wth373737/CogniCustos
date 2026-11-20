@@ -1,13 +1,16 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-  <!-- ============ Palette ============ -->
-  <Color x:Key="AppBgColor">#FFF5F5F9</Color>
+  <!-- ============ Palette (sampled from the sketch) ============ -->
+  <Color x:Key="AppBgColor">#FFF2F2F7</Color>
   <Color x:Key="SurfaceColor">#FFFFFFFF</Color>
-  <Color x:Key="RailColor">#FFFCFCFE</Color>
+  <Color x:Key="SidebarColor">#FFEBEBEF</Color>
+  <Color x:Key="RailColor">#FFE7E4F0</Color>
   <Color x:Key="DrawerColor">#FFECEAF6</Color>
-  <Color x:Key="CardPinkColor">#FFFBEFF1</Color>
-  <Color x:Key="CardOliveColor">#FFF7F6E6</Color>
+  <Color x:Key="CardCalendarColor">#FFEEEEEF</Color>
+  <Color x:Key="CardPinkColor">#FFFCE8EA</Color>
+  <Color x:Key="CardOliveColor">#FFF0EFDF</Color>
+  <Color x:Key="ChipColor">#FFE3E3E3</Color>
   <Color x:Key="InkColor">#FF23232B</Color>
   <Color x:Key="InkSoftColor">#FF6B6B79</Color>
   <Color x:Key="InkFaintColor">#FF9A9AA7</Color>
@@ -15,10 +18,13 @@
 
   <SolidColorBrush x:Key="AppBg" Color="{StaticResource AppBgColor}" />
   <SolidColorBrush x:Key="Surface" Color="{StaticResource SurfaceColor}" />
+  <SolidColorBrush x:Key="SidebarBg" Color="{StaticResource SidebarColor}" />
   <SolidColorBrush x:Key="RailBg" Color="{StaticResource RailColor}" />
   <SolidColorBrush x:Key="DrawerBg" Color="{StaticResource DrawerColor}" />
+  <SolidColorBrush x:Key="CardCalendar" Color="{StaticResource CardCalendarColor}" />
   <SolidColorBrush x:Key="CardPink" Color="{StaticResource CardPinkColor}" />
   <SolidColorBrush x:Key="CardOlive" Color="{StaticResource CardOliveColor}" />
+  <SolidColorBrush x:Key="ChipBrush" Color="{StaticResource ChipColor}" />
   <SolidColorBrush x:Key="Ink" Color="{StaticResource InkColor}" />
   <SolidColorBrush x:Key="InkSoft" Color="{StaticResource InkSoftColor}" />
   <SolidColorBrush x:Key="InkFaint" Color="{StaticResource InkFaintColor}" />
@@ -37,14 +43,18 @@
   <x:String x:Key="GlyphVolume">&#xE767;</x:String>
   <x:String x:Key="GlyphCalendar">&#xE787;</x:String>
   <x:String x:Key="GlyphTasks">&#xE9D5;</x:String>
-  <x:String x:Key="GlyphNote">&#xE8FD;</x:String>
+  <x:String x:Key="GlyphNote">&#xE70F;</x:String>
   <x:String x:Key="GlyphKnowledge">&#xE8F1;</x:String>
   <x:String x:Key="GlyphSandbox">&#xE9D5;</x:String>
   <x:String x:Key="GlyphAttach">&#xE723;</x:String>
   <x:String x:Key="GlyphFolder">&#xE8B7;</x:String>
   <x:String x:Key="GlyphMail">&#xE715;</x:String>
   <x:String x:Key="GlyphPerson">&#xE77B;</x:String>
+  <x:String x:Key="GlyphAlarm">&#xE7ED;</x:String>
+  <x:String x:Key="GlyphDoc">&#xE8A5;</x:String>
+  <x:String x:Key="GlyphChat">&#xE8BD;</x:String>
   <x:String x:Key="GlyphChevronDown">&#xE70D;</x:String>
+  <x:String x:Key="GlyphChevronUp">&#xE70E;</x:String>
   <x:String x:Key="GlyphChevronLeft">&#xE76B;</x:String>
   <x:String x:Key="GlyphChevronRight">&#xE76C;</x:String>
   <x:String x:Key="GlyphPlus">&#xE710;</x:String>

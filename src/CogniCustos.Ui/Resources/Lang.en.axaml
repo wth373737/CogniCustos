@@ -15,7 +15,7 @@
   <x:String x:Key="App.LanguageButton">中</x:String>
 
   <!-- board cards -->
-  <x:String x:Key="Card.Pending">Pending Tasks</x:String>
+  <x:String x:Key="Card.Pending">Pending Items</x:String>
   <x:String x:Key="Card.Note">note</x:String>
   <x:String x:Key="Card.Empty.Today">Nothing planned yet</x:String>
   <x:String x:Key="Card.Empty.Pending">Nothing pending</x:String>
@@ -29,6 +29,10 @@
   <x:String x:Key="Demo.Pending2">Check portal deadlines</x:String>
   <x:String x:Key="Demo.Note1">Idea: collapsible future area</x:String>
   <x:String x:Key="Demo.Note2">Ask tutor about mail scope</x:String>
+
+  <!-- today's reminder line (top of the window) -->
+  <x:String x:Key="Today.Title">Today</x:String>
+  <x:String x:Key="Today.Empty">No reminders for today</x:String>
 
   <!-- reasoning record -->
   <x:String x:Key="Reasoning.Title">Reasoning Record</x:String>
@@ -81,5 +85,7 @@
   <x:String x:Key="Tip.ReasoningRecord">open reasoning record</x:String>
   <x:String x:Key="Tip.Back">back</x:String>
   <x:String x:Key="Tip.Expand">expand / collapse</x:String>
+  <x:String x:Key="Tip.OpenList">open list</x:String>
+  <x:String x:Key="Tip.CalendarPending">Calendar mode is not implemented yet</x:String>
 
 </ResourceDictionary>

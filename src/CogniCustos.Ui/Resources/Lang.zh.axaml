@@ -13,7 +13,7 @@
   <x:String x:Key="App.LanguageButton">En</x:String>
 
   <!-- 看板卡片 -->
-  <x:String x:Key="Card.Pending">待办任务</x:String>
+  <x:String x:Key="Card.Pending">待办事项</x:String>
   <x:String x:Key="Card.Note">便签</x:String>
   <x:String x:Key="Card.Empty.Today">今天还没有安排</x:String>
   <x:String x:Key="Card.Empty.Pending">没有待办</x:String>
@@ -27,6 +27,10 @@
   <x:String x:Key="Demo.Pending2">检查门户截止时间</x:String>
   <x:String x:Key="Demo.Note1">想法：可折叠的预留区</x:String>
   <x:String x:Key="Demo.Note2">问导师邮件范围</x:String>
+
+  <!-- 当日提醒（顶部那一行） -->
+  <x:String x:Key="Today.Title">今天</x:String>
+  <x:String x:Key="Today.Empty">今天没有提醒</x:String>
 
   <!-- 推理记录 -->
   <x:String x:Key="Reasoning.Title">推理记录</x:String>
@@ -79,5 +83,7 @@
   <x:String x:Key="Tip.ReasoningRecord">展开推理记录</x:String>
   <x:String x:Key="Tip.Back">返回</x:String>
   <x:String x:Key="Tip.Expand">展开 / 收起</x:String>
+  <x:String x:Key="Tip.OpenList">打开列表</x:String>
+  <x:String x:Key="Tip.CalendarPending">日历模式尚未实现</x:String>
 
 </ResourceDictionary>

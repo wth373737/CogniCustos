@@ -6,9 +6,8 @@ using CogniCustos.Ui.Mvvm;
 namespace CogniCustos.Ui.ViewModels;
 
 /// <summary>
-/// State of the window shell: which drawer / page is open, plus the mock board.
-/// No services, no persistence — this is the UI sandbox.
-/// All text comes from the language resources via <see cref="Localizer"/>.
+/// State of the window shell: which drawer / page is open, the reminder line at
+/// the top, plus the mock board. No services, no persistence — this is the UI sandbox.
 /// </summary>
 public sealed class ShellViewModel : ObservableObject
 {
@@ -27,6 +26,7 @@ public sealed class ShellViewModel : ObservableObject
     public ShellViewModel()
     {
         Settings = new SettingsViewModel();
+        Today = new TodayViewModel();
 
         ToggleDrawerCommand = new RelayCommand(ToggleDrawer);
         ExpandDrawerCommand = new RelayCommand(ExpandDrawer);
@@ -38,9 +38,12 @@ public sealed class ShellViewModel : ObservableObject
 
         Cards =
         [
-            new CardViewModel("\uE787", CardVariant.Plain, BuildToday, () => Localizer.Get("Card.Row.New")),
-            new CardViewModel("\uE9D5", CardVariant.Pink, BuildPending, () => Localizer.Get("Card.Row.New")),
-            new CardViewModel("\uE8FD", CardVariant.Olive, BuildNote, () => Localizer.Get("Card.Row.New")),
+            // 1: compressed calendar — a date, no rows, no "+" yet.
+            new CardViewModel(CardKind.Calendar, "\uE787", BuildCalendar, () => Localizer.Get("Card.Row.New")),
+            // 2: pending items — pink, no "+" in the sketch.
+            new CardViewModel(CardKind.Pending, "\uE9D5", BuildPending, () => Localizer.Get("Card.Row.New")),
+            // 3: note — pale yellow, with "+".
+            new CardViewModel(CardKind.Note, "\uE70F", BuildNote, () => Localizer.Get("Card.Row.New")),
         ];
 
         _toastTimer.Tick += (_, _) =>
@@ -48,9 +51,14 @@ public sealed class ShellViewModel : ObservableObject
             _toastTimer.Stop();
             Toast = string.Empty;
         };
+
+        RefreshLanguageText();
     }
 
     public SettingsViewModel Settings { get; }
+
+    /// <summary>Today's reminders: the line at the top of the window.</summary>
+    public TodayViewModel Today { get; }
 
     public ObservableCollection<CardViewModel> Cards { get; }
 
@@ -71,7 +79,7 @@ public sealed class ShellViewModel : ObservableObject
         set => Set(ref _inputText, value);
     }
 
-    /// <summary>One-line status shown in the reasoning panel (placeholder for real events).</summary>
+    /// <summary>One-line status shown in the sidebar's reasoning panel.</summary>
     public string Toast
     {
         get => _toast;
@@ -139,8 +147,12 @@ public sealed class ShellViewModel : ObservableObject
     public bool IsHelpActive => _helpOpen;
     public bool IsSettingsActive => _settingsOpen;
 
-    /// <summary>Transparent catcher behind the drawer / help panel: click outside to close.</summary>
-    public bool IsBackdropVisible => (_drawerOpen || _helpOpen) && !_settingsOpen;
+    /// <summary>
+    /// Transparent catcher behind the drawer / help panel / reminder list.
+    /// It starts below the top bar on purpose, so the reminder pill stays clickable
+    /// and can toggle its own list.
+    /// </summary>
+    public bool IsBackdropVisible => (_drawerOpen || _helpOpen || Today.IsListOpen) && !_settingsOpen;
 
     public double DrawerWidth => _drawerExpanded ? ExpandedWidth : MenuWidth;
 
@@ -161,6 +173,7 @@ public sealed class ShellViewModel : ObservableObject
     {
         if (SettingsOpen) SettingsOpen = false;
         HelpOpen = false;
+        Today.CloseList();
         DrawerOpen = !DrawerOpen;
     }
 
@@ -174,12 +187,14 @@ public sealed class ShellViewModel : ObservableObject
     {
         DrawerOpen = false;
         HelpOpen = false;
+        Today.CloseList();
         SettingsOpen = !SettingsOpen;
     }
 
     private void ToggleHelp()
     {
         DrawerOpen = false;
+        Today.CloseList();
         HelpOpen = !HelpOpen;
     }
 
@@ -190,10 +205,17 @@ public sealed class ShellViewModel : ObservableObject
     public void ApplyLanguage(string culture)
     {
         Localizer.SetLanguage(culture);
-        Settings.RefreshTitles();
-        foreach (var card in Cards) card.Refresh();
+        RefreshLanguageText();
         OnPropertyChanged(nameof(LanguageCode));
         Toast = string.Empty;
+    }
+
+    private void RefreshLanguageText()
+    {
+        Settings.RefreshTitles();
+        foreach (var card in Cards) card.Refresh();
+        Today.ResetSeeds(BuildTodaySeeds());
+        OnPropertyChanged(nameof(Today));
     }
 
     private void GoHome()
@@ -202,12 +224,13 @@ public sealed class ShellViewModel : ObservableObject
         Toast = string.Empty;
     }
 
+    /// <summary>The input box adds to today's reminders (the top line), not to a card.</summary>
     private void SubmitInput()
     {
         var text = InputText.Trim();
         if (text.Length == 0) return;
 
-        Cards[0].Items.Add(new CardItem(text, DateTime.Now.ToString("HH:mm")));
+        Today.Add(text);
         InputText = string.Empty;
         SetToast(Localizer.Get("Toast.AddedToToday"));
     }
@@ -224,17 +247,21 @@ public sealed class ShellViewModel : ObservableObject
         DrawerOpen = false;
         SettingsOpen = false;
         HelpOpen = false;
+        Today.CloseList();
     }
 
     // ---------- mock data (localised through the resources) ----------
 
-    private (string, string, IReadOnlyList<CardItem>) BuildToday() => (
+    private IReadOnlyList<string> BuildTodaySeeds() =>
+    [
+        Localizer.Get("Demo.Today1"),
+        Localizer.Get("Demo.Today2"),
+    ];
+
+    private (string, string, IReadOnlyList<CardItem>) BuildCalendar() => (
         DateTime.Today.ToString("yy/MM/dd"),
-        Localizer.Get("Card.Empty.Today"),
-        [
-            new CardItem(Localizer.Get("Demo.Today1"), "09:00"),
-            new CardItem(Localizer.Get("Demo.Today2"), "14:30"),
-        ]);
+        string.Empty,
+        []);
 
     private (string, string, IReadOnlyList<CardItem>) BuildPending() => (
         Localizer.Get("Card.Pending"),
@@ -286,6 +313,9 @@ public sealed class ShellViewModel : ObservableObject
                 break;
             case "collapsed":
                 foreach (var card in Cards) card.ToggleCollapseCommand.Execute(null);
+                break;
+            case "today-list":
+                Today.ToggleList();
                 break;
             case "toast":
                 ApplyLanguage(Localizer.Chinese);

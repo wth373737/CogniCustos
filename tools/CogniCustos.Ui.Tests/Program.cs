@@ -73,30 +73,62 @@ internal static class Program
         });
 
         // ---- input box ----
-        Test("enter_adds_row_and_clears_input", (vm, w) =>
+        Test("enter_adds_to_today_and_clears_input", (vm, w) =>
         {
             var input = InputBox(w);
-            var before = vm.Cards[0].Items.Count;
+            var before = vm.Today.Items.Count;
             input.Focus();
-            input.Text = "typed row";
+            input.Text = "typed reminder";
             Pump();
             w.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Pump();
-            Check(vm.Cards[0].Items.Count == before + 1, "row was not added");
+            Check(vm.Today.Items.Count == before + 1, "reminder was not added");
+            Check(vm.Today.Items[^1] == "typed reminder", "wrong reminder text");
             Check(vm.InputText.Length == 0, "input was not cleared");
             Check(vm.HasToast, "no status line after submit");
+            Check(vm.Cards[0].Items.Count == 0, "the calendar card must not receive today's entries");
         });
 
         Test("empty_enter_does_nothing", (vm, w) =>
         {
-            var before = vm.Cards[0].Items.Count;
+            var before = vm.Today.Items.Count;
             var input = InputBox(w);
             input.Focus();
             input.Text = "   ";
             Pump();
             w.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Pump();
-            Check(vm.Cards[0].Items.Count == before, "blank submit added a row");
+            Check(vm.Today.Items.Count == before, "blank submit added a reminder");
+        });
+
+        // ---- semantic model: today lives at the top, the first card is a calendar ----
+        Test("calendar_card_is_not_today", (vm, _) =>
+        {
+            var calendar = vm.Cards[0];
+            Check(calendar.Kind == CardKind.Calendar, "first card must be the calendar card");
+            Check(calendar.Items.Count == 0, "calendar card must not hold today's entries");
+            Check(!calendar.CanAdd, "calendar card has no working add button yet");
+            Check(vm.Today.Items.Count > 0, "today's reminders must live in the top line");
+        });
+
+        Test("pending_card_has_no_add_button", (vm, _) =>
+        {
+            Check(!vm.Cards[1].ShowAdd, "the sketch has no + on the pending card");
+            Check(vm.Cards[2].ShowAdd && vm.Cards[2].CanAdd, "the note card keeps its +");
+        });
+
+        Test("today_list_toggles", (vm, _) =>
+        {
+            Check(!vm.Today.IsListOpen, "list starts closed");
+            Check(vm.Today.ListChevron == "\uE70D", "closed chevron points down");
+            vm.Today.ToggleListCommand.Execute(null);
+            Pump();
+            Check(vm.Today.IsListOpen, "list did not open");
+            Check(vm.Today.ListChevron == "\uE70E", "open chevron points up");
+            Check(vm.IsBackdropVisible, "the list needs a click-outside catcher");
+            vm.CloseOverlays();
+            Pump();
+            Check(!vm.Today.IsListOpen, "close did not close the list");
         });
 
         // ---- cards ----
@@ -157,12 +189,12 @@ internal static class Program
             Pump();
             w.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, null);
             Pump();
-            var before = vm.Cards[0].Items.Count;
+            var before = vm.Today.Items.Count;
 
             vm.ToggleLanguageCommand.Execute(null);
             Pump();
-            Check(vm.Cards[0].Items.Count == before, $"rows lost: {before} -> {vm.Cards[0].Items.Count}");
-            Check(vm.Cards[0].Items.Any(i => i.Text == "kept row"), "user row disappeared");
+            Check(vm.Today.Items.Count == before, $"rows lost: {before} -> {vm.Today.Items.Count}");
+            Check(vm.Today.Items.Any(i => i == "kept row"), "user reminder disappeared");
         });
 
         // ---- DynamicResource plumbing ----
@@ -177,7 +209,8 @@ internal static class Program
             Pump();
             Check((string?)languageButton.Content == "En", $"language button did not refresh: {languageButton.Content}");
             Check((string?)homeButton.Content == "主页", $"dynamic resource did not refresh: {homeButton.Content}");
-            Check(vm.Cards[1].Title == "待办任务", $"card title did not refresh: {vm.Cards[1].Title}");
+            Check(vm.Cards[1].Title == Localizer.Get("Card.Pending"), $"card title did not refresh: {vm.Cards[1].Title}");
+            Check(vm.Cards[1].Title == "待办事项", $"unexpected pending title: {vm.Cards[1].Title}");
         });
 
         // ---- regression B: escape without inner focus ----

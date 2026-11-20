@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="using:System"
              xmlns:vm="using:CogniCustos.Ui.ViewModels"
              xmlns:views="using:CogniCustos.Ui.Views"
              x:Class="CogniCustos.Ui.Views.ShellView"
@@ -11,7 +12,7 @@
 
     <!-- one row inside a board card -->
     <DataTemplate x:Key="CardRow" x:DataType="vm:CardItem">
-      <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,7">
+      <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,6">
         <TextBlock Grid.Column="0"
                    Text="{Binding Meta}"
                    FontSize="10.5"
@@ -28,7 +29,7 @@
       </Grid>
     </DataTemplate>
 
-    <!-- one board card: header / body / footer -->
+    <!-- one board card: header (icon / collapse / right-aligned title) / body / footer -->
     <DataTemplate x:Key="CardTemplate" x:DataType="vm:CardViewModel">
       <Border Classes="card"
               Classes.pink="{Binding IsPink}"
@@ -36,26 +37,39 @@
               Height="{Binding CardHeight}">
         <Grid RowDefinitions="Auto,*,Auto">
 
-          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="7">
-            <TextBlock Classes="glyph" Text="{Binding Glyph}" FontSize="12" />
-            <TextBlock Classes="caption" Text="{Binding Title}" VerticalAlignment="Center" />
-          </StackPanel>
+          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto">
+            <TextBlock Grid.Column="0" Classes="glyph" Text="{Binding Glyph}" FontSize="17"
+                       Foreground="{StaticResource Ink}" />
+            <Button Grid.Column="2" Classes="icon" Width="22" Height="22" Margin="0,0,6,0"
+                    Command="{Binding ToggleCollapseCommand}" ToolTip.Tip="{DynamicResource Tip.Collapse}">
+              <TextBlock Classes="glyph" Text="{Binding CollapseGlyph}" FontSize="11"
+                         Foreground="{StaticResource InkFaint}" />
+            </Button>
+            <TextBlock Grid.Column="3" Text="{Binding Title}" Width="90"
+                       TextAlignment="Right" TextWrapping="Wrap"
+                       FontSize="13" FontWeight="SemiBold"
+                       Foreground="{StaticResource Ink}" VerticalAlignment="Center" />
+          </Grid>
 
-          <Grid Grid.Row="1" IsVisible="{Binding IsExpanded}" Margin="0,12,0,0">
+          <Grid Grid.Row="1" IsVisible="{Binding IsExpanded}" Margin="0,10,0,0">
             <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource CardRow}"
-                          VerticalAlignment="Top" />
+                          VerticalAlignment="Top" IsVisible="{Binding HasRows}" />
             <TextBlock Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}"
                        Classes="muted" FontSize="11" VerticalAlignment="Top" />
           </Grid>
 
-          <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
-            <Button Grid.Column="0" Classes="icon" Width="26" Height="26"
-                    Command="{Binding ToggleCollapseCommand}" ToolTip.Tip="{DynamicResource Tip.Collapse}">
-              <TextBlock Classes="glyph" Text="{Binding CollapseGlyph}" FontSize="10" />
+          <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
+            <Button Grid.Column="0" Classes="icon" Width="24" Height="24" HorizontalAlignment="Center"
+                    ToolTip.Tip="{DynamicResource Tip.OpenList}">
+              <TextBlock Classes="glyph" Text="{StaticResource GlyphChevronDown}" FontSize="10" />
             </Button>
-            <Button Grid.Column="2" Classes="icon" Width="26" Height="26"
+            <Button Grid.Column="1" Classes="icon" Width="24" Height="24"
+                    IsVisible="{Binding ShowAdd}" IsEnabled="{Binding CanAdd}"
                     Command="{Binding AddCommand}" ToolTip.Tip="{DynamicResource Tip.Add}">
-              <TextBlock Classes="glyph" Text="{StaticResource GlyphPlus}" FontSize="11" />
+              <Border Width="19" Height="19" CornerRadius="10" BorderThickness="1.2"
+                      BorderBrush="{StaticResource InkFaint}">
+                <TextBlock Classes="glyph" Text="{StaticResource GlyphPlus}" FontSize="9" />
+              </Border>
             </Button>
           </Grid>
         </Grid>
@@ -64,107 +78,128 @@
 
   </UserControl.Resources>
 
-  <Grid ColumnDefinitions="*,64">
+  <Grid ColumnDefinitions="187,*,88">
+
+    <!-- ============================ LEFT SIDEBAR ============================ -->
+    <Border Grid.Column="0" Background="{StaticResource SidebarBg}">
+      <Grid RowDefinitions="Auto,*,Auto,Auto,54">
+
+        <!-- logo -->
+        <Border Grid.Row="0" Width="72" Height="72" CornerRadius="36" BorderThickness="2.5"
+                BorderBrush="{StaticResource Ink}" Margin="22,18,0,0" HorizontalAlignment="Left">
+          <TextBlock Classes="glyph" Text="{StaticResource GlyphPerson}" FontSize="30"
+                     Foreground="{StaticResource Ink}" />
+        </Border>
+
+        <!-- reasoning record caption -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="12,0,10,8">
+          <TextBlock Classes="glyph" Text="{StaticResource GlyphDoc}" FontSize="13"
+                     Foreground="{StaticResource InkSoft}" />
+          <TextBlock Text="{DynamicResource Reasoning.Title}" FontSize="10.5"
+                     Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <!-- reasoning panel -->
+        <Border Grid.Row="3" Height="140" Background="{StaticResource Surface}">
+          <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto" Margin="12,14,10,12">
+            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4"
+                        VerticalAlignment="Top">
+              <TextBlock Text="{DynamicResource Reasoning.Thinking}" FontSize="11"
+                         IsVisible="{Binding !HasToast}" TextWrapping="Wrap" Width="118"
+                         Foreground="{StaticResource InkSoft}" />
+              <TextBlock Text="{Binding Toast}" FontSize="11" IsVisible="{Binding HasToast}"
+                         TextWrapping="Wrap" Width="118"
+                         Foreground="{StaticResource InkSoft}" />
+              <TextBlock Classes="glyph" Text="{StaticResource GlyphChat}" FontSize="12"
+                         IsVisible="{Binding !HasToast}" Foreground="{StaticResource InkSoft}" />
+            </StackPanel>
+            <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Classes="icon"
+                    Width="24" Height="24" HorizontalAlignment="Right"
+                    ToolTip.Tip="{DynamicResource Tip.ReasoningRecord}">
+              <TextBlock Classes="glyph" Text="{StaticResource GlyphChevronRight}" FontSize="10" />
+            </Button>
+          </Grid>
+        </Border>
+
+        <Border Grid.Row="4" />
+      </Grid>
+    </Border>
 
     <!-- ============================ CONTENT ============================ -->
-    <Grid Grid.Column="0" ClipToBounds="True">
+    <Grid Grid.Column="1" ClipToBounds="True">
 
       <Grid RowDefinitions="76,*,140">
 
-        <!-- top bar -->
-        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="22,0,22,0">
+        <!-- top bar: brand chip + today's reminder line + home + sound -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="27,0,39,0">
 
-          <Border Grid.Column="0" Width="30" Height="30" CornerRadius="15"
-                  BorderThickness="1.4" BorderBrush="#FF3B3B46" VerticalAlignment="Center">
-            <TextBlock Classes="glyph" Text="{StaticResource GlyphPerson}" FontSize="14"
-                       Foreground="#FF3B3B46" />
+          <Border Grid.Column="0" Classes="chip" Width="181" VerticalAlignment="Center">
+            <TextBlock Text="CogniCustos" FontSize="15" FontWeight="SemiBold"
+                       HorizontalAlignment="Center"
+                       Foreground="{StaticResource Ink}" VerticalAlignment="Center" />
           </Border>
 
-          <TextBlock Grid.Column="1" Text="CogniCustos" Margin="10,0,0,0"
-                     FontSize="15.5" FontWeight="SemiBold" VerticalAlignment="Center"
-                     Foreground="{StaticResource Ink}" />
-
-          <Border Grid.Column="2" Margin="20,0,0,0" Height="34" Width="340"
-                  CornerRadius="17" Background="#FFF1F1F6" VerticalAlignment="Center">
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,0,12,0">
-              <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13"
-                      Background="#FFFFFFFF" BoxShadow="0 1 3 0 #18000000">
-                <TextBlock Classes="glyph" Text="{StaticResource GlyphSearch}" FontSize="11.5"
-                           Foreground="{StaticResource InkSoft}" />
+          <Button Grid.Column="1" Classes="pill" Width="559" Margin="38,0,0,0"
+                  VerticalAlignment="Center"
+                  Command="{Binding Today.ToggleListCommand}"
+                  ToolTip.Tip="{DynamicResource Today.Title}">
+            <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+              <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphAlarm}"
+                         FontSize="16" Foreground="#FFE0A23C" Margin="4,0,10,0" />
+              <Border x:Name="TickerClip" Grid.Column="1" ClipToBounds="True" Height="22" VerticalAlignment="Center">
+                <Grid>
+                  <StackPanel x:Name="TickerRow" Orientation="Horizontal">
+                    <TextBlock x:Name="TickerText" Text="{Binding Today.Line}" FontSize="13"
+                               Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="TickerCopy" Text="{Binding Today.Line}" FontSize="13" Margin="48,0,0,0"
+                               IsVisible="False"
+                               Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <TextBlock Text="{DynamicResource Today.Empty}" FontSize="12.5"
+                             Foreground="{StaticResource InkFaint}"
+                             IsVisible="{Binding Today.IsEmpty}" VerticalAlignment="Center" />
+                </Grid>
               </Border>
-              <TextBlock Grid.Column="1" Text="{DynamicResource App.SearchHint}" Margin="10,0,0,0"
-                         FontSize="12.5" Foreground="{StaticResource InkFaint}"
-                         VerticalAlignment="Center" />
-              <TextBlock Grid.Column="2" Classes="glyph" Text="{StaticResource GlyphChevronDown}"
-                         FontSize="9.5" Foreground="{StaticResource InkFaint}" />
+              <TextBlock Grid.Column="2" Classes="glyph" Text="{Binding Today.ListChevron}"
+                         FontSize="9.5" Foreground="{StaticResource InkFaint}" Margin="8,0,0,0" />
             </Grid>
-          </Border>
+          </Button>
 
-          <Button Grid.Column="4" Classes="link" Content="{DynamicResource App.Home}"
+          <Button Grid.Column="3" Classes="link" FontSize="13.5" Content="{DynamicResource App.Home}"
                   Command="{Binding GoHomeCommand}" VerticalAlignment="Center" />
 
-          <Button Grid.Column="5" Classes="icon" Command="{Binding ToggleLanguageCommand}"
-                  VerticalAlignment="Center" Margin="6,0,0,0" ToolTip.Tip="{DynamicResource Tip.Sound}">
-            <TextBlock Classes="glyph" Text="{StaticResource GlyphVolume}" FontSize="13" />
+          <Button Grid.Column="4" Classes="icon" Command="{Binding ToggleLanguageCommand}"
+                  VerticalAlignment="Center" Margin="14,0,0,0" ToolTip.Tip="{DynamicResource Tip.Sound}">
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphVolume}" FontSize="14"
+                       Foreground="{StaticResource Ink}" />
           </Button>
         </Grid>
 
         <!-- board -->
-        <Grid Grid.Row="1" Margin="22,4,22,0" VerticalAlignment="Top">
+        <Grid Grid.Row="1" Margin="27,9,0,0" VerticalAlignment="Top">
           <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
             <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource CardTemplate}">
               <ItemsControl.ItemsPanel>
                 <ItemsPanelTemplate>
-                  <StackPanel Orientation="Horizontal" Spacing="16" />
+                  <StackPanel Orientation="Horizontal" Spacing="45" />
                 </ItemsPanelTemplate>
               </ItemsControl.ItemsPanel>
             </ItemsControl>
           </ScrollViewer>
         </Grid>
 
-        <!-- bottom: reasoning record + input -->
-        <Grid Grid.Row="2" ColumnDefinitions="300,*" Margin="22,0,22,18" VerticalAlignment="Bottom">
-
-          <Border Grid.Column="0" Width="264" Height="96" CornerRadius="13"
-                  Background="{StaticResource Surface}" BoxShadow="0 6 20 0 #0E000000"
-                  VerticalAlignment="Bottom" HorizontalAlignment="Left">
-            <Grid ColumnDefinitions="*,Auto" Margin="12,10,8,10">
-              <Grid Grid.Column="0" RowDefinitions="Auto,*">
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphList}" FontSize="11" />
-                  <TextBlock Text="{DynamicResource Reasoning.Title}" FontSize="10.5"
-                             Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
-                </StackPanel>
-                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Bottom">
-                  <TextBlock Text="{DynamicResource Reasoning.Thinking}" FontSize="11"
-                             IsVisible="{Binding !HasToast}"
-                             Foreground="{StaticResource InkFaint}" VerticalAlignment="Center" />
-                  <TextBlock Text="{Binding Toast}" FontSize="11"
-                             IsVisible="{Binding HasToast}"
-                             Foreground="{StaticResource InkSoft}" VerticalAlignment="Center"
-                             TextTrimming="CharacterEllipsis" MaxWidth="190" />
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="10"
-                             IsVisible="{Binding !HasToast}"
-                             Foreground="{StaticResource InkFaint}" />
-                </StackPanel>
-              </Grid>
-              <Button Grid.Column="1" Classes="icon" Width="24" Height="24" VerticalAlignment="Center"
-                      ToolTip.Tip="{DynamicResource Tip.ReasoningRecord}">
-                <TextBlock Classes="glyph" Text="{StaticResource GlyphChevronRight}" FontSize="9.5" />
-              </Button>
-            </Grid>
-          </Border>
-
-          <Border Grid.Column="1" Width="520" Height="44" CornerRadius="22"
-                  Background="{StaticResource Surface}" BorderBrush="#FFE9E9EF" BorderThickness="1"
-                  BoxShadow="0 4 14 0 #0C000000"
-                  HorizontalAlignment="Center" VerticalAlignment="Bottom">
-            <Grid ColumnDefinitions="Auto,*" Margin="8,0,16,0">
-              <Border Grid.Column="0" Width="28" Height="28" CornerRadius="14"
-                      Background="#FFF1F1F6" VerticalAlignment="Center">
-                <TextBlock Classes="glyph" Text="{StaticResource GlyphMic}" FontSize="12" />
+        <!-- input -->
+        <Grid Grid.Row="2" VerticalAlignment="Bottom" Margin="0,0,0,62">
+          <Border Width="250" Height="44" CornerRadius="22"
+                  Background="#FFE9E9EE"
+                  HorizontalAlignment="Center">
+            <Grid ColumnDefinitions="Auto,*" Margin="6,0,14,0">
+              <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16"
+                      Background="#FFCFCFD8" VerticalAlignment="Center">
+                <TextBlock Classes="glyph" Text="{StaticResource GlyphMic}" FontSize="13"
+                           Foreground="{StaticResource InkSoft}" />
               </Border>
-              <TextBox x:Name="InputBox" Grid.Column="1" Classes="pill" Margin="10,0,0,0"
+              <TextBox x:Name="InputBox" Grid.Column="1" Classes="pill" Margin="8,0,0,0"
                        PlaceholderText="{DynamicResource App.EnterText}" Text="{Binding InputText}">
                 <TextBox.KeyBindings>
                   <KeyBinding Gesture="Enter" Command="{Binding SubmitInputCommand}" />
@@ -175,13 +210,40 @@
         </Grid>
       </Grid>
 
-      <!-- click-outside catcher for the drawer / help panel -->
-      <Border ZIndex="5" Background="Transparent"
+      <!-- click-outside catcher (below the top bar, so the reminder pill stays clickable) -->
+      <Border ZIndex="5" Background="Transparent" Margin="0,76,0,0"
               IsVisible="{Binding IsBackdropVisible}"
               PointerPressed="OnBackdropPressed" />
 
+      <!-- today's reminder list, opening under the pill -->
+      <Border ZIndex="6" Width="430" MaxHeight="260" Margin="246,62,0,0"
+              HorizontalAlignment="Left" VerticalAlignment="Top"
+              CornerRadius="12" Background="{StaticResource Surface}"
+              BorderBrush="{StaticResource Line}" BorderThickness="1"
+              BoxShadow="0 10 30 0 #1A000000" ClipToBounds="True"
+              IsVisible="{Binding Today.IsListOpen}">
+        <Grid RowDefinitions="Auto,*" Margin="14,10,14,10">
+          <TextBlock Grid.Row="0" Text="{DynamicResource Today.Title}" FontSize="11"
+                     FontWeight="SemiBold" Foreground="{StaticResource InkSoft}" />
+          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
+            <Grid>
+              <ItemsControl ItemsSource="{Binding Today.Items}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="sys:String">
+                    <TextBlock Text="{Binding}" FontSize="12" Margin="0,3"
+                               Foreground="#FF45454F" TextWrapping="Wrap" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="{DynamicResource Today.Empty}" IsVisible="{Binding Today.IsEmpty}"
+                         FontSize="12" Foreground="{StaticResource InkFaint}" />
+            </Grid>
+          </ScrollViewer>
+        </Grid>
+      </Border>
+
       <!-- drawer (menu + reserved future area) -->
-      <Border Name="DrawerPanel" ZIndex="6"
+      <Border Name="DrawerPanel" ZIndex="7"
               Width="{Binding DrawerWidth}"
               Margin="0,76,0,0"
               HorizontalAlignment="Right" VerticalAlignment="Stretch"
@@ -315,7 +377,7 @@
       </Border>
 
       <!-- help panel -->
-      <Border ZIndex="6" Width="300" Height="180" CornerRadius="14" Background="{StaticResource Surface}"
+      <Border ZIndex="7" Width="300" Height="180" CornerRadius="14" Background="{StaticResource Surface}"
               BoxShadow="0 8 26 0 #16000000"
               HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
               IsVisible="{Binding HelpOpen}">
@@ -336,35 +398,37 @@
 
     </Grid>
 
-    <!-- ============================ RAIL ============================ -->
-    <Border Grid.Column="1" Background="{StaticResource RailBg}"
-            BorderBrush="{StaticResource Line}" BorderThickness="1,0,0,0">
-      <Grid RowDefinitions="76,*,Auto,26">
+    <!-- ============================ RIGHT RAIL ============================ -->
+    <Border Grid.Column="2" Background="{StaticResource RailBg}">
+      <Grid RowDefinitions="76,*,Auto,120">
 
         <Button Grid.Row="0" Classes="lang" Content="{DynamicResource App.LanguageButton}"
                 Command="{Binding ToggleLanguageCommand}"
                 ToolTip.Tip="{DynamicResource Tip.Language}"
                 HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-        <StackPanel Grid.Row="2" Spacing="10" HorizontalAlignment="Center" Margin="0,0,0,26">
+        <StackPanel Grid.Row="2" Spacing="14" HorizontalAlignment="Center" Margin="0,0,0,26">
           <Button Classes="icon" Classes.open="{Binding IsMenuActive}"
                   Command="{Binding ToggleDrawerCommand}" ToolTip.Tip="{DynamicResource Tip.Menu}">
-            <TextBlock Classes="glyph" Text="{StaticResource GlyphMenu}" FontSize="16" />
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphMenu}" FontSize="17"
+                       Foreground="{StaticResource Ink}" />
           </Button>
           <Button Classes="icon" Classes.open="{Binding IsHelpActive}"
                   Command="{Binding ToggleHelpCommand}" ToolTip.Tip="{DynamicResource Tip.Help}">
-            <TextBlock Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="16" />
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="17"
+                       Foreground="{StaticResource Ink}" />
           </Button>
           <Button Classes="icon" Classes.open="{Binding IsSettingsActive}"
                   Command="{Binding ToggleSettingsCommand}" ToolTip.Tip="{DynamicResource Tip.Settings}">
-            <TextBlock Classes="glyph" Text="{StaticResource GlyphSettings}" FontSize="16" />
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphSettings}" FontSize="17"
+                       Foreground="{StaticResource Ink}" />
           </Button>
         </StackPanel>
       </Grid>
     </Border>
 
     <!-- ============================ SETTINGS PAGE ============================ -->
-    <views:SettingsPage ZIndex="10" Grid.ColumnSpan="2" IsVisible="{Binding SettingsOpen}" />
+    <views:SettingsPage ZIndex="10" Grid.ColumnSpan="3" IsVisible="{Binding SettingsOpen}" />
 
   </Grid>
 </UserControl>

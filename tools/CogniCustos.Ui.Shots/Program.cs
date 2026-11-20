@@ -16,7 +16,7 @@ internal static class Program
     private static readonly string[] States =
     [
         "home", "drawer", "expanded", "settings", "help",
-        "collapsed", "toast", "settings-zh", "settings-deep",
+        "collapsed", "toast", "settings-zh", "settings-deep", "today-list",
     ];
 
     [STAThread]
@@ -38,6 +38,8 @@ internal static class Program
         foreach (var state in States)
         {
             var vm = new ShellViewModel();
+            // Every state starts from English; the zh states switch inside ShowState.
+            vm.ApplyLanguage(CogniCustos.Ui.Localization.Localizer.English);
             vm.ShowState(state);
 
             var window = new ShellWindow(vm) { Width = width, Height = height };
