@@ -1,0 +1,85 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    English UI text. Every key here must also exist in Lang.zh.axaml —
+    tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.
+    Translators: copy this file, rename it to Lang.<culture>.axaml, translate the
+    values, keep the keys untouched.
+  -->
+
+  <!-- shell chrome -->
+  <x:String x:Key="App.Home">Home</x:String>
+  <x:String x:Key="App.SearchHint">Search or jump to…</x:String>
+  <x:String x:Key="App.EnterText">Enter text</x:String>
+  <x:String x:Key="App.LanguageButton">中</x:String>
+
+  <!-- board cards -->
+  <x:String x:Key="Card.Pending">Pending Tasks</x:String>
+  <x:String x:Key="Card.Note">note</x:String>
+  <x:String x:Key="Card.Empty.Today">Nothing planned yet</x:String>
+  <x:String x:Key="Card.Empty.Pending">Nothing pending</x:String>
+  <x:String x:Key="Card.Empty.Note">No notes yet</x:String>
+  <x:String x:Key="Card.Row.New">New entry</x:String>
+
+  <!-- demo rows (sandbox data, not product content) -->
+  <x:String x:Key="Demo.Today1">SAD lecture</x:String>
+  <x:String x:Key="Demo.Today2">Group sync</x:String>
+  <x:String x:Key="Demo.Pending1">Finish proposal §5.2</x:String>
+  <x:String x:Key="Demo.Pending2">Check portal deadlines</x:String>
+  <x:String x:Key="Demo.Note1">Idea: collapsible future area</x:String>
+  <x:String x:Key="Demo.Note2">Ask tutor about mail scope</x:String>
+
+  <!-- reasoning record -->
+  <x:String x:Key="Reasoning.Title">Reasoning Record</x:String>
+  <x:String x:Key="Reasoning.Thinking">Little AI is thinking</x:String>
+  <x:String x:Key="Toast.AddedToToday">Added to today (sandbox data)</x:String>
+
+  <!-- drawer tiles -->
+  <x:String x:Key="Tile.Knowledge">Knowledge base</x:String>
+  <x:String x:Key="Tile.DataBase">Data base</x:String>
+  <x:String x:Key="Tile.Sandbox">Sandbox</x:String>
+  <x:String x:Key="Tile.AddFiles">Add files</x:String>
+  <x:String x:Key="Tile.AddAddress">Add address</x:String>
+  <x:String x:Key="Tile.CheckMail">Check email</x:String>
+  <x:String x:Key="Tile.SearchGraphical">Search graphical</x:String>
+  <x:String x:Key="Drawer.FutureArea">An area designed for additional future features</x:String>
+
+  <!-- settings page -->
+  <x:String x:Key="Settings.Title">Settings Page</x:String>
+  <x:String x:Key="Settings.Placeholder">Settings content area (not implemented yet)</x:String>
+  <x:String x:Key="Section.General">General</x:String>
+  <x:String x:Key="Section.Model">Model Configuration</x:String>
+  <x:String x:Key="Section.EmailRetrieval">Email Retrieval Configuration</x:String>
+  <x:String x:Key="Section.ChatRetrieval">Chat Retrieval Configuration</x:String>
+  <x:String x:Key="Section.WebsiteBrowsing">Website Browsing Configuration</x:String>
+  <x:String x:Key="Section.StudentNetwork">Student Network Configuration</x:String>
+  <x:String x:Key="Section.Prompt">Prompt Configuration</x:String>
+  <x:String x:Key="Section.Hotkeys">Hotkey Settings</x:String>
+  <x:String x:Key="Section.Privacy">Privacy Settings</x:String>
+  <x:String x:Key="Section.KnowledgeBase">Knowledge Base Configuration</x:String>
+  <x:String x:Key="Section.Database">Database Configuration</x:String>
+  <x:String x:Key="Section.Sandbox">Sandbox Configuration</x:String>
+  <x:String x:Key="Section.Storage">Storage &amp; Data</x:String>
+  <x:String x:Key="Section.Software">Software Details</x:String>
+  <x:String x:Key="Section.Notifications">Notification Setting</x:String>
+  <x:String x:Key="Section.Offline">Offline &amp; Network</x:String>
+
+  <!-- help -->
+  <x:String x:Key="Help.Title">Help</x:String>
+  <x:String x:Key="Help.Placeholder">Help content placeholder</x:String>
+
+  <!-- tooltips -->
+  <x:String x:Key="Tip.Menu">menu</x:String>
+  <x:String x:Key="Tip.Help">help</x:String>
+  <x:String x:Key="Tip.Settings">settings</x:String>
+  <x:String x:Key="Tip.Language">language</x:String>
+  <x:String x:Key="Tip.Sound">sound</x:String>
+  <x:String x:Key="Tip.Calendar">calendar</x:String>
+  <x:String x:Key="Tip.Collapse">collapse / expand</x:String>
+  <x:String x:Key="Tip.Add">add</x:String>
+  <x:String x:Key="Tip.ReasoningRecord">open reasoning record</x:String>
+  <x:String x:Key="Tip.Back">back</x:String>
+  <x:String x:Key="Tip.Expand">expand / collapse</x:String>
+
+</ResourceDictionary>

@@ -8,6 +8,7 @@ namespace CogniCustos.Ui.ViewModels;
 /// <summary>
 /// State of the window shell: which drawer / page is open, plus the mock board.
 /// No services, no persistence — this is the UI sandbox.
+/// All text comes from the language resources via <see cref="Localizer"/>.
 /// </summary>
 public sealed class ShellViewModel : ObservableObject
 {
@@ -25,22 +26,21 @@ public sealed class ShellViewModel : ObservableObject
 
     public ShellViewModel()
     {
-        S = new Strings();
-        Settings = new SettingsViewModel(S);
+        Settings = new SettingsViewModel();
 
         ToggleDrawerCommand = new RelayCommand(ToggleDrawer);
         ExpandDrawerCommand = new RelayCommand(ExpandDrawer);
         ToggleSettingsCommand = new RelayCommand(ToggleSettings);
         ToggleHelpCommand = new RelayCommand(ToggleHelp);
-        ToggleLanguageCommand = new RelayCommand(() => ApplyLanguage(!S.IsChinese));
+        ToggleLanguageCommand = new RelayCommand(() => ApplyLanguage(Localizer.NextLanguage()));
         GoHomeCommand = new RelayCommand(GoHome);
         SubmitInputCommand = new RelayCommand(SubmitInput);
 
         Cards =
         [
-            new CardViewModel("\uE787", CardVariant.Plain, BuildToday, () => S.NewRowLabel),
-            new CardViewModel("\uE9D5", CardVariant.Pink, BuildPending, () => S.NewRowLabel),
-            new CardViewModel("\uE8FD", CardVariant.Olive, BuildNote, () => S.NewRowLabel),
+            new CardViewModel("\uE787", CardVariant.Plain, BuildToday, () => Localizer.Get("Card.Row.New")),
+            new CardViewModel("\uE9D5", CardVariant.Pink, BuildPending, () => Localizer.Get("Card.Row.New")),
+            new CardViewModel("\uE8FD", CardVariant.Olive, BuildNote, () => Localizer.Get("Card.Row.New")),
         ];
 
         _toastTimer.Tick += (_, _) =>
@@ -49,8 +49,6 @@ public sealed class ShellViewModel : ObservableObject
             Toast = string.Empty;
         };
     }
-
-    public Strings S { get; }
 
     public SettingsViewModel Settings { get; }
 
@@ -63,6 +61,9 @@ public sealed class ShellViewModel : ObservableObject
     public RelayCommand ToggleLanguageCommand { get; }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand SubmitInputCommand { get; }
+
+    /// <summary>Exposed for the headless snapshot tool and for diagnostics.</summary>
+    public string LanguageCode => Localizer.Current;
 
     public string InputText
     {
@@ -182,12 +183,16 @@ public sealed class ShellViewModel : ObservableObject
         HelpOpen = !HelpOpen;
     }
 
-    /// <summary>Single path for language changes, so text refresh cannot be half-applied.</summary>
-    private void ApplyLanguage(bool chinese)
+    /// <summary>
+    /// Single path for language changes: swap the resource dictionary, then let the
+    /// view-model-held strings re-read it. XAML text updates by itself (DynamicResource).
+    /// </summary>
+    public void ApplyLanguage(string culture)
     {
-        S.IsChinese = chinese;
+        Localizer.SetLanguage(culture);
         Settings.RefreshTitles();
         foreach (var card in Cards) card.Refresh();
+        OnPropertyChanged(nameof(LanguageCode));
         Toast = string.Empty;
     }
 
@@ -204,7 +209,7 @@ public sealed class ShellViewModel : ObservableObject
 
         Cards[0].Items.Add(new CardItem(text, DateTime.Now.ToString("HH:mm")));
         InputText = string.Empty;
-        SetToast(S.IsChinese ? "已暂存到「今天」（沙箱假数据）" : "Added to today (sandbox data)");
+        SetToast(Localizer.Get("Toast.AddedToToday"));
     }
 
     private void SetToast(string text)
@@ -221,19 +226,31 @@ public sealed class ShellViewModel : ObservableObject
         HelpOpen = false;
     }
 
-    // ---------- mock data (localised) ----------
+    // ---------- mock data (localised through the resources) ----------
 
-    private (string, string, IReadOnlyList<CardItem>) BuildToday() => S.IsChinese
-        ? (S.CardToday, "今天还没有安排", [new CardItem("SAD 讲座", "09:00"), new CardItem("小组同步", "14:30")])
-        : (S.CardToday, "Nothing planned yet", [new CardItem("SAD lecture", "09:00"), new CardItem("Group sync", "14:30")]);
+    private (string, string, IReadOnlyList<CardItem>) BuildToday() => (
+        DateTime.Today.ToString("yy/MM/dd"),
+        Localizer.Get("Card.Empty.Today"),
+        [
+            new CardItem(Localizer.Get("Demo.Today1"), "09:00"),
+            new CardItem(Localizer.Get("Demo.Today2"), "14:30"),
+        ]);
 
-    private (string, string, IReadOnlyList<CardItem>) BuildPending() => S.IsChinese
-        ? (S.CardPending, "没有待办", [new CardItem("补完提案 §5.2"), new CardItem("检查门户截止时间")])
-        : (S.CardPending, "Nothing pending", [new CardItem("Finish proposal §5.2"), new CardItem("Check portal deadlines")]);
+    private (string, string, IReadOnlyList<CardItem>) BuildPending() => (
+        Localizer.Get("Card.Pending"),
+        Localizer.Get("Card.Empty.Pending"),
+        [
+            new CardItem(Localizer.Get("Demo.Pending1")),
+            new CardItem(Localizer.Get("Demo.Pending2")),
+        ]);
 
-    private (string, string, IReadOnlyList<CardItem>) BuildNote() => S.IsChinese
-        ? (S.CardNote, "还没有便签", [new CardItem("想法：可折叠的预留区"), new CardItem("问导师邮件范围")])
-        : (S.CardNote, "No notes yet", [new CardItem("Idea: collapsible future area"), new CardItem("Ask tutor about mail scope")]);
+    private (string, string, IReadOnlyList<CardItem>) BuildNote() => (
+        Localizer.Get("Card.Note"),
+        Localizer.Get("Card.Empty.Note"),
+        [
+            new CardItem(Localizer.Get("Demo.Note1")),
+            new CardItem(Localizer.Get("Demo.Note2")),
+        ]);
 
     // ---------- headless snapshot tool ----------
 
@@ -255,14 +272,14 @@ public sealed class ShellViewModel : ObservableObject
                 SettingsOpen = true;
                 break;
             case "settings-zh":
-                ApplyLanguage(true);
+                ApplyLanguage(Localizer.Chinese);
                 SettingsOpen = true;
                 break;
             case "settings-deep":
                 // Select first, switch language after: this used to clear the selection.
                 SettingsOpen = true;
                 Settings.Selected = Settings.Sections[5];
-                ApplyLanguage(true);
+                ApplyLanguage(Localizer.Chinese);
                 break;
             case "help":
                 HelpOpen = true;
@@ -271,7 +288,8 @@ public sealed class ShellViewModel : ObservableObject
                 foreach (var card in Cards) card.ToggleCollapseCommand.Execute(null);
                 break;
             case "toast":
-                InputText = S.IsChinese ? "把明天的评审挪到下午" : "move tomorrow's review to the afternoon";
+                ApplyLanguage(Localizer.Chinese);
+                InputText = Localizer.Get("Demo.Note1");
                 SubmitInput();
                 break;
         }

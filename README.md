@@ -141,7 +141,7 @@ cloud.ask → 本地规则检查（9 类：邮箱/电话/学号/密钥/密码/�
 
 界面从这一版开始独立开发：新增 `src/CogniCustos.Ui`，**不引用** Core / Adapters，用假数据把
 主窗口（顶栏 / 三张卡片 / 推理记录 / 输入条 / 右侧竖排栏）和三个抽屉（菜单抽屉、预留功能区、设置页）做出来。
-配套 `tools/CogniCustos.Ui.Shots` 可无头渲染 9 个状态到 PNG，`tools/CogniCustos.Ui.Tests` 有 12 条无头断言（非 0 退出即失败）。
+界面按 1280×800 画布设计并整体等比缩放到窗口（任何分辨率比例不变）；文案在 `Resources/Lang.*.axaml`，新增语言=复制一份文件、只改值。配套 `tools/CogniCustos.Ui.Shots` 可无头渲染 9 个状态，`tools/CogniCustos.Ui.Tests` 有 19 条无头断言（非 0 退出即失败）。
 
 - 框架：Avalonia **12.1.6**（全解决方案已从 11.2.3 升级，`Selftest 37/37` 仍全过）；包版本集中在 `Directory.Packages.props`
 - 结构、交互、设计约定、回归测试与"还没做的事"：见 [docs/UI-SANDBOX.md](docs/UI-SANDBOX.md)

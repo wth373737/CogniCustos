@@ -6,11 +6,19 @@
         x:DataType="vm:ShellViewModel"
         Title="CogniCustos — UI Sandbox"
         Width="1280" Height="800"
-        MinWidth="1040" MinHeight="600"
+        MinWidth="1024" MinHeight="640"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource AppBg}"
         FontFamily="{StaticResource UiFont}">
 
-  <views:ShellView />
+  <!--
+    The shell is designed on a fixed 1280x800 canvas and scaled uniformly to the
+    window, so every element keeps the same proportion at any resolution.
+    Aspect ratios other than 1.6:1 get letterboxed (the window background shows).
+  -->
+  <Viewbox Stretch="Uniform" StretchDirection="Both"
+           HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+    <views:ShellView Width="1280" Height="800" />
+  </Viewbox>
 
 </Window>

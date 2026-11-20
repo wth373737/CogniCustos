@@ -1,0 +1,83 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!--
+    简体中文 UI 文案。键必须与 Lang.en.axaml 完全一致（测试会逐键比对）。
+    翻译方式：复制本文件为 Lang.<culture>.axaml，只改值、不改键。
+  -->
+
+  <!-- 外壳 -->
+  <x:String x:Key="App.Home">主页</x:String>
+  <x:String x:Key="App.SearchHint">搜索或跳转…</x:String>
+  <x:String x:Key="App.EnterText">输入文字</x:String>
+  <x:String x:Key="App.LanguageButton">En</x:String>
+
+  <!-- 看板卡片 -->
+  <x:String x:Key="Card.Pending">待办任务</x:String>
+  <x:String x:Key="Card.Note">便签</x:String>
+  <x:String x:Key="Card.Empty.Today">今天还没有安排</x:String>
+  <x:String x:Key="Card.Empty.Pending">没有待办</x:String>
+  <x:String x:Key="Card.Empty.Note">还没有便签</x:String>
+  <x:String x:Key="Card.Row.New">新条目</x:String>
+
+  <!-- 演示数据（沙箱假数据） -->
+  <x:String x:Key="Demo.Today1">SAD 讲座</x:String>
+  <x:String x:Key="Demo.Today2">小组同步</x:String>
+  <x:String x:Key="Demo.Pending1">补完提案 §5.2</x:String>
+  <x:String x:Key="Demo.Pending2">检查门户截止时间</x:String>
+  <x:String x:Key="Demo.Note1">想法：可折叠的预留区</x:String>
+  <x:String x:Key="Demo.Note2">问导师邮件范围</x:String>
+
+  <!-- 推理记录 -->
+  <x:String x:Key="Reasoning.Title">推理记录</x:String>
+  <x:String x:Key="Reasoning.Thinking">小 AI 正在思考</x:String>
+  <x:String x:Key="Toast.AddedToToday">已暂存到「今天」（沙箱假数据）</x:String>
+
+  <!-- 抽屉图标 -->
+  <x:String x:Key="Tile.Knowledge">知识库</x:String>
+  <x:String x:Key="Tile.DataBase">数据库</x:String>
+  <x:String x:Key="Tile.Sandbox">沙箱</x:String>
+  <x:String x:Key="Tile.AddFiles">添加文件</x:String>
+  <x:String x:Key="Tile.AddAddress">添加地址</x:String>
+  <x:String x:Key="Tile.CheckMail">检查邮件</x:String>
+  <x:String x:Key="Tile.SearchGraphical">图形检索</x:String>
+  <x:String x:Key="Drawer.FutureArea">一块为后续功能预留的区域</x:String>
+
+  <!-- 设置页 -->
+  <x:String x:Key="Settings.Title">设置页</x:String>
+  <x:String x:Key="Settings.Placeholder">设置内容区（尚未实现）</x:String>
+  <x:String x:Key="Section.General">通用</x:String>
+  <x:String x:Key="Section.Model">模型配置</x:String>
+  <x:String x:Key="Section.EmailRetrieval">邮件抓取配置</x:String>
+  <x:String x:Key="Section.ChatRetrieval">聊天抓取配置</x:String>
+  <x:String x:Key="Section.WebsiteBrowsing">网页浏览配置</x:String>
+  <x:String x:Key="Section.StudentNetwork">学生网络配置</x:String>
+  <x:String x:Key="Section.Prompt">提示词配置</x:String>
+  <x:String x:Key="Section.Hotkeys">快捷键设置</x:String>
+  <x:String x:Key="Section.Privacy">隐私设置</x:String>
+  <x:String x:Key="Section.KnowledgeBase">知识库配置</x:String>
+  <x:String x:Key="Section.Database">数据库配置</x:String>
+  <x:String x:Key="Section.Sandbox">沙箱配置</x:String>
+  <x:String x:Key="Section.Storage">存储与数据</x:String>
+  <x:String x:Key="Section.Software">软件详情</x:String>
+  <x:String x:Key="Section.Notifications">通知设置</x:String>
+  <x:String x:Key="Section.Offline">离线与网络</x:String>
+
+  <!-- 帮助 -->
+  <x:String x:Key="Help.Title">帮助</x:String>
+  <x:String x:Key="Help.Placeholder">帮助内容占位区</x:String>
+
+  <!-- 工具提示 -->
+  <x:String x:Key="Tip.Menu">菜单</x:String>
+  <x:String x:Key="Tip.Help">帮助</x:String>
+  <x:String x:Key="Tip.Settings">设置</x:String>
+  <x:String x:Key="Tip.Language">语言</x:String>
+  <x:String x:Key="Tip.Sound">声音</x:String>
+  <x:String x:Key="Tip.Calendar">日历</x:String>
+  <x:String x:Key="Tip.Collapse">折叠 / 展开</x:String>
+  <x:String x:Key="Tip.Add">添加</x:String>
+  <x:String x:Key="Tip.ReasoningRecord">展开推理记录</x:String>
+  <x:String x:Key="Tip.Back">返回</x:String>
+  <x:String x:Key="Tip.Expand">展开 / 收起</x:String>
+
+</ResourceDictionary>
