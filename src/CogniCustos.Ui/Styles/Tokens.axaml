@@ -1,0 +1,58 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ============ Palette ============ -->
+  <Color x:Key="AppBgColor">#FFF5F5F9</Color>
+  <Color x:Key="SurfaceColor">#FFFFFFFF</Color>
+  <Color x:Key="RailColor">#FFFCFCFE</Color>
+  <Color x:Key="DrawerColor">#FFECEAF6</Color>
+  <Color x:Key="CardPinkColor">#FFFBEFF1</Color>
+  <Color x:Key="CardOliveColor">#FFF7F6E6</Color>
+  <Color x:Key="InkColor">#FF23232B</Color>
+  <Color x:Key="InkSoftColor">#FF6B6B79</Color>
+  <Color x:Key="InkFaintColor">#FF9A9AA7</Color>
+  <Color x:Key="LineColor">#FFECECF1</Color>
+
+  <SolidColorBrush x:Key="AppBg" Color="{StaticResource AppBgColor}" />
+  <SolidColorBrush x:Key="Surface" Color="{StaticResource SurfaceColor}" />
+  <SolidColorBrush x:Key="RailBg" Color="{StaticResource RailColor}" />
+  <SolidColorBrush x:Key="DrawerBg" Color="{StaticResource DrawerColor}" />
+  <SolidColorBrush x:Key="CardPink" Color="{StaticResource CardPinkColor}" />
+  <SolidColorBrush x:Key="CardOlive" Color="{StaticResource CardOliveColor}" />
+  <SolidColorBrush x:Key="Ink" Color="{StaticResource InkColor}" />
+  <SolidColorBrush x:Key="InkSoft" Color="{StaticResource InkSoftColor}" />
+  <SolidColorBrush x:Key="InkFaint" Color="{StaticResource InkFaintColor}" />
+  <SolidColorBrush x:Key="Line" Color="{StaticResource LineColor}" />
+
+  <!-- ============ Typography ============ -->
+  <FontFamily x:Key="UiFont">Inter, Microsoft YaHei UI, Segoe UI</FontFamily>
+  <!-- Windows icon font. Segoe MDL2 Assets ships on Win10/11, Fluent Icons on Win11. -->
+  <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
+  <!-- ============ Icon glyphs (MDL2 code points) ============ -->
+  <x:String x:Key="GlyphMenu">&#xE700;</x:String>
+  <x:String x:Key="GlyphHelp">&#xE897;</x:String>
+  <x:String x:Key="GlyphSettings">&#xE713;</x:String>
+  <x:String x:Key="GlyphSearch">&#xE721;</x:String>
+  <x:String x:Key="GlyphVolume">&#xE767;</x:String>
+  <x:String x:Key="GlyphCalendar">&#xE787;</x:String>
+  <x:String x:Key="GlyphTasks">&#xE9D5;</x:String>
+  <x:String x:Key="GlyphNote">&#xE8FD;</x:String>
+  <x:String x:Key="GlyphKnowledge">&#xE8F1;</x:String>
+  <x:String x:Key="GlyphSandbox">&#xE9D5;</x:String>
+  <x:String x:Key="GlyphAttach">&#xE723;</x:String>
+  <x:String x:Key="GlyphFolder">&#xE8B7;</x:String>
+  <x:String x:Key="GlyphMail">&#xE715;</x:String>
+  <x:String x:Key="GlyphPerson">&#xE77B;</x:String>
+  <x:String x:Key="GlyphChevronDown">&#xE70D;</x:String>
+  <x:String x:Key="GlyphChevronLeft">&#xE76B;</x:String>
+  <x:String x:Key="GlyphChevronRight">&#xE76C;</x:String>
+  <x:String x:Key="GlyphPlus">&#xE710;</x:String>
+  <x:String x:Key="GlyphMic">&#xE720;</x:String>
+  <x:String x:Key="GlyphBack">&#xE72B;</x:String>
+  <x:String x:Key="GlyphList">&#xE8FD;</x:String>
+
+  <!-- Database cylinder drawn by hand: MDL2 has no database glyph. -->
+  <StreamGeometry x:Key="GeoDataBase">M2,4.5 A7,2.6 0 1 0 16,4.5 A7,2.6 0 1 0 2,4.5 M2,4.5 V13.5 A7,2.6 0 0 0 16,13.5 V4.5 M2,9 A7,2.6 0 0 0 16,9</StreamGeometry>
+
+</ResourceDictionary>

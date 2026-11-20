@@ -1,0 +1,363 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CogniCustos.Ui.ViewModels"
+             xmlns:views="using:CogniCustos.Ui.Views"
+             x:Class="CogniCustos.Ui.Views.ShellView"
+             x:DataType="vm:ShellViewModel"
+             Background="{StaticResource AppBg}"
+             ClipToBounds="True">
+
+  <UserControl.Resources>
+
+    <!-- one row inside a board card -->
+    <DataTemplate x:Key="CardRow" x:DataType="vm:CardItem">
+      <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,7">
+        <TextBlock Grid.Column="0"
+                   Text="{Binding Meta}"
+                   FontSize="10.5"
+                   Foreground="{StaticResource InkFaint}"
+                   VerticalAlignment="Center"
+                   Margin="0,0,8,0"
+                   IsVisible="{Binding Meta, Converter={x:Static ObjectConverters.IsNotNull}}" />
+        <TextBlock Grid.Column="1"
+                   Text="{Binding Text}"
+                   FontSize="12"
+                   Foreground="#FF45454F"
+                   VerticalAlignment="Center"
+                   TextTrimming="CharacterEllipsis" />
+      </Grid>
+    </DataTemplate>
+
+    <!-- one board card: header / body / footer -->
+    <DataTemplate x:Key="CardTemplate" x:DataType="vm:CardViewModel">
+      <Border Classes="card"
+              Classes.pink="{Binding IsPink}"
+              Classes.olive="{Binding IsOlive}"
+              Height="{Binding CardHeight}">
+        <Grid RowDefinitions="Auto,*,Auto">
+
+          <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="7">
+            <TextBlock Classes="glyph" Text="{Binding Glyph}" FontSize="12" />
+            <TextBlock Classes="caption" Text="{Binding Title}" VerticalAlignment="Center" />
+          </StackPanel>
+
+          <Grid Grid.Row="1" IsVisible="{Binding IsExpanded}" Margin="0,12,0,0">
+            <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource CardRow}"
+                          VerticalAlignment="Top" />
+            <TextBlock Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}"
+                       Classes="muted" FontSize="11" VerticalAlignment="Top" />
+          </Grid>
+
+          <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto">
+            <Button Grid.Column="0" Classes="icon" Width="26" Height="26"
+                    Command="{Binding ToggleCollapseCommand}" ToolTip.Tip="collapse / expand">
+              <TextBlock Classes="glyph" Text="{Binding CollapseGlyph}" FontSize="10" />
+            </Button>
+            <Button Grid.Column="2" Classes="icon" Width="26" Height="26"
+                    Command="{Binding AddCommand}" ToolTip.Tip="add">
+              <TextBlock Classes="glyph" Text="{StaticResource GlyphPlus}" FontSize="11" />
+            </Button>
+          </Grid>
+        </Grid>
+      </Border>
+    </DataTemplate>
+
+  </UserControl.Resources>
+
+  <Grid ColumnDefinitions="*,64">
+
+    <!-- ============================ CONTENT ============================ -->
+    <Grid Grid.Column="0" ClipToBounds="True">
+
+      <Grid RowDefinitions="76,*,140">
+
+        <!-- top bar -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="22,0,22,0">
+
+          <Border Grid.Column="0" Width="30" Height="30" CornerRadius="15"
+                  BorderThickness="1.4" BorderBrush="#FF3B3B46" VerticalAlignment="Center">
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphPerson}" FontSize="14"
+                       Foreground="#FF3B3B46" />
+          </Border>
+
+          <TextBlock Grid.Column="1" Text="{Binding S.Brand}" Margin="10,0,0,0"
+                     FontSize="15.5" FontWeight="SemiBold" VerticalAlignment="Center"
+                     Foreground="{StaticResource Ink}" />
+
+          <Border Grid.Column="2" Margin="20,0,0,0" Height="34" Width="340"
+                  CornerRadius="17" Background="#FFF1F1F6" VerticalAlignment="Center">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,0,12,0">
+              <Border Grid.Column="0" Width="26" Height="26" CornerRadius="13"
+                      Background="#FFFFFFFF" BoxShadow="0 1 3 0 #18000000">
+                <TextBlock Classes="glyph" Text="{StaticResource GlyphSearch}" FontSize="11.5"
+                           Foreground="{StaticResource InkSoft}" />
+              </Border>
+              <TextBlock Grid.Column="1" Text="{Binding S.SearchHint}" Margin="10,0,0,0"
+                         FontSize="12.5" Foreground="{StaticResource InkFaint}"
+                         VerticalAlignment="Center" />
+              <TextBlock Grid.Column="2" Classes="glyph" Text="{StaticResource GlyphChevronDown}"
+                         FontSize="9.5" Foreground="{StaticResource InkFaint}" />
+            </Grid>
+          </Border>
+
+          <Button Grid.Column="4" Classes="link" Content="{Binding S.Home}"
+                  Command="{Binding GoHomeCommand}" VerticalAlignment="Center" />
+
+          <Button Grid.Column="5" Classes="icon" Command="{Binding ToggleLanguageCommand}"
+                  VerticalAlignment="Center" Margin="6,0,0,0" ToolTip.Tip="sound">
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphVolume}" FontSize="13" />
+          </Button>
+        </Grid>
+
+        <!-- board -->
+        <Grid Grid.Row="1" Margin="22,4,22,0" VerticalAlignment="Top">
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Cards}" ItemTemplate="{StaticResource CardTemplate}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <StackPanel Orientation="Horizontal" Spacing="16" />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+
+        <!-- bottom: reasoning record + input -->
+        <Grid Grid.Row="2" ColumnDefinitions="300,*" Margin="22,0,22,18" VerticalAlignment="Bottom">
+
+          <Border Grid.Column="0" Width="264" Height="96" CornerRadius="13"
+                  Background="{StaticResource Surface}" BoxShadow="0 6 20 0 #0E000000"
+                  VerticalAlignment="Bottom" HorizontalAlignment="Left">
+            <Grid ColumnDefinitions="*,Auto" Margin="12,10,8,10">
+              <Grid Grid.Column="0" RowDefinitions="Auto,*">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphList}" FontSize="11" />
+                  <TextBlock Text="{Binding S.ReasoningRecord}" FontSize="10.5"
+                             Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="5" VerticalAlignment="Bottom">
+                  <TextBlock Text="{Binding S.Thinking}" FontSize="11"
+                             IsVisible="{Binding !HasToast}"
+                             Foreground="{StaticResource InkFaint}" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Toast}" FontSize="11"
+                             IsVisible="{Binding HasToast}"
+                             Foreground="{StaticResource InkSoft}" VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="10"
+                             IsVisible="{Binding !HasToast}"
+                             Foreground="{StaticResource InkFaint}" />
+                </StackPanel>
+              </Grid>
+              <Button Grid.Column="1" Classes="icon" Width="24" Height="24" VerticalAlignment="Center"
+                      ToolTip.Tip="open reasoning record">
+                <TextBlock Classes="glyph" Text="{StaticResource GlyphChevronRight}" FontSize="9.5" />
+              </Button>
+            </Grid>
+          </Border>
+
+          <Border Grid.Column="1" Width="520" Height="44" CornerRadius="22"
+                  Background="{StaticResource Surface}" BorderBrush="#FFE9E9EF" BorderThickness="1"
+                  BoxShadow="0 4 14 0 #0C000000"
+                  HorizontalAlignment="Center" VerticalAlignment="Bottom">
+            <Grid ColumnDefinitions="Auto,*" Margin="8,0,16,0">
+              <Border Grid.Column="0" Width="28" Height="28" CornerRadius="14"
+                      Background="#FFF1F1F6" VerticalAlignment="Center">
+                <TextBlock Classes="glyph" Text="{StaticResource GlyphMic}" FontSize="12" />
+              </Border>
+              <TextBox x:Name="InputBox" Grid.Column="1" Classes="pill" Margin="10,0,0,0"
+                       PlaceholderText="{Binding S.EnterText}" Text="{Binding InputText}">
+                <TextBox.KeyBindings>
+                  <KeyBinding Gesture="Enter" Command="{Binding SubmitInputCommand}" />
+                </TextBox.KeyBindings>
+              </TextBox>
+            </Grid>
+          </Border>
+        </Grid>
+      </Grid>
+
+      <!-- click-outside catcher for the drawer / help panel -->
+      <Border ZIndex="5" Background="Transparent"
+              IsVisible="{Binding IsBackdropVisible}"
+              PointerPressed="OnBackdropPressed" />
+
+      <!-- drawer (menu + reserved future area) -->
+      <Border Name="DrawerPanel" ZIndex="6"
+              Width="{Binding DrawerWidth}"
+              Margin="0,76,0,0"
+              HorizontalAlignment="Right" VerticalAlignment="Stretch"
+              Background="{StaticResource DrawerBg}"
+              BorderBrush="#FFE2E0EE" BorderThickness="1,0,0,0"
+              Opacity="{Binding DrawerOpacity}"
+              IsHitTestVisible="{Binding DrawerHitTest}">
+        <Border.RenderTransform>
+          <TranslateTransform X="{Binding DrawerOffset}">
+            <TranslateTransform.Transitions>
+              <Transitions>
+                <DoubleTransition Property="X" Duration="0:0:0.24" Easing="CubicEaseOut" />
+              </Transitions>
+            </TranslateTransform.Transitions>
+          </TranslateTransform>
+        </Border.RenderTransform>
+        <Border.Transitions>
+          <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
+          </Transitions>
+        </Border.Transitions>
+
+        <Grid ColumnDefinitions="Auto,208">
+          <!-- reserved area, only visible when expanded -->
+          <Border Grid.Column="0" Width="352" IsVisible="{Binding DrawerExpanded}">
+            <TextBlock Text="{Binding S.FutureAreaText}"
+                       FontSize="26" FontWeight="Thin"
+                       Foreground="#FF4B4B58"
+                       TextWrapping="Wrap" Width="240"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                       LineHeight="34" />
+          </Border>
+
+          <Grid Grid.Column="1" RowDefinitions="*,Auto">
+
+            <!-- icon grid -->
+            <Grid Grid.Row="0" Margin="14,22,10,0" VerticalAlignment="Top"
+                  ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto">
+
+              <Button Grid.Row="0" Grid.Column="0" Classes="tile" ToolTip.Tip="{Binding S.TileKnowledge}">
+                <StackPanel Spacing="5">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphKnowledge}" FontSize="16" />
+                  <TextBlock Text="{Binding S.TileKnowledge}" FontSize="8.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                             TextWrapping="Wrap" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <Button Grid.Row="0" Grid.Column="1" Classes="tile" ToolTip.Tip="{Binding S.TileData}">
+                <StackPanel Spacing="5">
+                  <Path Width="18" Height="18" Data="{StaticResource GeoDataBase}"
+                        Stroke="{StaticResource InkSoft}" StrokeThickness="1.2" Fill="Transparent"
+                        HorizontalAlignment="Center" />
+                  <TextBlock Text="{Binding S.TileData}" FontSize="8.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                             HorizontalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <Button Grid.Row="0" Grid.Column="2" Classes="tile" ToolTip.Tip="{Binding S.TileSandbox}">
+                <StackPanel Spacing="5">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphSandbox}" FontSize="16" />
+                  <TextBlock Text="{Binding S.TileSandbox}" FontSize="8.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                             HorizontalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <Button Grid.Row="1" Grid.Column="0" Classes="tile" ToolTip.Tip="{Binding S.TileAddFiles}">
+                <StackPanel Spacing="5">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphAttach}" FontSize="16" />
+                  <TextBlock Text="{Binding S.TileAddFiles}" FontSize="8.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                             HorizontalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <Button Grid.Row="1" Grid.Column="1" Classes="tile" ToolTip.Tip="{Binding S.TileAddAddress}">
+                <StackPanel Spacing="5">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphFolder}" FontSize="16" />
+                  <TextBlock Text="{Binding S.TileAddAddress}" FontSize="8.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                             TextWrapping="Wrap" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <Button Grid.Row="2" Grid.Column="0" Classes="tile" ToolTip.Tip="{Binding S.TileCheckMail}">
+                <StackPanel Spacing="5">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphMail}" FontSize="16" />
+                  <TextBlock Text="{Binding S.TileCheckMail}" FontSize="8.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                             TextWrapping="Wrap" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <Button Grid.Row="2" Grid.Column="1" Classes="tile" ToolTip.Tip="{Binding S.TileSearchGraphical}">
+                <StackPanel Spacing="5">
+                  <Grid Width="22" Height="18">
+                    <TextBlock Classes="glyph" Text="{StaticResource GlyphPerson}" FontSize="13"
+                               HorizontalAlignment="Left" />
+                    <TextBlock Classes="glyph" Text="{StaticResource GlyphSearch}" FontSize="9"
+                               HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+                  </Grid>
+                  <TextBlock Text="{Binding S.TileSearchGraphical}" FontSize="8.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                             TextWrapping="Wrap" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </Grid>
+
+            <!-- drawer footer: expand chevron + calendar -->
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Margin="10,0,0,14"
+                        VerticalAlignment="Bottom">
+              <Button Classes="icon" Width="26" Height="26" Command="{Binding ExpandDrawerCommand}"
+                      ToolTip.Tip="expand / collapse">
+                <TextBlock Classes="glyph" FontSize="12" Text="{Binding ExpandGlyph}" />
+              </Button>
+              <Button Classes="icon" Width="26" Height="26" ToolTip.Tip="calendar">
+                <TextBlock Classes="glyph" Text="{StaticResource GlyphCalendar}" FontSize="13" />
+              </Button>
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </Border>
+
+      <!-- help panel -->
+      <Border ZIndex="6" Width="300" Height="180" CornerRadius="14" Background="{StaticResource Surface}"
+              BoxShadow="0 8 26 0 #16000000"
+              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
+              IsVisible="{Binding HelpOpen}">
+        <Grid RowDefinitions="Auto,*" Margin="16,14">
+          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="14" />
+            <TextBlock Grid.Column="1" Text="{Binding S.HelpTitle}" FontSize="13" FontWeight="SemiBold"
+                       Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Ink}" />
+            <Button Grid.Column="2" Classes="icon" Width="24" Height="24"
+                    Command="{Binding ToggleHelpCommand}">
+              <TextBlock Classes="glyph" Text="&#xE711;" FontSize="10" />
+            </Button>
+          </Grid>
+          <TextBlock Grid.Row="1" Text="{Binding S.HelpPlaceholder}" FontSize="11.5"
+                     Foreground="{StaticResource InkFaint}" Margin="0,12,0,0" TextWrapping="Wrap" />
+        </Grid>
+      </Border>
+
+    </Grid>
+
+    <!-- ============================ RAIL ============================ -->
+    <Border Grid.Column="1" Background="{StaticResource RailBg}"
+            BorderBrush="{StaticResource Line}" BorderThickness="1,0,0,0">
+      <Grid RowDefinitions="76,*,Auto,26">
+
+        <Button Grid.Row="0" Classes="lang" Content="{Binding S.LanguageButton}"
+                Command="{Binding ToggleLanguageCommand}"
+                ToolTip.Tip="language"
+                HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+        <StackPanel Grid.Row="2" Spacing="10" HorizontalAlignment="Center" Margin="0,0,0,26">
+          <Button Classes="icon" Classes.open="{Binding IsMenuActive}"
+                  Command="{Binding ToggleDrawerCommand}" ToolTip.Tip="menu">
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphMenu}" FontSize="16" />
+          </Button>
+          <Button Classes="icon" Classes.open="{Binding IsHelpActive}"
+                  Command="{Binding ToggleHelpCommand}" ToolTip.Tip="help">
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="16" />
+          </Button>
+          <Button Classes="icon" Classes.open="{Binding IsSettingsActive}"
+                  Command="{Binding ToggleSettingsCommand}" ToolTip.Tip="settings">
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphSettings}" FontSize="16" />
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- ============================ SETTINGS PAGE ============================ -->
+    <views:SettingsPage ZIndex="10" Grid.ColumnSpan="2" IsVisible="{Binding SettingsOpen}" />
+
+  </Grid>
+</UserControl>

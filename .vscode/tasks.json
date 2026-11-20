@@ -1,0 +1,68 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-ui",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/src/CogniCustos.Ui/CogniCustos.Ui.csproj",
+        "-c",
+        "Debug"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build-shots",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/tools/CogniCustos.Ui.Shots/CogniCustos.Ui.Shots.csproj",
+        "-c",
+        "Debug"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build-all",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "${workspaceFolder}/CogniCustos.slnx", "-c", "Debug"],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run-ui",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/src/CogniCustos.Ui/CogniCustos.Ui.csproj"
+      ],
+      "group": "none",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "shots",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/tools/CogniCustos.Ui.Shots/CogniCustos.Ui.Shots.csproj",
+        "--",
+        "artifacts/ui",
+        "1280",
+        "800"
+      ],
+      "dependsOn": "build-shots",
+      "group": "none",
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

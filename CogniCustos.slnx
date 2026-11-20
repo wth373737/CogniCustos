@@ -5,5 +5,9 @@
     <Project Path="src/CogniCustos.Core/CogniCustos.Core.csproj" />
     <Project Path="src/CogniCustos.Desktop/CogniCustos.Desktop.csproj" />
     <Project Path="src/CogniCustos.Selftest/CogniCustos.Selftest.csproj" />
+    <Project Path="src/CogniCustos.Ui/CogniCustos.Ui.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/CogniCustos.Ui.Shots/CogniCustos.Ui.Shots.csproj" />
   </Folder>
 </Solution>

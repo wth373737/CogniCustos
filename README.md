@@ -135,3 +135,16 @@ cloud.ask → 本地规则检查（9 类：邮箱/电话/学号/密钥/密码/�
           └─ 命中+人工放行 → 发送 → 审计 "sent-overridden"
 ```
 
+---
+
+## 八、UI 沙箱（2026-11-20）
+
+界面从这一版开始独立开发：新增 `src/CogniCustos.Ui`，**不引用** Core / Adapters，用假数据把
+主窗口（顶栏 / 三张卡片 / 推理记录 / 输入条 / 右侧竖排栏）和三个抽屉（菜单抽屉、预留功能区、设置页）做出来。
+配套 `tools/CogniCustos.Ui.Shots` 可无头渲染 8 个状态到 PNG，用作自检与视觉回归。
+
+- 框架：Avalonia **12.1.6**（全解决方案已从 11.2.3 升级，`Selftest 37/37` 仍全过）
+- 结构、交互、设计约定与"还没做的事"：见 [docs/UI-SANDBOX.md](docs/UI-SANDBOX.md)
+- VS Code：`.vscode/launch.json` 已配好「跑窗口 / 无头出图 / 跑旧骨架」三个 F5 配置
+
+

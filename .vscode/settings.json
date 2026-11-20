@@ -1,0 +1,11 @@
+{
+  "dotnet.defaultSolution": "CogniCustos.slnx",
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true,
+    "artifacts": true
+  },
+  "editor.formatOnSave": false,
+  "axaml.previewer.renderingMode": "software",
+  "omnisharp.enableEditorConfigSupport": true
+}

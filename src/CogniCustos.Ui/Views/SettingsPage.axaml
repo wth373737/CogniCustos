@@ -1,0 +1,54 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CogniCustos.Ui.ViewModels"
+             x:Class="CogniCustos.Ui.Views.SettingsPage"
+             x:DataType="vm:ShellViewModel"
+             Background="{StaticResource AppBg}"
+             ClipToBounds="True">
+
+  <Grid RowDefinitions="84,*,Auto">
+
+    <!-- header -->
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" Margin="30,0,22,0">
+      <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphSettings}" FontSize="19"
+                 Foreground="{StaticResource Ink}" />
+      <TextBlock Grid.Column="1" Text="{Binding S.SettingsTitle}" FontSize="17" FontWeight="SemiBold"
+                 Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Ink}" />
+      <Button Grid.Column="3" Classes="lang" Content="{Binding S.LanguageButton}"
+              Command="{Binding ToggleLanguageCommand}" VerticalAlignment="Center" />
+    </Grid>
+
+    <!-- body: section list + content -->
+    <Grid Grid.Row="1" ColumnDefinitions="250,*" Margin="30,0,22,0">
+
+      <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto"
+                    HorizontalScrollBarVisibility="Disabled" Margin="0,0,18,0">
+        <ListBox Classes="settings"
+                 ItemsSource="{Binding S.SettingsSections}"
+                 SelectedIndex="{Binding SelectedSectionIndex, Mode=TwoWay}" />
+      </ScrollViewer>
+
+      <Border Grid.Column="1" CornerRadius="14" Background="#FFE7EFED" Padding="26,22">
+        <Grid RowDefinitions="Auto,Auto,*">
+          <TextBlock Grid.Row="0" Text="{Binding SelectedSection}" FontSize="15" FontWeight="SemiBold"
+                     Foreground="#FF3C4A47" />
+          <Border Grid.Row="1" Height="1" Background="#FFD7E2DF" Margin="0,12,0,0" />
+          <TextBlock Grid.Row="2" Text="{Binding S.SettingsPlaceholder}" FontSize="12"
+                     Foreground="#FF93A29F" Margin="0,16,0,0" TextWrapping="Wrap" />
+        </Grid>
+      </Border>
+    </Grid>
+
+    <!-- footer -->
+    <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8"
+                HorizontalAlignment="Right" Margin="0,14,22,16">
+      <Button Classes="icon" Width="30" Height="30" ToolTip.Tip="{Binding S.HelpTitle}">
+        <TextBlock Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="14" />
+      </Button>
+      <Button Classes="icon" Width="30" Height="30" Command="{Binding ToggleSettingsCommand}"
+              ToolTip.Tip="back">
+        <TextBlock Classes="glyph" Text="&#xE7A7;" FontSize="14" />
+      </Button>
+    </StackPanel>
+  </Grid>
+</UserControl>

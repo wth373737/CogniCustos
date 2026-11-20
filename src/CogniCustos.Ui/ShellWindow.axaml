@@ -1,0 +1,16 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:CogniCustos.Ui.Views"
+        xmlns:vm="using:CogniCustos.Ui.ViewModels"
+        x:Class="CogniCustos.Ui.ShellWindow"
+        x:DataType="vm:ShellViewModel"
+        Title="CogniCustos — UI Sandbox"
+        Width="1280" Height="800"
+        MinWidth="1040" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource AppBg}"
+        FontFamily="{StaticResource UiFont}">
+
+  <views:ShellView />
+
+</Window>

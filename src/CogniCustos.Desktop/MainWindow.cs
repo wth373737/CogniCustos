@@ -28,16 +28,16 @@ public sealed class MainWindow : Window
         IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap,
         FontFamily = new FontFamily("Consolas, Microsoft YaHei UI, monospace"), FontSize = 13
     };
-    private readonly TextBox _input = new() { Watermark = "问点什么，或 /tools /tasks /sandbox /pending /add /search /models", Height = 40 };
+    private readonly TextBox _input = new() { PlaceholderText = "问点什么，或 /tools /tasks /sandbox /pending /add /search /models", Height = 40 };
     private readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center, FontSize = 12, Foreground = Brushes.Gray };
     private readonly TextBox _sandboxView = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas, Microsoft YaHei UI, monospace"), FontSize = 12 };
     private readonly ListBox _proposals = new();
     private readonly ListBox _tasks = new();
     private readonly ListBox _tools = new();
     private readonly TextBox _scheduleView = new() { IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, FontFamily = new FontFamily("Consolas, Microsoft YaHei UI, monospace"), FontSize = 12 };
-    private readonly TextBox _scheduleDate = new() { Watermark = "yyyy-MM-dd（留空=今天）", Width = 140 };
-    private readonly TextBox _taskTitle = new() { Watermark = "新任务标题" };
-    private readonly TextBox _taskDue = new() { Watermark = "截止（如 2026-11-20）", Width = 160 };
+    private readonly TextBox _scheduleDate = new() { PlaceholderText = "yyyy-MM-dd（留空=今天）", Width = 140 };
+    private readonly TextBox _taskTitle = new() { PlaceholderText = "新任务标题" };
+    private readonly TextBox _taskDue = new() { PlaceholderText = "截止（如 2026-11-20）", Width = 160 };
     private Button _sendButton = new() { Content = "发送", Width = 80 };
     private bool _busy;
 
@@ -84,7 +84,7 @@ public sealed class MainWindow : Window
                 var h = Math.Max(1, (int)ClientSize.Height);
                 using var bitmap = new Avalonia.Media.Imaging.RenderTargetBitmap(new PixelSize(w, h), new Vector(96, 96));
                 bitmap.Render(this);
-                bitmap.Save(shot);
+                bitmap.Save(shot, Avalonia.Media.Imaging.PngBitmapEncoderOptions.Default);
                 AppendLine("[dev] 已渲染窗口截图：" + shot);
             }
             catch (Exception ex)
@@ -279,10 +279,10 @@ public sealed class MainWindow : Window
     {
         var url = new TextBox { Text = _settings.OllamaBaseUrl, Width = 300 };
         var model = new TextBox { Text = _settings.OllamaModel, Width = 200 };
-        var sidecar = new TextBox { Text = _settings.PortalSidecarUrl ?? "", Width = 300, Watermark = "留空表示不启用门户链路" };
-        var cloudBase = new TextBox { Text = _settings.CloudBaseUrl ?? "", Width = 300, Watermark = "如 http://127.0.0.1:11434/v1（用它就能离线验证出站闸门）" };
+        var sidecar = new TextBox { Text = _settings.PortalSidecarUrl ?? "", Width = 300, PlaceholderText = "留空表示不启用门户链路" };
+        var cloudBase = new TextBox { Text = _settings.CloudBaseUrl ?? "", Width = 300, PlaceholderText = "如 http://127.0.0.1:11434/v1（用它就能离线验证出站闸门）" };
         var cloudModel = new TextBox { Text = _settings.CloudModel ?? "", Width = 200 };
-        var cloudKey = new TextBox { Text = _settings.CloudApiKey ?? "", Width = 300, PasswordChar = '•', Watermark = "可留空（本地端点通常不需要）" };
+        var cloudKey = new TextBox { Text = _settings.CloudApiKey ?? "", Width = 300, PasswordChar = '•', PlaceholderText = "可留空（本地端点通常不需要）" };
 
         var save = MakeButton("保存并重连", () =>
         {

@@ -6,3 +6,4 @@ state/
 *.user
 *.suo
 __pycache__/
+artifacts/

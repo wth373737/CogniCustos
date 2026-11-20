@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "UI: run the window (CogniCustos.Ui)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-ui",
+      "program": "${workspaceFolder}/src/CogniCustos.Ui/bin/Debug/net8.0/CogniCustos.Ui.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/CogniCustos.Ui",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "env": {
+        "AVALONIA_DEVTOOLS": "1"
+      }
+    },
+    {
+      "name": "UI: render screenshots headlessly",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-shots",
+      "program": "${workspaceFolder}/tools/CogniCustos.Ui.Shots/bin/Debug/net8.0/CogniCustos.Ui.Shots.dll",
+      "args": ["artifacts/ui", "1280", "800"],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    },
+    {
+      "name": "Skeleton: run the existing app (CogniCustos.Desktop)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build-all",
+      "program": "${workspaceFolder}/src/CogniCustos.Desktop/bin/Debug/net8.0/CogniCustos.Desktop.dll",
+      "cwd": "${workspaceFolder}/src/CogniCustos.Desktop",
+      "console": "internalConsole",
+      "stopAtEntry": false
+    }
+  ],
+  "compounds": []
+}
