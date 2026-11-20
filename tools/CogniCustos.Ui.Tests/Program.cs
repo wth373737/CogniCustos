@@ -246,10 +246,12 @@ internal static class Program
         });
 
         // ---- proportional scaling ----
-        Test("canvas_scales_uniformly_at_1024x640", (_, w) => AssertScale(w, 0.8), 1024, 640);
-        Test("canvas_scales_uniformly_at_1280x800", (_, w) => AssertScale(w, 1.0), 1280, 800);
-        Test("canvas_scales_uniformly_at_2560x1440", (_, w) => AssertScale(w, 1.8), 2560, 1440);
-        Test("canvas_scales_uniformly_at_odd_aspect", (_, w) => AssertScale(w, 1.0), 1400, 800);
+        Test("canvas_scales_uniformly_at_1024x576", (_, w) => AssertScale(w, 0.8), 1024, 576);
+        Test("canvas_scales_uniformly_at_1280x720", (_, w) => AssertScale(w, 1.0), 1280, 720);
+        Test("canvas_scales_uniformly_at_1600x900", (_, w) => AssertScale(w, 1.25), 1600, 900);
+        Test("canvas_scales_uniformly_at_1920x1080", (_, w) => AssertScale(w, 1.5), 1920, 1080);
+        Test("canvas_scales_uniformly_at_2560x1440", (_, w) => AssertScale(w, 2.0), 2560, 1440);
+        Test("canvas_letterboxes_at_4x3", (_, w) => AssertScale(w, 0.8), 1024, 768);
 
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
@@ -257,12 +259,12 @@ internal static class Program
 
     // ---------- assertions ----------
 
-    /// <summary>The shell always lays out on the fixed 1280x800 canvas and is scaled by the Viewbox.</summary>
+    /// <summary>The shell always lays out on the fixed 1280x720 canvas and is scaled by the Viewbox.</summary>
     private static void AssertScale(ShellWindow window, double expected)
     {
         var view = window.GetVisualDescendants().OfType<ShellView>().First();
         Check(Math.Abs(view.Bounds.Width - 1280) < 0.5, $"canvas width changed: {view.Bounds.Width}");
-        Check(Math.Abs(view.Bounds.Height - 800) < 0.5, $"canvas height changed: {view.Bounds.Height}");
+        Check(Math.Abs(view.Bounds.Height - 720) < 0.5, $"canvas height changed: {view.Bounds.Height}");
 
         var matrix = view.TransformToVisual(window);
         Check(matrix is not null, "no transform to the window");
@@ -274,7 +276,7 @@ internal static class Program
     // ---------- plumbing ----------
 
     private static void Test(string name, Action<ShellViewModel, ShellWindow> body,
-        int width = 1280, int height = 800)
+        int width = 1280, int height = 720)
     {
         // Every test starts from English so the order of tests cannot matter.
         Localizer.SetLanguage(Localizer.English);
