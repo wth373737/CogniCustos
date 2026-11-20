@@ -15,14 +15,14 @@
       <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,6">
         <TextBlock Grid.Column="0"
                    Text="{Binding Meta}"
-                   FontSize="10.5"
+                   FontSize="13.5"
                    Foreground="{StaticResource InkFaint}"
                    VerticalAlignment="Center"
                    Margin="0,0,8,0"
                    IsVisible="{Binding Meta, Converter={x:Static ObjectConverters.IsNotNull}}" />
         <TextBlock Grid.Column="1"
                    Text="{Binding Text}"
-                   FontSize="12"
+                   FontSize="15.5"
                    Foreground="#FF45454F"
                    VerticalAlignment="Center"
                    TextTrimming="CharacterEllipsis" />
@@ -38,16 +38,16 @@
         <Grid RowDefinitions="Auto,*,Auto">
 
           <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto">
-            <TextBlock Grid.Column="0" Classes="glyph" Text="{Binding Glyph}" FontSize="17"
+            <TextBlock Grid.Column="0" Classes="glyph" Text="{Binding Glyph}" FontSize="30"
                        Foreground="{StaticResource Ink}" />
             <Button Grid.Column="2" Classes="icon" Width="22" Height="22" Margin="0,0,6,0"
                     Command="{Binding ToggleCollapseCommand}" ToolTip.Tip="{DynamicResource Tip.Collapse}">
-              <TextBlock Classes="glyph" Text="{Binding CollapseGlyph}" FontSize="11"
+              <TextBlock Classes="glyph" Text="{Binding CollapseGlyph}" FontSize="14.5"
                          Foreground="{StaticResource InkFaint}" />
             </Button>
-            <TextBlock Grid.Column="3" Text="{Binding Title}" Width="90"
+            <TextBlock Grid.Column="3" Text="{Binding Title}" Width="104"
                        TextAlignment="Right" TextWrapping="Wrap"
-                       FontSize="13" FontWeight="SemiBold"
+                       FontSize="17" FontWeight="SemiBold"
                        Foreground="{StaticResource Ink}" VerticalAlignment="Center" />
           </Grid>
 
@@ -55,20 +55,20 @@
             <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource CardRow}"
                           VerticalAlignment="Top" IsVisible="{Binding HasRows}" />
             <TextBlock Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}"
-                       Classes="muted" FontSize="11" VerticalAlignment="Top" />
+                       Classes="muted" FontSize="14.5" VerticalAlignment="Top" />
           </Grid>
 
           <Grid Grid.Row="2" ColumnDefinitions="*,Auto">
-            <Button Grid.Column="0" Classes="icon" Width="24" Height="24" HorizontalAlignment="Center"
+            <Button Grid.Column="0" Classes="icon" Width="30" Height="30" HorizontalAlignment="Center"
                     ToolTip.Tip="{DynamicResource Tip.OpenList}">
-              <TextBlock Classes="glyph" Text="{StaticResource GlyphChevronDown}" FontSize="10" />
+              <TextBlock Classes="glyph" Text="{StaticResource GlyphChevronDown}" FontSize="13" />
             </Button>
             <Button Grid.Column="1" Classes="icon" Width="24" Height="24"
                     IsVisible="{Binding ShowAdd}" IsEnabled="{Binding CanAdd}"
                     Command="{Binding AddCommand}" ToolTip.Tip="{DynamicResource Tip.Add}">
-              <Border Width="19" Height="19" CornerRadius="10" BorderThickness="1.2"
+              <Border Width="26" Height="26" CornerRadius="13" BorderThickness="1.4"
                       BorderBrush="{StaticResource InkFaint}">
-                <TextBlock Classes="glyph" Text="{StaticResource GlyphPlus}" FontSize="9" />
+                <TextBlock Classes="glyph" Text="{StaticResource GlyphPlus}" FontSize="12" />
               </Border>
             </Button>
           </Grid>
@@ -82,46 +82,45 @@
 
     <!-- ============================ LEFT SIDEBAR ============================ -->
     <Border Grid.Column="0" Background="{StaticResource SidebarBg}">
-      <Grid RowDefinitions="Auto,*,Auto,Auto,54">
+      <Grid RowDefinitions="Auto,*,Auto,Auto">
 
         <!-- logo -->
-        <Border Grid.Row="0" Width="72" Height="72" CornerRadius="36" BorderThickness="2.5"
+        <Border Grid.Row="0" Width="72" Height="72" CornerRadius="36" BorderThickness="3"
                 BorderBrush="{StaticResource Ink}" Margin="22,18,0,0" HorizontalAlignment="Left">
-          <TextBlock Classes="glyph" Text="{StaticResource GlyphPerson}" FontSize="30"
+          <TextBlock Classes="glyph" Text="{StaticResource GlyphPerson}" FontSize="40"
                      Foreground="{StaticResource Ink}" />
         </Border>
 
         <!-- reasoning record caption -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="12,0,10,8">
-          <TextBlock Classes="glyph" Text="{StaticResource GlyphDoc}" FontSize="13"
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="12,0,10,44">
+          <TextBlock Classes="glyph" Text="{StaticResource GlyphDoc}" FontSize="17"
                      Foreground="{StaticResource InkSoft}" />
-          <TextBlock Text="{DynamicResource Reasoning.Title}" FontSize="10.5"
+          <TextBlock Text="{DynamicResource Reasoning.Title}" FontSize="13.5"
                      Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
         </StackPanel>
 
         <!-- reasoning panel -->
-        <Border Grid.Row="3" Height="140" Background="{StaticResource Surface}">
+        <Border Grid.Row="3" Height="165" Background="{StaticResource Surface}">
           <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto" Margin="12,14,10,12">
             <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="4"
                         VerticalAlignment="Top">
-              <TextBlock Text="{DynamicResource Reasoning.Thinking}" FontSize="11"
-                         IsVisible="{Binding !HasToast}" TextWrapping="Wrap" Width="118"
+              <TextBlock Text="{DynamicResource Reasoning.Thinking}" FontSize="14.5"
+                         IsVisible="{Binding !HasToast}" TextWrapping="Wrap" Width="170"
                          Foreground="{StaticResource InkSoft}" />
-              <TextBlock Text="{Binding Toast}" FontSize="11" IsVisible="{Binding HasToast}"
-                         TextWrapping="Wrap" Width="118"
+              <TextBlock Text="{Binding Toast}" FontSize="14.5" IsVisible="{Binding HasToast}"
+                         TextWrapping="Wrap" Width="170"
                          Foreground="{StaticResource InkSoft}" />
-              <TextBlock Classes="glyph" Text="{StaticResource GlyphChat}" FontSize="12"
+              <TextBlock Classes="glyph" Text="{StaticResource GlyphChat}" FontSize="15.5"
                          IsVisible="{Binding !HasToast}" Foreground="{StaticResource InkSoft}" />
             </StackPanel>
             <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Classes="icon"
                     Width="24" Height="24" HorizontalAlignment="Right"
                     ToolTip.Tip="{DynamicResource Tip.ReasoningRecord}">
-              <TextBlock Classes="glyph" Text="{StaticResource GlyphChevronRight}" FontSize="10" />
+              <TextBlock Classes="glyph" Text="{StaticResource GlyphChevronRight}" FontSize="13" />
             </Button>
           </Grid>
         </Border>
 
-        <Border Grid.Row="4" />
       </Grid>
     </Border>
 
@@ -134,7 +133,7 @@
         <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="27,0,39,0">
 
           <Border Grid.Column="0" Classes="chip" Width="181" VerticalAlignment="Center">
-            <TextBlock Text="CogniCustos" FontSize="15" FontWeight="SemiBold"
+            <TextBlock Text="CogniCustos" FontSize="20" FontWeight="SemiBold"
                        HorizontalAlignment="Center"
                        Foreground="{StaticResource Ink}" VerticalAlignment="Center" />
           </Border>
@@ -145,32 +144,32 @@
                   ToolTip.Tip="{DynamicResource Today.Title}">
             <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
               <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphAlarm}"
-                         FontSize="16" Foreground="#FFE0A23C" Margin="4,0,10,0" />
+                         FontSize="22" Foreground="#FFE0A23C" Margin="4,0,10,0" />
               <Border x:Name="TickerClip" Grid.Column="1" ClipToBounds="True" Height="22" VerticalAlignment="Center">
                 <Grid>
                   <StackPanel x:Name="TickerRow" Orientation="Horizontal">
-                    <TextBlock x:Name="TickerText" Text="{Binding Today.Line}" FontSize="13"
+                    <TextBlock x:Name="TickerText" Text="{Binding Today.Line}" FontSize="17"
                                Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
-                    <TextBlock x:Name="TickerCopy" Text="{Binding Today.Line}" FontSize="13" Margin="48,0,0,0"
+                    <TextBlock x:Name="TickerCopy" Text="{Binding Today.Line}" FontSize="17" Margin="48,0,0,0"
                                IsVisible="False"
                                Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
                   </StackPanel>
-                  <TextBlock Text="{DynamicResource Today.Empty}" FontSize="12.5"
+                  <TextBlock Text="{DynamicResource Today.Empty}" FontSize="16"
                              Foreground="{StaticResource InkFaint}"
                              IsVisible="{Binding Today.IsEmpty}" VerticalAlignment="Center" />
                 </Grid>
               </Border>
               <TextBlock Grid.Column="2" Classes="glyph" Text="{Binding Today.ListChevron}"
-                         FontSize="9.5" Foreground="{StaticResource InkFaint}" Margin="8,0,0,0" />
+                         FontSize="12" Foreground="{StaticResource InkFaint}" Margin="8,0,0,0" />
             </Grid>
           </Button>
 
-          <Button Grid.Column="3" Classes="link" FontSize="13.5" Content="{DynamicResource App.Home}"
-                  Command="{Binding GoHomeCommand}" VerticalAlignment="Center" />
+          <Button Grid.Column="3" Classes="link" FontSize="17.5" Content="{DynamicResource App.Home}"
+                  Command="{Binding GoHomeCommand}" VerticalAlignment="Center" Margin="0,0,34,0" />
 
           <Button Grid.Column="4" Classes="icon" Command="{Binding ToggleLanguageCommand}"
                   VerticalAlignment="Center" Margin="14,0,0,0" ToolTip.Tip="{DynamicResource Tip.Sound}">
-            <TextBlock Classes="glyph" Text="{StaticResource GlyphVolume}" FontSize="14"
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphVolume}" FontSize="18"
                        Foreground="{StaticResource Ink}" />
           </Button>
         </Grid>
@@ -189,14 +188,14 @@
         </Grid>
 
         <!-- input -->
-        <Grid Grid.Row="2" VerticalAlignment="Bottom" Margin="0,0,0,62">
-          <Border Width="250" Height="44" CornerRadius="22"
+        <Grid Grid.Row="2" VerticalAlignment="Bottom" Margin="0,0,-88,19">
+          <Border Width="220" Height="48" CornerRadius="24"
                   Background="#FFE9E9EE"
                   HorizontalAlignment="Center">
             <Grid ColumnDefinitions="Auto,*" Margin="6,0,14,0">
-              <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16"
+              <Border Grid.Column="0" Width="38" Height="38" CornerRadius="19"
                       Background="#FFCFCFD8" VerticalAlignment="Center">
-                <TextBlock Classes="glyph" Text="{StaticResource GlyphMic}" FontSize="13"
+                <TextBlock Classes="glyph" Text="{StaticResource GlyphMic}" FontSize="17"
                            Foreground="{StaticResource InkSoft}" />
               </Border>
               <TextBox x:Name="InputBox" Grid.Column="1" Classes="pill" Margin="8,0,0,0"
@@ -223,20 +222,20 @@
               BoxShadow="0 10 30 0 #1A000000" ClipToBounds="True"
               IsVisible="{Binding Today.IsListOpen}">
         <Grid RowDefinitions="Auto,*" Margin="14,10,14,10">
-          <TextBlock Grid.Row="0" Text="{DynamicResource Today.Title}" FontSize="11"
+          <TextBlock Grid.Row="0" Text="{DynamicResource Today.Title}" FontSize="14.5"
                      FontWeight="SemiBold" Foreground="{StaticResource InkSoft}" />
           <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
             <Grid>
               <ItemsControl ItemsSource="{Binding Today.Items}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="sys:String">
-                    <TextBlock Text="{Binding}" FontSize="12" Margin="0,3"
+                    <TextBlock Text="{Binding}" FontSize="15.5" Margin="0,3"
                                Foreground="#FF45454F" TextWrapping="Wrap" />
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
               <TextBlock Text="{DynamicResource Today.Empty}" IsVisible="{Binding Today.IsEmpty}"
-                         FontSize="12" Foreground="{StaticResource InkFaint}" />
+                         FontSize="15.5" Foreground="{StaticResource InkFaint}" />
             </Grid>
           </ScrollViewer>
         </Grid>
@@ -277,7 +276,7 @@
               </Transitions>
             </Border.Transitions>
             <TextBlock Text="{DynamicResource Drawer.FutureArea}"
-                       FontSize="26" FontWeight="Thin"
+                       FontSize="34" FontWeight="Thin"
                        Foreground="#FF4B4B58"
                        TextWrapping="Wrap" Width="240"
                        HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -292,9 +291,9 @@
 
               <Button Grid.Row="0" Grid.Column="0" Classes="tile" ToolTip.Tip="{DynamicResource Tile.Knowledge}">
                 <StackPanel Spacing="5">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphKnowledge}" FontSize="16" />
-                  <TextBlock Text="{DynamicResource Tile.Knowledge}" FontSize="8.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphKnowledge}" FontSize="22" />
+                  <TextBlock Text="{DynamicResource Tile.Knowledge}" FontSize="9.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
                              TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
@@ -304,44 +303,44 @@
                   <Path Width="18" Height="18" Data="{StaticResource GeoDataBase}"
                         Stroke="{StaticResource InkSoft}" StrokeThickness="1.2" Fill="Transparent"
                         HorizontalAlignment="Center" />
-                  <TextBlock Text="{DynamicResource Tile.DataBase}" FontSize="8.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                  <TextBlock Text="{DynamicResource Tile.DataBase}" FontSize="9.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
                              HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
 
               <Button Grid.Row="0" Grid.Column="2" Classes="tile" ToolTip.Tip="{DynamicResource Tile.Sandbox}">
                 <StackPanel Spacing="5">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphSandbox}" FontSize="16" />
-                  <TextBlock Text="{DynamicResource Tile.Sandbox}" FontSize="8.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphSandbox}" FontSize="22" />
+                  <TextBlock Text="{DynamicResource Tile.Sandbox}" FontSize="9.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
                              HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
 
               <Button Grid.Row="1" Grid.Column="0" Classes="tile" ToolTip.Tip="{DynamicResource Tile.AddFiles}">
                 <StackPanel Spacing="5">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphAttach}" FontSize="16" />
-                  <TextBlock Text="{DynamicResource Tile.AddFiles}" FontSize="8.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphAttach}" FontSize="22" />
+                  <TextBlock Text="{DynamicResource Tile.AddFiles}" FontSize="9.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
                              HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
 
               <Button Grid.Row="1" Grid.Column="1" Classes="tile" ToolTip.Tip="{DynamicResource Tile.AddAddress}">
                 <StackPanel Spacing="5">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphFolder}" FontSize="16" />
-                  <TextBlock Text="{DynamicResource Tile.AddAddress}" FontSize="8.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphFolder}" FontSize="22" />
+                  <TextBlock Text="{DynamicResource Tile.AddAddress}" FontSize="9.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
                              TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
 
               <Button Grid.Row="2" Grid.Column="0" Classes="tile" ToolTip.Tip="{DynamicResource Tile.CheckMail}">
                 <StackPanel Spacing="5">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphMail}" FontSize="16" />
-                  <TextBlock Text="{DynamicResource Tile.CheckMail}" FontSize="8.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphMail}" FontSize="22" />
+                  <TextBlock Text="{DynamicResource Tile.CheckMail}" FontSize="9.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
                              TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
@@ -349,13 +348,13 @@
               <Button Grid.Row="2" Grid.Column="1" Classes="tile" ToolTip.Tip="{DynamicResource Tile.SearchGraphical}">
                 <StackPanel Spacing="5">
                   <Grid Width="22" Height="18">
-                    <TextBlock Classes="glyph" Text="{StaticResource GlyphPerson}" FontSize="13"
+                    <TextBlock Classes="glyph" Text="{StaticResource GlyphPerson}" FontSize="17"
                                HorizontalAlignment="Left" />
-                    <TextBlock Classes="glyph" Text="{StaticResource GlyphSearch}" FontSize="9"
+                    <TextBlock Classes="glyph" Text="{StaticResource GlyphSearch}" FontSize="12"
                                HorizontalAlignment="Right" VerticalAlignment="Bottom" />
                   </Grid>
-                  <TextBlock Text="{DynamicResource Tile.SearchGraphical}" FontSize="8.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="52"
+                  <TextBlock Text="{DynamicResource Tile.SearchGraphical}" FontSize="9.5"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
                              TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
@@ -366,10 +365,10 @@
                         VerticalAlignment="Bottom">
               <Button Classes="icon" Width="26" Height="26" Command="{Binding ExpandDrawerCommand}"
                       ToolTip.Tip="{DynamicResource Tip.Expand}">
-                <TextBlock Classes="glyph" FontSize="12" Text="{Binding ExpandGlyph}" />
+                <TextBlock Classes="glyph" FontSize="15.5" Text="{Binding ExpandGlyph}" />
               </Button>
               <Button Classes="icon" Width="26" Height="26" ToolTip.Tip="{DynamicResource Tip.Calendar}">
-                <TextBlock Classes="glyph" Text="{StaticResource GlyphCalendar}" FontSize="13" />
+                <TextBlock Classes="glyph" Text="{StaticResource GlyphCalendar}" FontSize="17" />
               </Button>
             </StackPanel>
           </Grid>
@@ -383,15 +382,15 @@
               IsVisible="{Binding HelpOpen}">
         <Grid RowDefinitions="Auto,*" Margin="16,14">
           <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-            <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="14" />
-            <TextBlock Grid.Column="1" Text="{DynamicResource Help.Title}" FontSize="13" FontWeight="SemiBold"
+            <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="18" />
+            <TextBlock Grid.Column="1" Text="{DynamicResource Help.Title}" FontSize="17" FontWeight="SemiBold"
                        Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Ink}" />
             <Button Grid.Column="2" Classes="icon" Width="24" Height="24"
                     Command="{Binding ToggleHelpCommand}">
-              <TextBlock Classes="glyph" Text="&#xE711;" FontSize="10" />
+              <TextBlock Classes="glyph" Text="&#xE711;" FontSize="13" />
             </Button>
           </Grid>
-          <TextBlock Grid.Row="1" Text="{DynamicResource Help.Placeholder}" FontSize="11.5"
+          <TextBlock Grid.Row="1" Text="{DynamicResource Help.Placeholder}" FontSize="15"
                      Foreground="{StaticResource InkFaint}" Margin="0,12,0,0" TextWrapping="Wrap" />
         </Grid>
       </Border>
@@ -400,27 +399,27 @@
 
     <!-- ============================ RIGHT RAIL ============================ -->
     <Border Grid.Column="2" Background="{StaticResource RailBg}">
-      <Grid RowDefinitions="76,*,Auto,120">
+      <Grid RowDefinitions="76,*,Auto,30">
 
         <Button Grid.Row="0" Classes="lang" Content="{DynamicResource App.LanguageButton}"
                 Command="{Binding ToggleLanguageCommand}"
                 ToolTip.Tip="{DynamicResource Tip.Language}"
                 HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-        <StackPanel Grid.Row="2" Spacing="14" HorizontalAlignment="Center" Margin="0,0,0,26">
+        <StackPanel Grid.Row="2" Spacing="28" HorizontalAlignment="Center">
           <Button Classes="icon" Classes.open="{Binding IsMenuActive}"
                   Command="{Binding ToggleDrawerCommand}" ToolTip.Tip="{DynamicResource Tip.Menu}">
-            <TextBlock Classes="glyph" Text="{StaticResource GlyphMenu}" FontSize="17"
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphMenu}" FontSize="30"
                        Foreground="{StaticResource Ink}" />
           </Button>
           <Button Classes="icon" Classes.open="{Binding IsHelpActive}"
                   Command="{Binding ToggleHelpCommand}" ToolTip.Tip="{DynamicResource Tip.Help}">
-            <TextBlock Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="17"
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="30"
                        Foreground="{StaticResource Ink}" />
           </Button>
           <Button Classes="icon" Classes.open="{Binding IsSettingsActive}"
                   Command="{Binding ToggleSettingsCommand}" ToolTip.Tip="{DynamicResource Tip.Settings}">
-            <TextBlock Classes="glyph" Text="{StaticResource GlyphSettings}" FontSize="17"
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphSettings}" FontSize="30"
                        Foreground="{StaticResource Ink}" />
           </Button>
         </StackPanel>

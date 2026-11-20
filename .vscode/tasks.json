@@ -80,6 +80,25 @@
         "isDefault": true
       },
       "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "shots-compare",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "${workspaceFolder}/tools/CogniCustos.Ui.Shots/CogniCustos.Ui.Shots.csproj",
+        "--",
+        "artifacts/ui",
+        "1280",
+        "720",
+        "docs/sketch-reference.png",
+        "0,0,802,452"
+      ],
+      "dependsOn": "build-shots",
+      "group": "none",
+      "problemMatcher": "$msCompile"
     }
   ]
 }

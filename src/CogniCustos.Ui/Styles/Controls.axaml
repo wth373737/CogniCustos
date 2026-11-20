@@ -7,8 +7,8 @@
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="0" />
     <Setter Property="CornerRadius" Value="8" />
-    <Setter Property="Width" Value="34" />
-    <Setter Property="Height" Value="34" />
+    <Setter Property="Width" Value="46" />
+    <Setter Property="Height" Value="46" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="Cursor" Value="Hand" />
@@ -47,7 +47,7 @@
     <Setter Property="Padding" Value="0" />
     <Setter Property="CornerRadius" Value="10" />
     <Setter Property="Width" Value="60" />
-    <Setter Property="Height" Value="62" />
+    <Setter Property="Height" Value="74" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
 
@@ -81,8 +81,8 @@
   <Style Selector="Border.chip">
     <Setter Property="Background" Value="{DynamicResource ChipBrush}" />
     <Setter Property="CornerRadius" Value="16" />
-    <Setter Property="Height" Value="32" />
-    <Setter Property="Padding" Value="16,0" />
+    <Setter Property="Height" Value="42" />
+    <Setter Property="Padding" Value="18,0" />
   </Style>
 
   <!-- ===== reminder pill ===== -->
@@ -91,8 +91,8 @@
     <Setter Property="BorderBrush" Value="#FF8E8E99" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="17" />
-    <Setter Property="Height" Value="34" />
-    <Setter Property="Padding" Value="6,0,10,0" />
+    <Setter Property="Height" Value="36" />
+    <Setter Property="Padding" Value="6,0,12,0" />
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
@@ -116,7 +116,7 @@
     <Setter Property="Padding" Value="10,6" />
     <Setter Property="Margin" Value="0,1" />
     <Setter Property="CornerRadius" Value="7" />
-    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="FontSize" Value="15" />
     <Setter Property="Foreground" Value="{DynamicResource InkSoft}" />
     <Setter Property="Cursor" Value="Hand" />
   </Style>
@@ -133,8 +133,8 @@
   <Style Selector="Button.link">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Padding" Value="8,4" />
-    <Setter Property="FontSize" Value="12.5" />
+    <Setter Property="Padding" Value="10,5" />
+    <Setter Property="FontSize" Value="17" />
     <Setter Property="Foreground" Value="{DynamicResource Ink}" />
     <Setter Property="CornerRadius" Value="7" />
     <Setter Property="Cursor" Value="Hand" />
@@ -155,10 +155,10 @@
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="BorderBrush" Value="{DynamicResource InkFaint}" />
     <Setter Property="CornerRadius" Value="7" />
-    <Setter Property="Width" Value="32" />
-    <Setter Property="Height" Value="26" />
+    <Setter Property="Width" Value="50" />
+    <Setter Property="Height" Value="40" />
     <Setter Property="Padding" Value="0" />
-    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontSize" Value="15" />
     <Setter Property="Foreground" Value="{DynamicResource Ink}" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -175,14 +175,14 @@
 
   <!-- ===== text helpers ===== -->
   <Style Selector="TextBlock.caption">
-    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="FontSize" Value="15" />
     <Setter Property="LetterSpacing" Value="0.2" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="#FF3B3B47" />
   </Style>
 
   <Style Selector="TextBlock.muted">
-    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="FontSize" Value="15" />
     <Setter Property="Foreground" Value="{DynamicResource InkFaint}" />
   </Style>
 
@@ -191,7 +191,7 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="0" />
-    <Setter Property="FontSize" Value="12.5" />
+    <Setter Property="FontSize" Value="16" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
     <Setter Property="MinHeight" Value="0" />
   </Style>
