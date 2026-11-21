@@ -193,6 +193,50 @@
     <Setter Property="Background" Value="#12000000" />
   </Style>
 
+  <!-- ===== calendar window ===== -->
+  <Style Selector="Button.winBtn">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="15" />
+    <Setter Property="Foreground" Value="{StaticResource CalendarInk}" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.winBtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#14000000" />
+  </Style>
+
+  <Style Selector="Button.spin">
+    <Setter Property="Width" Value="20" />
+    <Setter Property="Height" Value="16" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Foreground" Value="{StaticResource CalendarInk}" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.spin:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#14000000" />
+  </Style>
+
+  <!-- the card date that opens the calendar -->
+  <Style Selector="Button.cardDate">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="FontSize" Value="17" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{StaticResource Ink}" />
+  </Style>
+
+  <Style Selector="Button.cardDate:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#10000000" />
+  </Style>
+
   <!-- ===== settings gallery button ===== -->
   <Style Selector="Button.preview">
     <Setter Property="Background" Value="#FFFDFDFE" />

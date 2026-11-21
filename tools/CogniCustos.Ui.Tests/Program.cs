@@ -446,6 +446,108 @@ internal static class Program
             Check(Math.Abs(blurred!.Radius) < 0.01, $"the rendered blur stayed at {blurred.Radius}");
         });
 
+        // ---- calendar window ----
+        Test("calendar_opens_from_the_card_date", (vm, w) =>
+        {
+            Check(!vm.Calendar.IsVisible, "the calendar starts closed");
+
+            var dateButton = w.GetVisualDescendants().OfType<Button>()
+                .FirstOrDefault(b => b.Classes.Contains("cardDate"));
+            Check(dateButton is not null, "the first card has no clickable date");
+
+            dateButton!.Command!.Execute(dateButton.CommandParameter);
+            Pump();
+            Check(vm.Calendar.IsVisible, "the date did not open the calendar");
+
+            var today = DateTime.Today;
+            Check(vm.Calendar.Year == today.Year && vm.Calendar.Month == today.Month,
+                $"the calendar opened on {vm.Calendar.Year}-{vm.Calendar.Month}, expected {today.Year}-{today.Month}");
+            Check(vm.Calendar.Weeks.Count == 6, $"expected 6 week rows, got {vm.Calendar.Weeks.Count}");
+            Check(vm.Calendar.Weeks.All(week => week.Days.Count == 7), "every week row must hold 7 cells");
+            Check(vm.Calendar.Weeks.SelectMany(week => week.Days).Any(day => day.IsToday),
+                "today must be marked in the grid");
+            Check(vm.Calendar.Weeks.SelectMany(week => week.Days).Count(day => day.InMonth) is >= 28 and <= 31,
+                "the shown month must contribute 28..31 days");
+        });
+
+        Test("calendar_minimise_restore_and_close", (vm, _) =>
+        {
+            vm.Calendar.Open();
+            Pump();
+            var expanded = vm.Calendar.WindowHeight;
+            Check(expanded > 200, $"expanded height looks wrong: {expanded}");
+            Check(vm.Calendar.BodyVisible, "the body should be visible when open");
+
+            vm.Calendar.ToggleMinimizeCommand.Execute(null);
+            Pump();
+            Check(vm.Calendar.IsMinimized && !vm.Calendar.BodyVisible, "minimise did not hide the body");
+            Check(vm.Calendar.WindowHeight < expanded, "the minimised window must be shorter");
+
+            vm.Calendar.ToggleMinimizeCommand.Execute(null);
+            Pump();
+            Check(!vm.Calendar.IsMinimized && vm.Calendar.BodyVisible, "restore did not bring the body back");
+
+            vm.Calendar.CloseCommand.Execute(null);
+            Pump();
+            Check(!vm.Calendar.IsVisible, "close did not hide the window");
+        });
+
+        Test("calendar_month_and_year_navigation", (vm, _) =>
+        {
+            vm.Calendar.Open();
+            Pump();
+            var year = vm.Calendar.Year;
+            var month = vm.Calendar.Month;
+
+            vm.Calendar.NextMonthCommand.Execute(null);
+            Pump();
+            Check(vm.Calendar.Month == (month == 12 ? 1 : month + 1), "next month is wrong");
+            Check(vm.Calendar.Year == (month == 12 ? year + 1 : year), "the year must roll over in December");
+
+            vm.Calendar.PreviousMonthCommand.Execute(null);
+            Pump();
+            Check(vm.Calendar.Year == year && vm.Calendar.Month == month, "previous month did not come back");
+
+            vm.Calendar.NextYearCommand.Execute(null);
+            Pump();
+            Check(vm.Calendar.Year == year + 1, "next year is wrong");
+            vm.Calendar.PreviousYearCommand.Execute(null);
+            Pump();
+            Check(vm.Calendar.Year == year, "previous year did not come back");
+
+            // the grid follows the month: the first in-month cell is day 1
+            var firstInMonth = vm.Calendar.Weeks.SelectMany(week => week.Days).First(day => day.InMonth);
+            Check(firstInMonth.Number == "1", $"first in-month cell should be 1, got {firstInMonth.Number}");
+        });
+
+        Test("calendar_drags_within_the_canvas", (vm, w) =>
+        {
+            vm.Calendar.Open();
+            Pump();
+            var startX = vm.Calendar.X;
+            var startY = vm.Calendar.Y;
+
+            var bar = w.GetVisualDescendants().OfType<Grid>().First(g => g.Name == "CalendarTitleBar");
+            var origin = bar.TranslatePoint(new Point(60, 26), w);
+            Check(origin is not null, "the title bar is not in the visual tree");
+
+            w.MouseDown(origin!.Value, MouseButton.Left);
+            w.MouseMove(new Point(origin.Value.X + 90, origin.Value.Y + 60));
+            w.MouseUp(new Point(origin.Value.X + 90, origin.Value.Y + 60), MouseButton.Left);
+            Pump();
+
+            Check(vm.Calendar.X > startX + 40, $"dragging did not move X: {startX} -> {vm.Calendar.X}");
+            Check(vm.Calendar.Y > startY + 20, $"dragging did not move Y: {startY} -> {vm.Calendar.Y}");
+
+            // and it cannot leave the canvas
+            vm.Calendar.MoveTo(-500, -500);
+            Pump();
+            Check(Math.Abs(vm.Calendar.X) < 0.01 && Math.Abs(vm.Calendar.Y) < 0.01, "the window escaped the top-left corner");
+            vm.Calendar.MoveTo(5000, 5000);
+            Pump();
+            Check(vm.Calendar.X <= 1280 - vm.Calendar.WindowWidth + 0.01, "the window escaped the right edge");
+        });
+
         Test("settings_has_an_appearance_gallery", (vm, w) =>
         {
             vm.ShowState("appearance");

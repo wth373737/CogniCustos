@@ -25,6 +25,24 @@
   <SolidColorBrush x:Key="CardPink" Color="{StaticResource CardPinkColor}" />
   <SolidColorBrush x:Key="CardOlive" Color="{StaticResource CardOliveColor}" />
   <SolidColorBrush x:Key="ChipBrush" Color="{StaticResource ChipColor}" />
+  <!-- calendar window (from the calendar mock) -->
+  <Color x:Key="CalendarBgColor">#FFF7F0F7</Color>
+  <Color x:Key="CalendarHeadColor">#FFA9C5E9</Color>
+  <Color x:Key="CalendarCellColor">#FFE9F5FA</Color>
+  <Color x:Key="CalendarAgendaColor">#FFEAF7D9</Color>
+  <Color x:Key="CalendarLineColor">#FF6F6F6F</Color>
+  <Color x:Key="CalendarInkColor">#FF2E2E33</Color>
+  <Color x:Key="CalendarInkFaintColor">#FF9A9AA3</Color>
+  <Color x:Key="CalendarTodayColor">#FFBFDCF2</Color>
+  <SolidColorBrush x:Key="CalendarBg" Color="{StaticResource CalendarBgColor}" />
+  <SolidColorBrush x:Key="CalendarHead" Color="{StaticResource CalendarHeadColor}" />
+  <SolidColorBrush x:Key="CalendarCell" Color="{StaticResource CalendarCellColor}" />
+  <SolidColorBrush x:Key="CalendarAgenda" Color="{StaticResource CalendarAgendaColor}" />
+  <SolidColorBrush x:Key="CalendarLine" Color="{StaticResource CalendarLineColor}" />
+  <SolidColorBrush x:Key="CalendarInk" Color="{StaticResource CalendarInkColor}" />
+  <SolidColorBrush x:Key="CalendarInkFaint" Color="{StaticResource CalendarInkFaintColor}" />
+  <SolidColorBrush x:Key="CalendarToday" Color="{StaticResource CalendarTodayColor}" />
+
   <!-- reminder drawer surface: change the alpha here to make it more/less transparent -->
   <SolidColorBrush x:Key="ReminderDrawerBackground" Color="#F2FFFFFF" />
   <SolidColorBrush x:Key="Ink" Color="{StaticResource InkColor}" />

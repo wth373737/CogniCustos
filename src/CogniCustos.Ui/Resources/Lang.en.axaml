@@ -11,6 +11,20 @@
   <x:String x:Key="Appearance.Language">Language menu</x:String>
   <x:String x:Key="Appearance.Help">Help panel</x:String>
   <x:String x:Key="Appearance.Settings">Settings page</x:String>
+  <x:String x:Key="Calendar.Title">Calendar</x:String>
+  <x:String x:Key="Calendar.Year">Year:</x:String>
+  <x:String x:Key="Calendar.Month">Month:</x:String>
+  <x:String x:Key="Calendar.Open">Open the calendar</x:String>
+  <x:String x:Key="Calendar.Minimize">Minimize</x:String>
+  <x:String x:Key="Calendar.Close">Close</x:String>
+  <x:String x:Key="Calendar.Reserved">Reserved for later content</x:String>
+  <x:String x:Key="Weekday.Mon">Mon</x:String>
+  <x:String x:Key="Weekday.Tue">Tue</x:String>
+  <x:String x:Key="Weekday.Wed">Wed</x:String>
+  <x:String x:Key="Weekday.Thu">Thu</x:String>
+  <x:String x:Key="Weekday.Fri">Fri</x:String>
+  <x:String x:Key="Weekday.Sat">Sat</x:String>
+  <x:String x:Key="Weekday.Sun">Sun</x:String>
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.

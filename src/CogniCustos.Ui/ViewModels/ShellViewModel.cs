@@ -27,6 +27,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         Settings = new SettingsViewModel();
         Today = new TodayViewModel();
+        Calendar = new CalendarViewModel();
 
         ToggleDrawerCommand = new RelayCommand(ToggleMenu);
         ExpandDrawerCommand = new RelayCommand(ToggleFuture);
@@ -48,7 +49,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Cards =
         [
             // 1: compressed calendar — a date, no rows, no "+" yet.
-            new CardViewModel(CardKind.Calendar, "\uE787", BuildCalendar, () => Localizer.Get("Card.Row.New")),
+            new CardViewModel(CardKind.Calendar, "\uE787", BuildCalendar, () => Localizer.Get("Card.Row.New"),
+                onDateClick: Calendar.Open),
             // 2: pending items — pink, no "+" in the sketch.
             new CardViewModel(CardKind.Pending, "\uE9D5", BuildPending, () => Localizer.Get("Card.Row.New")),
             // 3: note — pale yellow, with "+".
@@ -77,6 +79,9 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     /// <summary>Today's reminders: the line at the top of the window.</summary>
     public TodayViewModel Today { get; }
+
+    /// <summary>The floating calendar window (opened from the first card's date).</summary>
+    public CalendarViewModel Calendar { get; }
 
     public ObservableCollection<CardViewModel> Cards { get; }
 
@@ -303,6 +308,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     public void RefreshText()
     {
         Settings.RefreshTitles();
+        Calendar.RefreshText();
         foreach (var card in Cards) card.Refresh();
         Today.ResetSeeds(BuildTodaySeeds());
         RebuildLanguageMenu();
@@ -442,6 +448,9 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
                 break;
             case "language-menu":
                 IsLanguageMenuOpen = true;
+                break;
+            case "calendar":
+                Calendar.Open();
                 break;
             case "today-list-long":
                 Today.ResetSeeds(BuildLongTodaySeeds());

@@ -1,0 +1,138 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CogniCustos.Ui.ViewModels"
+             xmlns:sys="using:System"
+             x:Class="CogniCustos.Ui.Views.CalendarWindow"
+             x:DataType="vm:ShellViewModel"
+             ClipToBounds="False">
+
+  <!-- A floating child window: title bar drags it, minimize collapses it to the bar,
+       close hides it. Opened by clicking the date on the first card. -->
+  <Border Width="{Binding Calendar.WindowWidth}"
+          Height="{Binding Calendar.WindowHeight}"
+          Background="{StaticResource CalendarBg}"
+          BorderBrush="{StaticResource CalendarLine}" BorderThickness="1"
+          CornerRadius="4"
+          BoxShadow="0 14 40 0 #22000000"
+          ClipToBounds="True">
+
+    <Grid RowDefinitions="Auto,*">
+
+      <!-- title bar -->
+      <Grid Name="CalendarTitleBar" Grid.Row="0" Height="52" ColumnDefinitions="*,Auto" Margin="0,0,0,0"
+            Background="Transparent"
+            PointerPressed="OnTitleBarPressed"
+            PointerMoved="OnTitleBarMoved"
+            PointerReleased="OnTitleBarReleased">
+
+        <TextBlock Grid.Column="0" Text="{Binding Calendar.Title}" FontSize="20"
+                   Foreground="{StaticResource CalendarInk}" VerticalAlignment="Center"
+                   Margin="20,0,0,0" />
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="18"
+                    VerticalAlignment="Center" Margin="0,0,14,0">
+
+          <!-- year -->
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="{Binding Calendar.YearTitle}" FontSize="17"
+                       Foreground="{StaticResource CalendarInk}" VerticalAlignment="Center" />
+            <StackPanel Spacing="1">
+              <Button Classes="spin" Command="{Binding Calendar.NextYearCommand}">
+                <TextBlock Classes="glyph" Text="&#xE70E;" FontSize="10" />
+              </Button>
+              <Button Classes="spin" Command="{Binding Calendar.PreviousYearCommand}">
+                <TextBlock Classes="glyph" Text="&#xE70D;" FontSize="10" />
+              </Button>
+            </StackPanel>
+          </StackPanel>
+
+          <!-- month -->
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Text="{Binding Calendar.MonthTitle}" FontSize="17"
+                       Foreground="{StaticResource CalendarInk}" VerticalAlignment="Center" />
+            <StackPanel Spacing="1">
+              <Button Classes="spin" Command="{Binding Calendar.NextMonthCommand}">
+                <TextBlock Classes="glyph" Text="&#xE70E;" FontSize="10" />
+              </Button>
+              <Button Classes="spin" Command="{Binding Calendar.PreviousMonthCommand}">
+                <TextBlock Classes="glyph" Text="&#xE70D;" FontSize="10" />
+              </Button>
+            </StackPanel>
+          </StackPanel>
+
+          <Button Classes="winBtn" Command="{Binding Calendar.ToggleMinimizeCommand}"
+                  ToolTip.Tip="{DynamicResource Calendar.Minimize}">
+            <TextBlock Classes="glyph" Text="{Binding Calendar.MinimizeGlyph}" FontSize="14" />
+          </Button>
+
+          <Button Classes="winBtn" Command="{Binding Calendar.CloseCommand}"
+                  ToolTip.Tip="{DynamicResource Calendar.Close}">
+            <TextBlock Classes="glyph" Text="&#xE711;" FontSize="14" />
+          </Button>
+        </StackPanel>
+      </Grid>
+
+      <!-- body: weekday header + six week rows + the reserved area -->
+      <Grid Grid.Row="1" RowDefinitions="Auto,*,Auto" IsVisible="{Binding Calendar.BodyVisible}"
+            Margin="24,0,24,20">
+
+        <ItemsControl Grid.Row="0" ItemsSource="{Binding Calendar.WeekdayHeaders}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="7" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="sys:String">
+              <Border Background="{StaticResource CalendarHead}" Height="30"
+                      BorderBrush="{StaticResource CalendarLine}" BorderThickness="1,1,1,1">
+                <TextBlock Text="{Binding}" FontSize="13"
+                           Foreground="{StaticResource CalendarInk}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Calendar.Weeks}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:CalendarWeek">
+              <ItemsControl ItemsSource="{Binding Days}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <UniformGrid Columns="7" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:CalendarDay">
+                    <Border Background="{StaticResource CalendarCell}"
+                            BorderBrush="{StaticResource CalendarLine}" BorderThickness="1,0,1,1"
+                            MinHeight="52">
+                      <Grid>
+                        <Border Width="28" Height="28" CornerRadius="14"
+                                Background="{StaticResource CalendarToday}"
+                                IsVisible="{Binding IsToday}" />
+                        <TextBlock Text="{Binding Number}" FontSize="14"
+                                   Foreground="{StaticResource CalendarInk}"
+                                   Opacity="{Binding TextOpacity}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- reserved area: the sample text comes later -->
+        <Border Grid.Row="2" Height="150" Margin="0,14,0,0"
+                Background="{StaticResource CalendarAgenda}" CornerRadius="2">
+          <TextBlock Text="{DynamicResource Calendar.Reserved}" FontSize="14"
+                     Foreground="{StaticResource CalendarInkFaint}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

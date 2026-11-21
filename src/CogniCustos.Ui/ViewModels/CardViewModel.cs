@@ -23,6 +23,7 @@ public sealed class CardViewModel : ObservableObject
 {
     private readonly Func<(string Title, string Empty, IReadOnlyList<CardItem> Items)> _source;
     private readonly Func<string> _newRowText;
+    private readonly Action? _onDateClick;
     private int _seedCount;
     private bool _collapsed;
     private string _title = string.Empty;
@@ -30,8 +31,10 @@ public sealed class CardViewModel : ObservableObject
 
     public CardViewModel(CardKind kind, string glyph,
         Func<(string Title, string Empty, IReadOnlyList<CardItem> Items)> source,
-        Func<string> newRowText)
+        Func<string> newRowText,
+        Action? onDateClick = null)
     {
+        _onDateClick = onDateClick;
         Kind = kind;
         Glyph = glyph;
         _source = source;
@@ -57,6 +60,13 @@ public sealed class CardViewModel : ObservableObject
 
     /// <summary>True for cards that carry a list of rows (pending / note).</summary>
     public bool HasRows => Kind != CardKind.Calendar;
+
+    /// <summary>The calendar card's date opens the calendar window.</summary>
+    public bool ShowDateButton => _onDateClick is not null;
+
+    public RelayCommand OpenDateCommand => _openDate ??= new RelayCommand(() => _onDateClick?.Invoke());
+
+    private RelayCommand? _openDate;
 
     /// <summary>The sketch shows "+" on the calendar and note cards, but not on pending.</summary>
     public bool ShowAdd => Kind != CardKind.Pending;

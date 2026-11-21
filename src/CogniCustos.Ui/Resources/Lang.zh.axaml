@@ -11,6 +11,20 @@
   <x:String x:Key="Appearance.Language">语言菜单</x:String>
   <x:String x:Key="Appearance.Help">帮助面板</x:String>
   <x:String x:Key="Appearance.Settings">设置页</x:String>
+  <x:String x:Key="Calendar.Title">日历</x:String>
+  <x:String x:Key="Calendar.Year">年：</x:String>
+  <x:String x:Key="Calendar.Month">月：</x:String>
+  <x:String x:Key="Calendar.Open">打开日历</x:String>
+  <x:String x:Key="Calendar.Minimize">最小化</x:String>
+  <x:String x:Key="Calendar.Close">关闭</x:String>
+  <x:String x:Key="Calendar.Reserved">预留区域，内容稍后补</x:String>
+  <x:String x:Key="Weekday.Mon">一</x:String>
+  <x:String x:Key="Weekday.Tue">二</x:String>
+  <x:String x:Key="Weekday.Wed">三</x:String>
+  <x:String x:Key="Weekday.Thu">四</x:String>
+  <x:String x:Key="Weekday.Fri">五</x:String>
+  <x:String x:Key="Weekday.Sat">六</x:String>
+  <x:String x:Key="Weekday.Sun">日</x:String>
   <!--
     简体中文 UI 文案。键必须与 Lang.en.axaml 完全一致（测试会逐键比对）。
     翻译方式：复制本文件为 Lang.<culture>.axaml，只改值、不改键。

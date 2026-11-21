@@ -22,7 +22,7 @@ internal static class Program
     private static readonly string[] States =
     [
         "home", "drawer", "expanded", "settings", "help",
-        "collapsed", "toast", "settings-zh", "settings-deep", "appearance", "today-list", "today-list-long", "language-menu",
+        "collapsed", "toast", "settings-zh", "settings-deep", "appearance", "calendar", "today-list", "today-list-long", "language-menu",
     ];
 
     [STAThread]
