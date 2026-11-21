@@ -257,20 +257,42 @@
         </Grid>
       </Border>
 
+      <!-- help panel -->
+      <Border ZIndex="7" Width="300" Height="180" CornerRadius="14" Background="{StaticResource Surface}"
+              BoxShadow="0 8 26 0 #16000000"
+              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
+              IsVisible="{Binding HelpOpen}">
+        <Grid RowDefinitions="Auto,*" Margin="16,14">
+          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="18" />
+            <TextBlock Grid.Column="1" Text="{DynamicResource Help.Title}" FontSize="17" FontWeight="SemiBold"
+                       Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Ink}" />
+            <Button Grid.Column="2" Classes="icon" Width="24" Height="24"
+                    Command="{Binding ToggleHelpCommand}">
+              <TextBlock Classes="glyph" Text="&#xE711;" FontSize="13" />
+            </Button>
+          </Grid>
+          <TextBlock Grid.Row="1" Text="{DynamicResource Help.Placeholder}" FontSize="15"
+                     Foreground="{StaticResource InkFaint}" Margin="0,12,0,0" TextWrapping="Wrap" />
+        </Grid>
+      </Border>
+
+    </Grid>
+
       <!-- ===== drawer stack: layer 1 (icon grid) + layer 2 (future area) =====
            The stack covers the whole content area including the top bar; home blurs
            and dims behind it. Clicking the page closes one layer at a time. -->
 
-      <Border Name="DrawerScrim" ZIndex="8" Background="Transparent"
+      <Border Name="DrawerScrim" Grid.Column="1" ZIndex="8" Background="Transparent"
               IsVisible="{Binding IsScrimVisible}"
               PointerPressed="OnScrimPressed">
         <Border Background="Black" Opacity="{Binding HomeDimOpacity}" />
       </Border>
 
-      <Border Name="MenuDrawer" ZIndex="9"
+      <Border Name="MenuDrawer" Grid.Column="1" ZIndex="9"
               Width="{Binding MenuWidth}"
               HorizontalAlignment="Right" VerticalAlignment="Stretch"
-              Background="{StaticResource DrawerBg}"
+              Background="{StaticResource RailBg}"
               BorderBrush="#FFDCD9E8" BorderThickness="1,0,0,0"
               ClipToBounds="True"
               Opacity="{Binding MenuOpacity}"
@@ -384,7 +406,7 @@
       </Border>
 
       <!-- layer 2: another drawer, pinned to the left edge of layer 1 (390) -->
-      <Border Name="FutureDrawer" ZIndex="9"
+      <Border Name="FutureDrawer" Grid.Column="1" ZIndex="9"
               Width="{Binding FutureWidth}"
               Margin="0,0,390,0"
               HorizontalAlignment="Right" VerticalAlignment="Stretch"
@@ -410,30 +432,8 @@
                    LineHeight="40" />
       </Border>
 
-      <!-- help panel -->
-      <Border ZIndex="7" Width="300" Height="180" CornerRadius="14" Background="{StaticResource Surface}"
-              BoxShadow="0 8 26 0 #16000000"
-              HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,20,0"
-              IsVisible="{Binding HelpOpen}">
-        <Grid RowDefinitions="Auto,*" Margin="16,14">
-          <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-            <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphHelp}" FontSize="18" />
-            <TextBlock Grid.Column="1" Text="{DynamicResource Help.Title}" FontSize="17" FontWeight="SemiBold"
-                       Margin="8,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Ink}" />
-            <Button Grid.Column="2" Classes="icon" Width="24" Height="24"
-                    Command="{Binding ToggleHelpCommand}">
-              <TextBlock Classes="glyph" Text="&#xE711;" FontSize="13" />
-            </Button>
-          </Grid>
-          <TextBlock Grid.Row="1" Text="{DynamicResource Help.Placeholder}" FontSize="15"
-                     Foreground="{StaticResource InkFaint}" Margin="0,12,0,0" TextWrapping="Wrap" />
-        </Grid>
-      </Border>
-
-    </Grid>
-
     <!-- ============================ RIGHT RAIL ============================ -->
-    <Border Grid.Column="2" Background="{StaticResource RailBg}">
+    <Border Grid.Column="2" ZIndex="15" Background="{StaticResource RailBg}">
       <Grid RowDefinitions="76,*,Auto,30">
 
         <views:LanguagePicker Grid.Row="0"
@@ -460,7 +460,7 @@
     </Border>
 
     <!-- ============================ SETTINGS PAGE ============================ -->
-    <views:SettingsPage ZIndex="10" Grid.ColumnSpan="3" IsVisible="{Binding SettingsOpen}" />
+    <views:SettingsPage ZIndex="20" Grid.ColumnSpan="3" IsVisible="{Binding SettingsOpen}" />
 
   </Grid>
 </UserControl>

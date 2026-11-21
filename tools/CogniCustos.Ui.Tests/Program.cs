@@ -398,7 +398,7 @@ internal static class Program
 
         Test("menu_button_toggles_the_drawer_open_and_closed", (vm, w) =>
         {
-            // the rail is outside the scrim, so this is a real click on the ≡ button
+            // the rail sits outside the scrim, so these are real clicks on ≡
             var rail = w.GetVisualDescendants().OfType<StackPanel>()
                 .First(panel => panel.Children.OfType<Button>().Any(b =>
                     b.Classes.Contains("icon") && b.Command == vm.ToggleDrawerCommand));
@@ -406,14 +406,35 @@ internal static class Program
             var centre = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), w);
             Check(centre is not null, "could not locate the menu button");
 
-            w.MouseDown(centre!.Value, MouseButton.Left);
-            w.MouseUp(centre.Value, MouseButton.Left);
-            Pump();
+            void Click()
+            {
+                w.MouseDown(centre!.Value, MouseButton.Left);
+                w.MouseUp(centre.Value, MouseButton.Left);
+                Pump();
+            }
+
+            void Settle()
+            {
+                for (var i = 0; i < 20; i++)
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                    Thread.Sleep(16);
+                }
+            }
+
+            Click();
             Check(vm.MenuOpen, "clicking ≡ did not open the drawer");
 
-            w.MouseDown(centre.Value, MouseButton.Left);
-            w.MouseUp(centre.Value, MouseButton.Left);
-            Pump();
+            // the fast case: right after opening, the drawer is still sliding in over the
+            // rail. The rail sits above the stack (ZIndex 15) so this click must still land.
+            Click();
+            Check(!vm.MenuOpen, "a quick second click on ≡ did not close the drawer");
+
+            Click();
+            Check(vm.MenuOpen, "≡ did not reopen the drawer");
+            Settle();
+            Click();
+            Settle();
             Check(!vm.MenuOpen, "clicking ≡ again did not close the drawer");
             Check(Math.Abs(vm.HomeBlurRadius) < 0.01, "home should be sharp again");
 

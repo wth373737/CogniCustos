@@ -222,7 +222,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     /// How soft the page behind the drawer stack is. 0 = sharp (dim only, matches the
     /// current mock); 2-4 gives a light frosted look. 界面配置 will expose this.
     /// </summary>
-    public const double BlurWhenDrawerOpen = 0;
+    public const double BlurWhenDrawerOpen = 6;
 
     public double HomeBlurRadius => (_menuOpen || _futureOpen) ? BlurWhenDrawerOpen : 0;
 
