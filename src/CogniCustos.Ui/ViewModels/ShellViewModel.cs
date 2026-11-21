@@ -218,11 +218,16 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     public bool FutureHitTest => _futureOpen;
 
-    /// <summary>Home blur while a drawer is up; configurable later in 界面配置.</summary>
-    public double HomeBlurRadius => (_menuOpen || _futureOpen) ? 8 : 0;
+    /// <summary>
+    /// How soft the page behind the drawer stack is. 0 = sharp (dim only, matches the
+    /// current mock); 2-4 gives a light frosted look. 界面配置 will expose this.
+    /// </summary>
+    public const double BlurWhenDrawerOpen = 0;
+
+    public double HomeBlurRadius => (_menuOpen || _futureOpen) ? BlurWhenDrawerOpen : 0;
 
     /// <summary>Home dim while a drawer is up; a second layer dims a little more.</summary>
-    public double HomeDimOpacity => _futureOpen ? 0.2 : 0.12;
+    public double HomeDimOpacity => _futureOpen ? 0.1 : 0.05;
 
     /// <summary>The dim + click catcher behind the drawer stack.</summary>
     public bool IsScrimVisible => (_menuOpen || _futureOpen) && !_settingsOpen;

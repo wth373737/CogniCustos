@@ -9,6 +9,7 @@ using CogniCustos.Ui;
 using CogniCustos.Ui.Localization;
 using CogniCustos.Ui.ViewModels;
 using CogniCustos.Ui.Views;
+using Avalonia.Media;
 using Avalonia.LogicalTree;
 using System.Text.RegularExpressions;
 
@@ -354,14 +355,15 @@ internal static class Program
             Check(!vm.IsScrimVisible, "the scrim must be hidden when settings is open");
         });
 
-        Test("drawer_stack_dims_and_blurs_home", (vm, _) =>
+        Test("drawer_stack_dims_home", (vm, _) =>
         {
             Check(Math.Abs(vm.HomeBlurRadius) < 0.01, "home must be sharp with nothing open");
             vm.ToggleDrawerCommand.Execute(null);
             Pump();
             Check(vm.IsScrimVisible, "the scrim did not appear");
-            Check(vm.HomeBlurRadius > 0, "home was not blurred behind the drawer");
             Check(vm.HomeDimOpacity > 0, "home was not dimmed");
+            Check(Math.Abs(vm.HomeBlurRadius - ShellViewModel.BlurWhenDrawerOpen) < 0.01,
+                "the rendered blur must follow the configured value");
             Check(!vm.IsBackdropVisible, "the reminder backdrop must not double up");
         });
 
@@ -392,6 +394,35 @@ internal static class Program
             Pump();
             Check(!vm.MenuOpen, "a second CloseTopDrawer should close layer 1");
             Check(Math.Abs(vm.HomeBlurRadius) < 0.01, "home must be sharp again");
+        });
+
+        Test("menu_button_toggles_the_drawer_open_and_closed", (vm, w) =>
+        {
+            // the rail is outside the scrim, so this is a real click on the ≡ button
+            var rail = w.GetVisualDescendants().OfType<StackPanel>()
+                .First(panel => panel.Children.OfType<Button>().Any(b =>
+                    b.Classes.Contains("icon") && b.Command == vm.ToggleDrawerCommand));
+            var button = rail.Children.OfType<Button>().First(b => b.Command == vm.ToggleDrawerCommand);
+            var centre = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), w);
+            Check(centre is not null, "could not locate the menu button");
+
+            w.MouseDown(centre!.Value, MouseButton.Left);
+            w.MouseUp(centre.Value, MouseButton.Left);
+            Pump();
+            Check(vm.MenuOpen, "clicking ≡ did not open the drawer");
+
+            w.MouseDown(centre.Value, MouseButton.Left);
+            w.MouseUp(centre.Value, MouseButton.Left);
+            Pump();
+            Check(!vm.MenuOpen, "clicking ≡ again did not close the drawer");
+            Check(Math.Abs(vm.HomeBlurRadius) < 0.01, "home should be sharp again");
+
+            var blurred = w.GetVisualDescendants().OfType<Grid>()
+                .Select(grid => grid.Effect)
+                .OfType<BlurEffect>()
+                .FirstOrDefault();
+            Check(blurred is not null, "the home grid lost its blur effect");
+            Check(Math.Abs(blurred!.Radius) < 0.01, $"the rendered blur stayed at {blurred.Radius}");
         });
 
         Test("settings_has_an_appearance_gallery", (vm, w) =>
