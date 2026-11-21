@@ -202,6 +202,30 @@ PASS canvas_scales_uniformly_at_1024x576 / 1280x720 / 1600x900 / 1920x1080 / 256
 PASS canvas_letterboxes_at_4x3
 ```
 
+## 六之二、在真窗口上取证的规矩（DPI）
+
+这台机器主屏 2560×1440，缩放 **125%**。窗口是 `1280×720 DIP` = **1600×900 物理像素**。
+应用自己报的数（`COGNI_DIAG=1` 时的输出）：
+
+```
+window client  = 1280 x 720 (DIP)
+render scaling = 1.25
+screen scaling = 1.25
+content bounds = 0, 0, 1280, 720      → Viewbox 里画布仍是 1280×720
+```
+
+**坑**：在没有 DPI 清单的进程里（比如普通 PowerShell）读 `GetClientRect`，Windows 会
+把尺寸按 1.25 虚拟化成 1280×720；照这个尺寸去截图，就只能截到窗口左上 80%，
+右边 20%（抽屉、右栏）被裁掉——看起来就像"抽屉盖住了右栏"。
+
+**规矩**：
+
+1. 截真窗口前先声明 DPI 感知（`SetProcessDpiAwareness(2)`），再读 `GetClientRect`；
+   得到的是 1600×900 物理像素。
+2. 画布坐标 → 物理坐标：`physical = clientOrigin + canvas × RenderScaling`。
+3. 离屏截图（`tools/CogniCustos.Ui.Shots`）固定输 1280×720 画布，与 DIP 尺寸一致，
+   所以它和真窗口的**布局**一致；只有"真窗口截屏"这条路径需要处理 DPI。
+
 ## 七、出图与「和草图对齐」检查
 
 10 个状态 → `artifacts/ui/`：`home drawer expanded settings help collapsed toast settings-zh settings-deep today-list`。
@@ -233,6 +257,11 @@ VS Code 里对应 `shots-compare` 任务。第 4、5 个参数是草图的裁切
 7. **图标是 MDL2 字形，不是手绘**：草图里的图标更粗、形状也不完全一样（草图的 ≡ 带喇叭，这里用汉堡）。
 
 ## 十、变更记录
+
+**第 13 轮（2026-11-21）**：定位"截图与实际不符"——不是界面问题，是取证问题：
+窗口在 125% 缩放下是 1600×900 物理像素，而我按 DPI 虚拟化后的 1280×720 截图，
+右栏和抽屉右侧被裁掉。改正为 DPI 感知取窗口物理区域后，真窗口与离屏渲染一致。
+文档补了取图规矩（见"六之二"）。
 
 **第 12 轮（2026-11-21）**：按稿子修正抽屉的观感——第 1 层改用**右栏同色**且不透明、
 完整盖住顶栏与页面（抽屉挪到根 Grid，避免内容列的模糊图层盖在上面）；模糊只作用于**抽屉左边**的页面（半径 6），
