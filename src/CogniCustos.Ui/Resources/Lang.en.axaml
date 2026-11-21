@@ -12,7 +12,12 @@
   <x:String x:Key="App.Home">Home</x:String>
   <x:String x:Key="App.SearchHint">Search or jump to…</x:String>
   <x:String x:Key="App.EnterText">Enter text</x:String>
-  <x:String x:Key="App.LanguageButton">中</x:String>
+  <x:String x:Key="Lang.Title">Language</x:String>
+  <x:String x:Key="Lang.English">English</x:String>
+  <x:String x:Key="Lang.Chinese">中文</x:String>
+  <x:String x:Key="Lang.Code.En">EN</x:String>
+  <x:String x:Key="Lang.Code.Zh">中</x:String>
+  <x:String x:Key="Window.Main.Title">CogniCustos — UI Sandbox</x:String>
 
   <!-- board cards -->
   <x:String x:Key="Card.Pending">Pending Items</x:String>

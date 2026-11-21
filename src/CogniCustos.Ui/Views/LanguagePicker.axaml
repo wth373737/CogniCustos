@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CogniCustos.Ui.ViewModels"
+             x:Class="CogniCustos.Ui.Views.LanguagePicker"
+             x:DataType="vm:ShellViewModel">
+
+  <!--
+    Shows the CURRENT language and opens a menu to change it. One control, reused by
+    every window header, so a second window never needs its own copy.
+  -->
+  <Grid>
+    <Button Classes="lang" Width="66" Height="40"
+            Command="{Binding ToggleLanguageMenuCommand}"
+            ToolTip.Tip="{DynamicResource Tip.Language}">
+      <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+        <TextBlock Text="{Binding CurrentLanguageCode}" FontSize="15"
+                   Foreground="{StaticResource Ink}" />
+        <TextBlock Classes="glyph" Text="{StaticResource GlyphChevronDown}" FontSize="10"
+                   Foreground="{StaticResource InkFaint}" />
+      </StackPanel>
+    </Button>
+
+    <Popup IsOpen="{Binding IsLanguageMenuOpen, Mode=TwoWay}"
+           IsLightDismissEnabled="True"
+           Placement="BottomEdgeAlignedRight">
+      <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}"
+              BorderThickness="1" CornerRadius="10" Padding="6"
+              BoxShadow="0 10 30 0 #1A000000">
+        <StackPanel Width="150" Spacing="2">
+          <TextBlock Text="{DynamicResource Lang.Title}" FontSize="12"
+                     Foreground="{StaticResource InkFaint}" Margin="8,4,8,2" />
+
+          <ItemsControl ItemsSource="{Binding Languages}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:LanguageOption">
+                <Button Classes="menuItem" Command="{Binding SelectCommand}">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="15" />
+                    <TextBlock Grid.Column="1" Classes="glyph" Text="{StaticResource GlyphCheck}"
+                               FontSize="14" Foreground="{StaticResource Ink}"
+                               IsVisible="{Binding IsActive}" />
+                  </Grid>
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </Popup>
+  </Grid>
+</UserControl>

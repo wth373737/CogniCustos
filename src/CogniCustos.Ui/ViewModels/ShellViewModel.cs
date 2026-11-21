@@ -9,7 +9,7 @@ namespace CogniCustos.Ui.ViewModels;
 /// State of the window shell: which drawer / page is open, the reminder line at
 /// the top, plus the mock board. No services, no persistence — this is the UI sandbox.
 /// </summary>
-public sealed class ShellViewModel : ObservableObject
+public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 {
     private const double MenuWidth = 208;
     private const double ExpandedWidth = 560;
@@ -22,6 +22,7 @@ public sealed class ShellViewModel : ObservableObject
     private bool _helpOpen;
     private string _inputText = string.Empty;
     private string _toast = string.Empty;
+    private bool _languageMenuOpen;
 
     public ShellViewModel()
     {
@@ -33,6 +34,11 @@ public sealed class ShellViewModel : ObservableObject
         ToggleSettingsCommand = new RelayCommand(ToggleSettings);
         ToggleHelpCommand = new RelayCommand(ToggleHelp);
         ToggleLanguageCommand = new RelayCommand(() => ApplyLanguage(Localizer.NextLanguage()));
+        SetLanguageCommand = new RelayCommand(parameter =>
+        {
+            if (parameter is string culture) ApplyLanguage(culture);
+        });
+        ToggleLanguageMenuCommand = new RelayCommand(() => IsLanguageMenuOpen = !IsLanguageMenuOpen);
         GoHomeCommand = new RelayCommand(GoHome);
         SubmitInputCommand = new RelayCommand(SubmitInput);
 
@@ -52,7 +58,7 @@ public sealed class ShellViewModel : ObservableObject
             Toast = string.Empty;
         };
 
-        RefreshLanguageText();
+        RefreshText();
     }
 
     public SettingsViewModel Settings { get; }
@@ -67,11 +73,29 @@ public sealed class ShellViewModel : ObservableObject
     public RelayCommand ToggleSettingsCommand { get; }
     public RelayCommand ToggleHelpCommand { get; }
     public RelayCommand ToggleLanguageCommand { get; }
+
+    /// <summary>Picks a language from the menu; parameter is the culture code.</summary>
+    public RelayCommand SetLanguageCommand { get; }
+
+    public RelayCommand ToggleLanguageMenuCommand { get; }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand SubmitInputCommand { get; }
 
     /// <summary>Exposed for the headless snapshot tool and for diagnostics.</summary>
     public string LanguageCode => Localizer.Current;
+
+    /// <summary>Short code shown on the language picker ("EN" / "中").</summary>
+    public string CurrentLanguageCode => Localizer.Code(Localizer.Current);
+
+    /// <summary>The picker's popup. Two-way with the Popup control.</summary>
+    public bool IsLanguageMenuOpen
+    {
+        get => _languageMenuOpen;
+        set => Set(ref _languageMenuOpen, value);
+    }
+
+    /// <summary>Menu rows, rebuilt on every language change; adding a language needs no XAML.</summary>
+    public ObservableCollection<LanguageOption> Languages { get; } = [];
 
     public string InputText
     {
@@ -200,22 +224,42 @@ public sealed class ShellViewModel : ObservableObject
 
     /// <summary>
     /// Single path for language changes: swap the resource dictionary, then let the
-    /// view-model-held strings re-read it. XAML text updates by itself (DynamicResource).
+    /// view-model-held strings re-read it. XAML text updates by itself (DynamicResource);
+    /// the window's LocalizedWindow hook refreshes other windows.
     /// </summary>
     public void ApplyLanguage(string culture)
     {
         Localizer.SetLanguage(culture);
-        RefreshLanguageText();
-        OnPropertyChanged(nameof(LanguageCode));
+        IsLanguageMenuOpen = false;
+        RefreshText();
         Toast = string.Empty;
     }
 
-    private void RefreshLanguageText()
+    /// <summary>
+    /// Re-read every view-model string. Called by the window on open and whenever
+    /// <see cref="Localizer.LanguageChanged"/> fires, so every window stays in sync.
+    /// </summary>
+    public void RefreshText()
     {
         Settings.RefreshTitles();
         foreach (var card in Cards) card.Refresh();
         Today.ResetSeeds(BuildTodaySeeds());
-        OnPropertyChanged(nameof(Today));
+        RebuildLanguageMenu();
+        OnAllPropertiesChanged();
+    }
+
+    private void RebuildLanguageMenu()
+    {
+        Languages.Clear();
+        foreach (var code in Localizer.Languages)
+        {
+            var culture = code;
+            Languages.Add(new LanguageOption(
+                culture,
+                Localizer.DisplayName(culture),
+                culture == Localizer.Current,
+                new RelayCommand(() => ApplyLanguage(culture))));
+        }
     }
 
     private void GoHome()
@@ -247,6 +291,7 @@ public sealed class ShellViewModel : ObservableObject
         DrawerOpen = false;
         SettingsOpen = false;
         HelpOpen = false;
+        IsLanguageMenuOpen = false;
         Today.CloseList();
     }
 
@@ -316,6 +361,9 @@ public sealed class ShellViewModel : ObservableObject
                 break;
             case "today-list":
                 Today.ToggleList();
+                break;
+            case "language-menu":
+                IsLanguageMenuOpen = true;
                 break;
             case "toast":
                 ApplyLanguage(Localizer.Chinese);

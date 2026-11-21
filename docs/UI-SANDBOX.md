@@ -72,14 +72,37 @@ tools/CogniCustos.Ui.Tests/    ← 无头回归：24 条断言，非 0 退出码
 - 16:9 显示器铺满；非 16:9（4:3、21:9）**留边**，不裁切不变形（已定方案）。
 - 缩放是矢量变换（字不糊），命中测试与焦点跟随缩放。
 
-## 三、文本资源与翻译
+## 三、多语言：一套窗口，运行时切换
 
 文案在 `Resources/Lang.en.axaml` / `Lang.zh.axaml`；XAML 用 `{DynamicResource Some.Key}`，视图模型用 `Localizer.Get("Some.Key")`。
+**每个窗口只有一份 XAML**，没有"中文窗口/英文窗口"之分。
 
-切换：`Localizer.SetLanguage("zh")` 载入对应 axaml，替换 `Application.Resources` 里的语言字典；`DynamicResource` 自动重解析，VM 侧由 `ShellViewModel.ApplyLanguage` 重取。
+**右上角语言控件**（`Views/LanguagePicker.axaml`，主窗口与设置页共用同一个控件）：
 
-**新增一种语言**：复制 `Lang.en.axaml` → `Lang.ja.axaml`（只改值）→ `Localizer.KnownLanguages` 加 `"ja"` → 若要 UI 可切，改 `NextLanguage()`。
-键集合不一致、空值、缺键都会被测试抓住；运行时缺键显示 `!Some.Key!`。
+- 按钮显示 **当前语言**（英文界面显示 `EN`，中文界面显示 `中`），不会出现"按钮中文、界面英文"；
+- 点开是一个下拉菜单，列出所有语言并勾选当前项；菜单项由 `Localizer.Languages` 生成，**加语言不用改 XAML**；
+- 选中即切换，整个界面（含窗口标题）同时更新。
+
+**切换是怎么传播的**：
+
+| 文本位置 | 机制 |
+|---|---|
+| XAML 里的文案 | `Localizer.SetLanguage` 替换 `Application.Resources` 的语言字典 → `DynamicResource` 自动重解析 |
+| 视图模型里的文案（卡片标题、设置分区、日期） | 窗口基类 `LocalizedWindow` 订阅 `Localizer.LanguageChanged`，调用 `ILocalizedViewModel.RefreshText()` |
+| 操作系统窗口标题 | 同一个 `LocalizedWindow` 里 `Title = Localizer.WindowTitle` |
+
+`LocalizedWindow` 在 `OnOpened` 订阅、`OnClosed` 退订——静态事件不会留住已关闭的窗口。
+
+**新加一个窗口的标准动作**（只做这三件）：
+1. 窗口继承 `LocalizedWindow`（自动获得标题与语言刷新）；
+2. ViewModel 实现 `ILocalizedViewModel.RefreshText()`（把持有的文案重新读一遍，或直接调用 `OnAllPropertiesChanged()`）；
+3. 文案加进两份 `Lang.*.axaml`，XAML 用 `DynamicResource`。
+
+**新增一种语言**：复制 `Lang.en.axaml` → `Lang.ja.axaml`（只改值）→ `Localizer.KnownLanguages` 加 `"ja"`。
+菜单会自动多出一项。
+
+**缺键策略**：当前语言缺这个键 → 回退英文（`!key!` 只在两种语言都没有时出现）。
+测试会拦住半成品翻译：两份目录键集合必须一致、每个键在两种语言下都能取到、XAML 里 `{DynamicResource X}` 引用的每个 X 必须存在。
 
 ## 四、运行与调试（VS Code）
 
@@ -103,10 +126,14 @@ tools/CogniCustos.Ui.Tests/    ← 无头回归：24 条断言，非 0 退出码
 
 ## 六、回归测试（tools/CogniCustos.Ui.Tests）
 
-24 条断言，跑在真实可视树上（真按键、真绑定、真缩放），非 0 退出即失败。
+28 条断言，跑在真实可视树上（真按键、真绑定、真缩放），非 0 退出即失败。
 
 ```
 PASS language_files_have_identical_non_empty_keys
+PASS language_picker_shows_current_language        按钮显示"当前语言"
+PASS language_menu_lists_both_languages_and_switches  菜单生成 + 选中即切换
+PASS window_title_follows_language                 窗口标题跟随语言
+PASS xaml_binds_only_existing_resource_keys        XAML 引用的键必须存在（且两种语言都有）
 PASS settings_sections_all_have_resources
 PASS every_key_resolves_in_both_languages
 PASS enter_adds_to_today_and_clears_input      回车进「今天」，不进日历卡
@@ -159,6 +186,8 @@ VS Code 里对应 `shots-compare` 任务。第 4、5 个参数是草图的裁切
 7. **图标是 MDL2 字形，不是手绘**：草图里的图标更粗、形状也不完全一样（草图的 ≡ 带喇叭，这里用汉堡）。
 
 ## 十、变更记录
+
+**第 8 轮（2026-11-21）**：多语言收口——语言按钮改为"显示当前语言 + 下拉菜单"（菜单由 `Localizer.Languages` 生成，勾选当前项）；新增 `LocalizedWindow` + `ILocalizedViewModel`，切语言时所有窗口的 VM 文本与窗口标题同步；缺键回退英文；新增 XAML 键扫描测试。断言 24 → 28。
 
 **第 7 轮（2026-11-21）**：对齐修正——左栏推理面板下沿齐底、输入框下移到底部 19px、右栏图标中心 519/593/667、顶栏 Home 位置；同时把整块排版按草图实测放大（正文 15.5、卡片标题 17、品牌 20、卡片/右栏图标 30、En 50×40）。新增 `docs/sketch-reference.png` 与 `shots-compare`（渲染 + 草图叠图），每轮必跑。
 

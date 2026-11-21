@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:CogniCustos.Ui.ViewModels"
+             xmlns:views="using:CogniCustos.Ui.Views"
              x:Class="CogniCustos.Ui.Views.SettingsPage"
              x:DataType="vm:ShellViewModel"
              Background="{StaticResource AppBg}"
@@ -14,9 +15,7 @@
                  Foreground="{StaticResource Ink}" />
       <TextBlock Grid.Column="1" Text="{DynamicResource Settings.Title}" FontSize="26" FontWeight="SemiBold"
                  Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Ink}" />
-      <Button Grid.Column="3" Classes="lang" Content="{DynamicResource App.LanguageButton}"
-              Command="{Binding ToggleLanguageCommand}" VerticalAlignment="Center"
-              ToolTip.Tip="{DynamicResource Tip.Language}" />
+      <views:LanguagePicker Grid.Column="3" VerticalAlignment="Center" />
     </Grid>
 
     <!-- body: section list + content -->

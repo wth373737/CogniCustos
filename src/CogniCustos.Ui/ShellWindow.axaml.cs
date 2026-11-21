@@ -1,11 +1,11 @@
-using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using CogniCustos.Ui.ViewModels;
+using CogniCustos.Ui.Views;
 
 namespace CogniCustos.Ui;
 
-public sealed partial class ShellWindow : Window
+public sealed partial class ShellWindow : LocalizedWindow
 {
     public ShellWindow()
     {

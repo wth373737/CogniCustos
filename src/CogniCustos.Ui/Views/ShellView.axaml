@@ -401,10 +401,8 @@
     <Border Grid.Column="2" Background="{StaticResource RailBg}">
       <Grid RowDefinitions="76,*,Auto,30">
 
-        <Button Grid.Row="0" Classes="lang" Content="{DynamicResource App.LanguageButton}"
-                Command="{Binding ToggleLanguageCommand}"
-                ToolTip.Tip="{DynamicResource Tip.Language}"
-                HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <views:LanguagePicker Grid.Row="0"
+                              HorizontalAlignment="Center" VerticalAlignment="Center" />
 
         <StackPanel Grid.Row="2" Spacing="28" HorizontalAlignment="Center">
           <Button Classes="icon" Classes.open="{Binding IsMenuActive}"

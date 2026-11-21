@@ -9,6 +9,8 @@ using CogniCustos.Ui;
 using CogniCustos.Ui.Localization;
 using CogniCustos.Ui.ViewModels;
 using CogniCustos.Ui.Views;
+using Avalonia.LogicalTree;
+using System.Text.RegularExpressions;
 
 namespace CogniCustos.Ui.Tests;
 
@@ -200,17 +202,87 @@ internal static class Program
         // ---- DynamicResource plumbing ----
         Test("dynamic_resource_text_updates_on_language_switch", (vm, w) =>
         {
-            var languageButton = w.GetVisualDescendants().OfType<Button>().First(b => b.Classes.Contains("lang"));
             var homeButton = w.GetVisualDescendants().OfType<Button>().First(b => b.Classes.Contains("link"));
-            Check((string?)languageButton.Content == "中", $"expected 中, got {languageButton.Content}");
             Check((string?)homeButton.Content == "Home", $"expected Home, got {homeButton.Content}");
 
             vm.ToggleLanguageCommand.Execute(null);
             Pump();
-            Check((string?)languageButton.Content == "En", $"language button did not refresh: {languageButton.Content}");
             Check((string?)homeButton.Content == "主页", $"dynamic resource did not refresh: {homeButton.Content}");
             Check(vm.Cards[1].Title == Localizer.Get("Card.Pending"), $"card title did not refresh: {vm.Cards[1].Title}");
             Check(vm.Cards[1].Title == "待办事项", $"unexpected pending title: {vm.Cards[1].Title}");
+        });
+
+        // ---- language picker: the button always shows the language the UI is in ----
+        Test("language_picker_shows_current_language", (vm, w) =>
+        {
+            var picker = w.GetVisualDescendants().OfType<LanguagePicker>().First();
+            var label = picker.GetVisualDescendants().OfType<TextBlock>()
+                .FirstOrDefault(t => t.Text is "EN" or "中");
+            Check(label is not null, "picker label not found");
+            Check(label!.Text == "EN", $"expected EN, got {label.Text}");
+
+            vm.SetLanguageCommand.Execute("zh");
+            Pump();
+            Check(label.Text == "中", $"picker did not follow the UI language: {label.Text}");
+            Check(vm.CurrentLanguageCode == "中", $"view-model code stale: {vm.CurrentLanguageCode}");
+        });
+
+        Test("language_menu_lists_both_languages_and_switches", (vm, w) =>
+        {
+            vm.ToggleLanguageMenuCommand.Execute(null);
+            Pump();
+            Check(vm.IsLanguageMenuOpen, "menu did not open");
+
+            var picker = w.GetVisualDescendants().OfType<LanguagePicker>().First();
+            var items = picker.GetLogicalDescendants().OfType<Button>()
+                .Where(b => b.Classes.Contains("menuItem")).ToList();
+            Check(items.Count == 2, $"expected 2 language menu items, got {items.Count}");
+
+            var options = items.Select(b => b.DataContext).OfType<LanguageOption>().ToList();
+            Check(options.Count == 2, "menu items are not bound to language options");
+            Check(options[0].Code == "en" && options[1].Code == "zh", "menu order is wrong");
+            Check(options[0].IsActive && !options[1].IsActive, "the active marker is wrong for English");
+
+            options[1].SelectCommand.Execute(null);
+            Pump();
+            Check(Localizer.Current == Localizer.Chinese, "menu item did not switch the language");
+            Check(!vm.IsLanguageMenuOpen, "menu stayed open after a pick");
+            Check(vm.Languages.First(o => o.Code == "zh").IsActive, "active marker did not refresh");
+        });
+
+        Test("window_title_follows_language", (vm, w) =>
+        {
+            Check(w.Title == Localizer.Get("Window.Main.Title"), $"title not applied on open: {w.Title}");
+            vm.SetLanguageCommand.Execute("zh");
+            Pump();
+            Check(w.Title.Contains("沙箱"), $"title did not follow the language: {w.Title}");
+        });
+
+        // ---- every resource key bound in XAML must exist, and exist in both catalogs ----
+        Test("xaml_binds_only_existing_resource_keys", (_, _) =>
+        {
+            var en = ReadLanguageFile("en");
+            var tokens = ReadResourceKeys("src/CogniCustos.Ui/Styles/Tokens.axaml");
+            var root = Path.GetDirectoryName(FindSourceFile("src/CogniCustos.Ui/Styles/Tokens.axaml"))!;
+            var uiRoot = Path.GetFullPath(Path.Combine(root, ".."));
+
+            var used = new HashSet<string>();
+            foreach (var file in Directory.EnumerateFiles(uiRoot, "*.axaml", SearchOption.AllDirectories))
+            {
+                foreach (Match match in Regex.Matches(File.ReadAllText(file), @"\{DynamicResource\s+([A-Za-z0-9_.]+)\s*\}"))
+                {
+                    used.Add(match.Groups[1].Value);
+                }
+            }
+
+            Check(used.Count > 20, $"suspiciously few DynamicResource keys found: {used.Count}");
+            foreach (var key in used)
+            {
+                var inTokens = tokens.Contains(key);
+                var inEn = en.ContainsKey(key);
+                Check(inTokens || inEn, $"'{key}' is bound in XAML but defined nowhere");
+                if (inEn) Check(Localizer.HasKey(key), $"'{key}' is bound but missing in the current catalog");
+            }
         });
 
         // ---- regression B: escape without inner focus ----
@@ -334,6 +406,15 @@ internal static class Program
             window.Close();
             Pump();
         }
+    }
+
+    /// <summary>Keys declared in any resource dictionary file (x:Key).</summary>
+    private static HashSet<string> ReadResourceKeys(string relativePath)
+    {
+        var text = File.ReadAllText(FindSourceFile(relativePath));
+        return Regex.Matches(text, "x:Key=\"([^\"]+)\"")
+            .Select(m => m.Groups[1].Value)
+            .ToHashSet(StringComparer.Ordinal);
     }
 
     private static Dictionary<string, string> ReadLanguageFile(string culture)

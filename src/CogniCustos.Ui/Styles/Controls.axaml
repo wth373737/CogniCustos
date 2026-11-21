@@ -173,6 +173,26 @@
     <Setter Property="Background" Value="#12000000" />
   </Style>
 
+  <!-- ===== language menu item ===== -->
+  <Style Selector="Button.menuItem">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="8,7" />
+    <Setter Property="CornerRadius" Value="7" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.menuItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="CornerRadius" Value="7" />
+  </Style>
+
+  <Style Selector="Button.menuItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#12000000" />
+  </Style>
+
   <!-- ===== text helpers ===== -->
   <Style Selector="TextBlock.caption">
     <Setter Property="FontSize" Value="15" />

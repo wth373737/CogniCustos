@@ -10,7 +10,12 @@
   <x:String x:Key="App.Home">主页</x:String>
   <x:String x:Key="App.SearchHint">搜索或跳转…</x:String>
   <x:String x:Key="App.EnterText">输入文字</x:String>
-  <x:String x:Key="App.LanguageButton">En</x:String>
+  <x:String x:Key="Lang.Title">语言</x:String>
+  <x:String x:Key="Lang.English">English</x:String>
+  <x:String x:Key="Lang.Chinese">中文</x:String>
+  <x:String x:Key="Lang.Code.En">EN</x:String>
+  <x:String x:Key="Lang.Code.Zh">中</x:String>
+  <x:String x:Key="Window.Main.Title">CogniCustos — UI 沙箱</x:String>
 
   <!-- 看板卡片 -->
   <x:String x:Key="Card.Pending">待办事项</x:String>

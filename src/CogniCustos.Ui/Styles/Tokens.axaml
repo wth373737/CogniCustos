@@ -61,6 +61,7 @@
   <x:String x:Key="GlyphMic">&#xE720;</x:String>
   <x:String x:Key="GlyphBack">&#xE72B;</x:String>
   <x:String x:Key="GlyphList">&#xE8FD;</x:String>
+  <x:String x:Key="GlyphCheck">&#xE73E;</x:String>
 
   <!-- Database cylinder drawn by hand: MDL2 has no database glyph. -->
   <StreamGeometry x:Key="GeoDataBase">M2,4.5 A7,2.6 0 1 0 16,4.5 A7,2.6 0 1 0 2,4.5 M2,4.5 V13.5 A7,2.6 0 0 0 16,13.5 V4.5 M2,9 A7,2.6 0 0 0 16,9</StreamGeometry>
