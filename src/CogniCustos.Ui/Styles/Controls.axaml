@@ -193,6 +193,32 @@
     <Setter Property="Background" Value="#12000000" />
   </Style>
 
+  <!-- ===== reminder drawer list ===== -->
+  <Style Selector="ListBox.reminder">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+
+  <Style Selector="ListBox.reminder ListBoxItem">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Margin" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+  </Style>
+
+  <!-- rows are display-only for now: keep the selection chrome invisible -->
+  <Style Selector="ListBox.reminder ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="ListBox.reminder ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#06000000" />
+  </Style>
+
+  <Style Selector="ListBox.reminder ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#0A000000" />
+  </Style>
+
   <!-- ===== text helpers ===== -->
   <Style Selector="TextBlock.caption">
     <Setter Property="FontSize" Value="15" />

@@ -119,7 +119,7 @@ internal static class Program
             Check(vm.Cards[2].ShowAdd && vm.Cards[2].CanAdd, "the note card keeps its +");
         });
 
-        Test("today_list_toggles", (vm, _) =>
+        Test("today_list_toggles", (vm, w) =>
         {
             Check(!vm.Today.IsListOpen, "list starts closed");
             Check(vm.Today.ListChevron == "\uE70D", "closed chevron points down");
@@ -128,12 +128,45 @@ internal static class Program
             Check(vm.Today.IsListOpen, "list did not open");
             Check(vm.Today.ListChevron == "\uE70E", "open chevron points up");
             Check(vm.IsBackdropVisible, "the list needs a click-outside catcher");
+            var backdrop = w.GetVisualDescendants().OfType<Border>()
+                .First(b => b.Name == "OverlayBackdrop");
+            Check(backdrop.IsVisible, "the click-outside catcher did not become visible");
             vm.CloseOverlays();
             Pump();
             Check(!vm.Today.IsListOpen, "close did not close the list");
         });
 
         // ---- cards ----
+        Test("reminder_drawer_virtualises_and_caps_its_height", (vm, w) =>
+        {
+            vm.ShowState("today-list-long");
+            Pump();
+
+            var drawer = w.GetVisualDescendants().OfType<Border>().First(b => b.Name == "ReminderDrawer");
+            var list = w.GetVisualDescendants().OfType<ListBox>().First(l => l.Name == "ReminderList");
+
+            Check(Math.Abs(drawer.MaxHeight - 274) < 0.1, $"drawer cap should be 274, got {drawer.MaxHeight}");
+            Check(drawer.Bounds.Height <= 274.5, $"drawer taller than its cap: {drawer.Bounds.Height}");
+            Check(list.ItemsPanelRoot is VirtualizingStackPanel, "the reminder list must virtualise");
+            Check(vm.Today.Items.Count == 12, "the long fixture should have 12 rows");
+            // Virtualised: only the rows that fit are realised.
+            var realised = list.GetVisualDescendants().OfType<ListBoxItem>().Count();
+            Check(realised < vm.Today.Items.Count, $"expected fewer realised rows than items, got {realised}");
+        });
+
+        Test("clicking_outside_the_drawer_closes_it", (vm, w) =>
+        {
+            vm.Today.ToggleListCommand.Execute(null);
+            Pump();
+            Check(vm.Today.IsListOpen, "drawer did not open");
+
+            // a click on the card area lands on the backdrop and closes the drawer
+            w.MouseDown(new Point(300, 560), MouseButton.Left);
+            w.MouseUp(new Point(300, 560), MouseButton.Left);
+            Pump();
+            Check(!vm.Today.IsListOpen, "clicking outside the drawer did not close it");
+        });
+
         Test("card_collapse_and_expand", (vm, _) =>
         {
             var card = vm.Cards[1];

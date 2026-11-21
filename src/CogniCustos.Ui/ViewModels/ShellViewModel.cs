@@ -52,6 +52,15 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
             new CardViewModel(CardKind.Note, "\uE70F", BuildNote, () => Localizer.Get("Card.Row.New")),
         ];
 
+        // The backdrop also covers the reminder drawer; keep its binding in sync.
+        Today.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(TodayViewModel.IsListOpen))
+            {
+                OnPropertyChanged(nameof(IsBackdropVisible));
+            }
+        };
+
         _toastTimer.Tick += (_, _) =>
         {
             _toastTimer.Stop();
@@ -303,6 +312,17 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Localizer.Get("Demo.Today2"),
     ];
 
+    private IReadOnlyList<string> BuildLongTodaySeeds()
+    {
+        var items = new List<string>(12);
+        for (var i = 1; i <= 12; i++)
+        {
+            items.Add($"{i:00}  {Localizer.Get("Demo.Today1")} · {Localizer.Get("Demo.Today2")}");
+        }
+
+        return items;
+    }
+
     private (string, string, IReadOnlyList<CardItem>) BuildCalendar() => (
         DateTime.Today.ToString("yy/MM/dd"),
         string.Empty,
@@ -364,6 +384,10 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
                 break;
             case "language-menu":
                 IsLanguageMenuOpen = true;
+                break;
+            case "today-list-long":
+                Today.ResetSeeds(BuildLongTodaySeeds());
+                Today.ToggleList();
                 break;
             case "toast":
                 ApplyLanguage(Localizer.Chinese);

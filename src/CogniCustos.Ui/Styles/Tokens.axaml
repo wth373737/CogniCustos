@@ -25,6 +25,8 @@
   <SolidColorBrush x:Key="CardPink" Color="{StaticResource CardPinkColor}" />
   <SolidColorBrush x:Key="CardOlive" Color="{StaticResource CardOliveColor}" />
   <SolidColorBrush x:Key="ChipBrush" Color="{StaticResource ChipColor}" />
+  <!-- reminder drawer surface: change the alpha here to make it more/less transparent -->
+  <SolidColorBrush x:Key="ReminderDrawerBackground" Color="#F2FFFFFF" />
   <SolidColorBrush x:Key="Ink" Color="{StaticResource InkColor}" />
   <SolidColorBrush x:Key="InkSoft" Color="{StaticResource InkSoftColor}" />
   <SolidColorBrush x:Key="InkFaint" Color="{StaticResource InkFaintColor}" />

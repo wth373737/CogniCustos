@@ -22,7 +22,7 @@ internal static class Program
     private static readonly string[] States =
     [
         "home", "drawer", "expanded", "settings", "help",
-        "collapsed", "toast", "settings-zh", "settings-deep", "today-list", "language-menu",
+        "collapsed", "toast", "settings-zh", "settings-deep", "today-list", "today-list-long", "language-menu",
     ];
 
     [STAThread]
@@ -78,10 +78,14 @@ internal static class Program
         var vm = new ShellViewModel();
         // Every state starts from English; the zh states switch inside ShowState.
         vm.ApplyLanguage(Localizer.English);
-        vm.ShowState(state);
 
         var window = new ShellWindow(vm) { Width = width, Height = height };
         window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        // State goes on after the window opened: opening calls RefreshText, which
+        // would otherwise reset the fixture (that is what the app wants, not the shots).
+        vm.ShowState(state);
         Dispatcher.UIThread.RunJobs();
 
         var frame = window.CaptureRenderedFrame();

@@ -138,36 +138,14 @@
                        Foreground="{StaticResource Ink}" VerticalAlignment="Center" />
           </Border>
 
-          <Button Grid.Column="1" Classes="pill" Width="559" Margin="38,0,0,0"
-                  VerticalAlignment="Center"
-                  Command="{Binding Today.ToggleListCommand}"
-                  ToolTip.Tip="{DynamicResource Today.Title}">
-            <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-              <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphAlarm}"
-                         FontSize="22" Foreground="#FFE0A23C" Margin="4,0,10,0" />
-              <Border x:Name="TickerClip" Grid.Column="1" ClipToBounds="True" Height="22" VerticalAlignment="Center">
-                <Grid>
-                  <StackPanel x:Name="TickerRow" Orientation="Horizontal">
-                    <TextBlock x:Name="TickerText" Text="{Binding Today.Line}" FontSize="17"
-                               Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
-                    <TextBlock x:Name="TickerCopy" Text="{Binding Today.Line}" FontSize="17" Margin="48,0,0,0"
-                               IsVisible="False"
-                               Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
-                  </StackPanel>
-                  <TextBlock Text="{DynamicResource Today.Empty}" FontSize="16"
-                             Foreground="{StaticResource InkFaint}"
-                             IsVisible="{Binding Today.IsEmpty}" VerticalAlignment="Center" />
-                </Grid>
-              </Border>
-              <TextBlock Grid.Column="2" Classes="glyph" Text="{Binding Today.ListChevron}"
-                         FontSize="12" Foreground="{StaticResource InkFaint}" Margin="8,0,0,0" />
-            </Grid>
-          </Button>
+          <!-- the real reminder pill is an overlay (it must sit above the click-outside
+               backdrop so it can toggle its own drawer); this keeps the row laid out -->
+          <Border Grid.Column="1" Width="559" Height="36" Margin="38,0,0,0" />
 
           <Button Grid.Column="3" Classes="link" FontSize="17.5" Content="{DynamicResource App.Home}"
                   Command="{Binding GoHomeCommand}" VerticalAlignment="Center" Margin="0,0,34,0" />
 
-          <Button Grid.Column="4" Classes="icon" Command="{Binding ToggleLanguageCommand}"
+          <Button Grid.Column="4" Classes="icon"
                   VerticalAlignment="Center" Margin="14,0,0,0" ToolTip.Tip="{DynamicResource Tip.Sound}">
             <TextBlock Classes="glyph" Text="{StaticResource GlyphVolume}" FontSize="18"
                        Foreground="{StaticResource Ink}" />
@@ -209,35 +187,69 @@
         </Grid>
       </Grid>
 
-      <!-- click-outside catcher (below the top bar, so the reminder pill stays clickable) -->
-      <Border ZIndex="5" Background="Transparent" Margin="0,76,0,0"
+      <!-- click-outside catcher: covers the whole content area, so a click anywhere
+           outside the pill and its drawer closes it. The pill is drawn above this. -->
+      <Border Name="OverlayBackdrop" ZIndex="5" Background="Transparent"
               IsVisible="{Binding IsBackdropVisible}"
               PointerPressed="OnBackdropPressed" />
 
-      <!-- today's reminder list, opening under the pill -->
-      <Border ZIndex="6" Width="430" MaxHeight="260" Margin="246,62,0,0"
+      <!-- reminder pill: drawn above the backdrop so it can toggle its own drawer -->
+      <Button Name="ReminderPill" ZIndex="6" Classes="pill" Width="559" Height="36"
+              Margin="246,20,0,0"
               HorizontalAlignment="Left" VerticalAlignment="Top"
-              CornerRadius="12" Background="{StaticResource Surface}"
-              BorderBrush="{StaticResource Line}" BorderThickness="1"
-              BoxShadow="0 10 30 0 #1A000000" ClipToBounds="True"
-              IsVisible="{Binding Today.IsListOpen}">
-        <Grid RowDefinitions="Auto,*" Margin="14,10,14,10">
-          <TextBlock Grid.Row="0" Text="{DynamicResource Today.Title}" FontSize="14.5"
-                     FontWeight="SemiBold" Foreground="{StaticResource InkSoft}" />
-          <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
+              Command="{Binding Today.ToggleListCommand}"
+              ToolTip.Tip="{DynamicResource Today.Title}">
+        <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+          <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphAlarm}"
+                     FontSize="22" Foreground="#FFE0A23C" Margin="4,0,10,0" />
+          <Border x:Name="TickerClip" Grid.Column="1" ClipToBounds="True" Height="22" VerticalAlignment="Center">
             <Grid>
-              <ItemsControl ItemsSource="{Binding Today.Items}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="sys:String">
-                    <TextBlock Text="{Binding}" FontSize="15.5" Margin="0,3"
-                               Foreground="#FF45454F" TextWrapping="Wrap" />
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-              <TextBlock Text="{DynamicResource Today.Empty}" IsVisible="{Binding Today.IsEmpty}"
-                         FontSize="15.5" Foreground="{StaticResource InkFaint}" />
+              <StackPanel x:Name="TickerRow" Orientation="Horizontal">
+                <TextBlock x:Name="TickerText" Text="{Binding Today.Line}" FontSize="17"
+                           Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
+                <TextBlock x:Name="TickerCopy" Text="{Binding Today.Line}" FontSize="17" Margin="48,0,0,0"
+                           IsVisible="False"
+                           Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock Text="{DynamicResource Today.Empty}" FontSize="16"
+                         Foreground="{StaticResource InkFaint}"
+                         IsVisible="{Binding Today.IsEmpty}" VerticalAlignment="Center" />
             </Grid>
-          </ScrollViewer>
+          </Border>
+          <TextBlock Grid.Column="2" Classes="glyph" Text="{Binding Today.ListChevron}"
+                     FontSize="12" Foreground="{StaticResource InkFaint}" Margin="8,0,0,0" />
+        </Grid>
+      </Button>
+
+      <!-- reminder drawer: height follows the rows, capped at 274, virtualised list.
+           Background opacity is a single token: ReminderDrawerBackground. -->
+      <Border Name="ReminderDrawer" ZIndex="6" Width="507" MaxHeight="274"
+              Margin="272,60,0,0"
+              HorizontalAlignment="Left" VerticalAlignment="Top"
+              CornerRadius="10" Background="{DynamicResource ReminderDrawerBackground}"
+              BorderBrush="{StaticResource Line}" BorderThickness="1"
+              BoxShadow="0 12 34 0 #1F000000" ClipToBounds="True"
+              IsVisible="{Binding Today.IsListOpen}">
+        <Grid>
+          <ListBox x:Name="ReminderList" Classes="reminder"
+                   ItemsSource="{Binding Today.Items}"
+                   MaxHeight="272"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <ListBox.ItemsPanel>
+              <ItemsPanelTemplate>
+                <VirtualizingStackPanel />
+              </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="sys:String">
+                <TextBlock Text="{Binding}" FontSize="15.5" TextWrapping="Wrap"
+                           Foreground="#FF45454F" Margin="16,12" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Text="{DynamicResource Today.Empty}" IsVisible="{Binding Today.IsEmpty}"
+                     FontSize="15.5" Foreground="{StaticResource InkFaint}" Margin="16,12" />
         </Grid>
       </Border>
 
