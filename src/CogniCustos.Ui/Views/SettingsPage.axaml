@@ -36,8 +36,37 @@
           <TextBlock Grid.Row="0" Text="{Binding Settings.SelectedTitle}" FontSize="20" FontWeight="SemiBold"
                      Foreground="#FF3C4A47" />
           <Border Grid.Row="1" Height="1" Background="#FFD7E2DF" Margin="0,12,0,0" />
+
           <TextBlock Grid.Row="2" Text="{DynamicResource Settings.Placeholder}" FontSize="15.5"
-                     Foreground="#FF93A29F" Margin="0,16,0,0" TextWrapping="Wrap" />
+                     Foreground="#FF93A29F" Margin="0,16,0,0" TextWrapping="Wrap"
+                     IsVisible="{Binding !Settings.ShowPreviewGallery}" />
+
+          <!-- 界面配置: one button per interface piece, for looking at them later -->
+          <ScrollViewer Grid.Row="2" Margin="0,14,0,0" VerticalScrollBarVisibility="Auto"
+                        IsVisible="{Binding Settings.ShowPreviewGallery}">
+            <StackPanel Spacing="14">
+              <TextBlock Text="{DynamicResource Appearance.Hint}" FontSize="14.5"
+                         Foreground="#FF6D7C79" TextWrapping="Wrap" />
+              <WrapPanel>
+                <Button Classes="preview" Content="{DynamicResource Appearance.Home}"
+                        Command="{Binding PreviewCommand}" CommandParameter="home" />
+                <Button Classes="preview" Content="{DynamicResource Appearance.Reminder}"
+                        Command="{Binding PreviewCommand}" CommandParameter="today-list" />
+                <Button Classes="preview" Content="{DynamicResource Appearance.ReminderLong}"
+                        Command="{Binding PreviewCommand}" CommandParameter="today-list-long" />
+                <Button Classes="preview" Content="{DynamicResource Appearance.MenuDrawer}"
+                        Command="{Binding PreviewCommand}" CommandParameter="drawer" />
+                <Button Classes="preview" Content="{DynamicResource Appearance.FutureDrawer}"
+                        Command="{Binding PreviewCommand}" CommandParameter="expanded" />
+                <Button Classes="preview" Content="{DynamicResource Appearance.Language}"
+                        Command="{Binding PreviewCommand}" CommandParameter="language-menu" />
+                <Button Classes="preview" Content="{DynamicResource Appearance.Help}"
+                        Command="{Binding PreviewCommand}" CommandParameter="help" />
+                <Button Classes="preview" Content="{DynamicResource Appearance.Settings}"
+                        Command="{Binding PreviewCommand}" CommandParameter="settings" />
+              </WrapPanel>
+            </StackPanel>
+          </ScrollViewer>
         </Grid>
       </Border>
     </Grid>

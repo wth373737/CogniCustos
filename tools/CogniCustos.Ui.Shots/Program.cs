@@ -22,7 +22,7 @@ internal static class Program
     private static readonly string[] States =
     [
         "home", "drawer", "expanded", "settings", "help",
-        "collapsed", "toast", "settings-zh", "settings-deep", "today-list", "today-list-long", "language-menu",
+        "collapsed", "toast", "settings-zh", "settings-deep", "appearance", "today-list", "today-list-long", "language-menu",
     ];
 
     [STAThread]
@@ -42,6 +42,8 @@ internal static class Program
 
         Directory.CreateDirectory(outDir);
         var failures = 0;
+
+
 
         foreach (var state in States)
         {
@@ -82,10 +84,26 @@ internal static class Program
         var window = new ShellWindow(vm) { Width = width, Height = height };
         window.Show();
         Dispatcher.UIThread.RunJobs();
+        for (var i = 0; i < 24; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            System.Threading.Thread.Sleep(16);
+        }
+
+        Dispatcher.UIThread.RunJobs();
 
         // State goes on after the window opened: opening calls RefreshText, which
         // would otherwise reset the fixture (that is what the app wants, not the shots).
         vm.ShowState(state);
+
+        // Overlays animate (slide + fade); pump real time so the capture shows the
+        // settled state instead of a half-finished transition.
+        for (var i = 0; i < 24; i++)
+        {
+            Dispatcher.UIThread.RunJobs();
+            System.Threading.Thread.Sleep(16);
+        }
+
         Dispatcher.UIThread.RunJobs();
 
         var frame = window.CaptureRenderedFrame();

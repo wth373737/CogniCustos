@@ -57,7 +57,7 @@ internal static class Program
                 Check(en.ContainsKey(key), $"missing settings resource '{key}'");
             }
 
-            Check(SettingsViewModel.Keys.Count == 16, $"expected 16 sections, got {SettingsViewModel.Keys.Count}");
+            Check(SettingsViewModel.Keys.Count == 17, $"expected 17 sections, got {SettingsViewModel.Keys.Count}");
         });
 
         Test("every_key_resolves_in_both_languages", (_, _) =>
@@ -203,7 +203,7 @@ internal static class Program
         {
             vm.ToggleSettingsCommand.Execute(null);
             Pump();
-            vm.Settings.Selected = vm.Settings.Sections[5];
+            vm.Settings.Selected = vm.Settings.Sections.First(section => section.Key == "Section.StudentNetwork");
             Pump();
             Check(vm.Settings.SelectedTitle == Localizer.Get("Section.StudentNetwork"),
                 "precondition: selection not applied");
@@ -288,7 +288,7 @@ internal static class Program
             Check(w.Title == Localizer.Get("Window.Main.Title"), $"title not applied on open: {w.Title}");
             vm.SetLanguageCommand.Execute("zh");
             Pump();
-            Check(w.Title.Contains("沙箱"), $"title did not follow the language: {w.Title}");
+            Check(w.Title?.Contains("沙箱") == true, $"title did not follow the language: {w.Title}");
         });
 
         // ---- every resource key bound in XAML must exist, and exist in both catalogs ----
@@ -350,37 +350,66 @@ internal static class Program
             Pump();
             vm.ToggleSettingsCommand.Execute(null);
             Pump();
-            Check(!vm.DrawerOpen && vm.SettingsOpen, "settings did not replace the drawer");
-            Check(!vm.IsBackdropVisible, "backdrop must be hidden when settings is open");
+            Check(!vm.MenuOpen && vm.SettingsOpen, "settings did not replace the drawer");
+            Check(!vm.IsScrimVisible, "the scrim must be hidden when settings is open");
         });
 
-        Test("backdrop_visibility_follows_overlays", (vm, _) =>
+        Test("drawer_stack_dims_and_blurs_home", (vm, _) =>
         {
-            Check(!vm.IsBackdropVisible, "backdrop visible with nothing open");
+            Check(Math.Abs(vm.HomeBlurRadius) < 0.01, "home must be sharp with nothing open");
             vm.ToggleDrawerCommand.Execute(null);
             Pump();
-            Check(vm.IsBackdropVisible, "backdrop missing for the drawer");
-            vm.ToggleDrawerCommand.Execute(null);
-            Pump();
-            Check(!vm.IsBackdropVisible, "backdrop left behind");
+            Check(vm.IsScrimVisible, "the scrim did not appear");
+            Check(vm.HomeBlurRadius > 0, "home was not blurred behind the drawer");
+            Check(vm.HomeDimOpacity > 0, "home was not dimmed");
+            Check(!vm.IsBackdropVisible, "the reminder backdrop must not double up");
         });
 
-        Test("drawer_expands_and_animates_width", (vm, w) =>
+        Test("drawer_stack_adds_a_second_layer_without_moving_the_first", (vm, w) =>
         {
             vm.ToggleDrawerCommand.Execute(null);
             Pump();
-            var panel = w.GetVisualDescendants().OfType<Border>().First(b => b.Name == "DrawerPanel");
-            Check(panel.Transitions is { Count: >= 2 }, "the drawer needs width + opacity transitions");
+
+            var layer1 = w.GetVisualDescendants().OfType<Border>().First(b => b.Name == "MenuDrawer");
+            Check(layer1.Transitions is { Count: >= 1 }, "layer 1 needs a transition");
+            Check(Math.Abs(layer1.Bounds.Width - 390) < 1, $"layer 1 should be 390 wide, got {layer1.Bounds.Width}");
 
             vm.ExpandDrawerCommand.Execute(null);
             Pump();
-            Check(Math.Abs(vm.DrawerWidth - 560) < 0.1, "expanded width should be 560");
-            Check(Math.Abs(vm.FutureAreaOpacity - 1) < 0.01, "reserved area should be visible");
+            Check(vm.MenuOpen, "opening layer 2 must not close layer 1");
+            Check(vm.FutureOpen, "layer 2 did not open");
+            Check(Math.Abs(vm.FutureWidth - 290) < 0.1, "layer 2 should be 290 wide");
 
-            vm.ExpandDrawerCommand.Execute(null);
+            var layer2 = w.GetVisualDescendants().OfType<Border>().First(b => b.Name == "FutureDrawer");
+            Check(layer2.IsVisible, "layer 2 is not visible");
+            Check(layer2.Bounds.Right <= layer1.Bounds.Left + 1, "layer 2 must sit left of layer 1");
+
+            vm.CloseTopDrawer();
             Pump();
-            Check(Math.Abs(vm.DrawerWidth - 208) < 0.1, "collapsed width should be 208");
-            Check(Math.Abs(vm.FutureAreaOpacity) < 0.01, "reserved area should be hidden");
+            Check(!vm.FutureOpen && vm.MenuOpen, "CloseTopDrawer should close only layer 2");
+
+            vm.CloseTopDrawer();
+            Pump();
+            Check(!vm.MenuOpen, "a second CloseTopDrawer should close layer 1");
+            Check(Math.Abs(vm.HomeBlurRadius) < 0.01, "home must be sharp again");
+        });
+
+        Test("settings_has_an_appearance_gallery", (vm, w) =>
+        {
+            vm.ShowState("appearance");
+            Pump();
+            Check(vm.Settings.Selected?.Key == "Section.Appearance", "the appearance section was not selected");
+            Check(vm.Settings.ShowPreviewGallery, "the gallery did not replace the placeholder");
+
+            var buttons = w.GetVisualDescendants().OfType<Button>()
+                .Where(b => b.Classes.Contains("preview")).ToList();
+            Check(buttons.Count >= 8, $"expected the gallery buttons, got {buttons.Count}");
+
+            var drawerButton = buttons.First(b => (string?)b.CommandParameter == "drawer");
+            drawerButton.Command!.Execute(drawerButton.CommandParameter);
+            Pump();
+            Check(vm.MenuOpen, "a gallery button did not open its interface piece");
+            Check(!vm.SettingsOpen, "the gallery should leave the settings page");
         });
 
         // ---- proportional scaling ----

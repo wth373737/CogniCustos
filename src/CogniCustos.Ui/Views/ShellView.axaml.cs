@@ -43,6 +43,13 @@ public sealed partial class ShellView : UserControl
         base.OnDataContextChanged(e);
     }
 
+    /// <summary>The page behind the drawer stack closes one layer at a time.</summary>
+    private void OnScrimPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is ShellViewModel vm) vm.CloseTopDrawer();
+        e.Handled = true;
+    }
+
     /// <summary>Click outside the drawer, help panel or reminder list closes it.</summary>
     private void OnBackdropPressed(object? sender, PointerPressedEventArgs e)
     {

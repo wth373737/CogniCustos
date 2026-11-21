@@ -1,6 +1,16 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+  <x:String x:Key="Section.Appearance">Appearance</x:String>
+  <x:String x:Key="Appearance.Hint">Every interface piece we have built so far. One button opens it.</x:String>
+  <x:String x:Key="Appearance.Home">Home</x:String>
+  <x:String x:Key="Appearance.Reminder">Reminder drawer</x:String>
+  <x:String x:Key="Appearance.ReminderLong">Reminder drawer (long)</x:String>
+  <x:String x:Key="Appearance.MenuDrawer">Icon drawer</x:String>
+  <x:String x:Key="Appearance.FutureDrawer">Future area</x:String>
+  <x:String x:Key="Appearance.Language">Language menu</x:String>
+  <x:String x:Key="Appearance.Help">Help panel</x:String>
+  <x:String x:Key="Appearance.Settings">Settings page</x:String>
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.

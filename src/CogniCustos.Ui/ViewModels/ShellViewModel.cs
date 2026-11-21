@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using Avalonia.Threading;
 using CogniCustos.Ui.Localization;
 using CogniCustos.Ui.Mvvm;
@@ -11,13 +12,11 @@ namespace CogniCustos.Ui.ViewModels;
 /// </summary>
 public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 {
-    private const double MenuWidth = 208;
-    private const double ExpandedWidth = 560;
 
     private readonly DispatcherTimer _toastTimer = new() { Interval = TimeSpan.FromSeconds(6) };
 
-    private bool _drawerOpen;
-    private bool _drawerExpanded;
+    private bool _menuOpen;
+    private bool _futureOpen;
     private bool _settingsOpen;
     private bool _helpOpen;
     private string _inputText = string.Empty;
@@ -29,8 +28,12 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings = new SettingsViewModel();
         Today = new TodayViewModel();
 
-        ToggleDrawerCommand = new RelayCommand(ToggleDrawer);
-        ExpandDrawerCommand = new RelayCommand(ExpandDrawer);
+        ToggleDrawerCommand = new RelayCommand(ToggleMenu);
+        ExpandDrawerCommand = new RelayCommand(ToggleFuture);
+        PreviewCommand = new RelayCommand(parameter =>
+        {
+            if (parameter is string state) ShowState(state);
+        });
         ToggleSettingsCommand = new RelayCommand(ToggleSettings);
         ToggleHelpCommand = new RelayCommand(ToggleHelp);
         ToggleLanguageCommand = new RelayCommand(() => ApplyLanguage(Localizer.NextLanguage()));
@@ -79,6 +82,9 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     public RelayCommand ToggleDrawerCommand { get; }
     public RelayCommand ExpandDrawerCommand { get; }
+
+    /// <summary>Settings "interface" gallery: parameter is a ShowState state name.</summary>
+    public RelayCommand PreviewCommand { get; }
     public RelayCommand ToggleSettingsCommand { get; }
     public RelayCommand ToggleHelpCommand { get; }
     public RelayCommand ToggleLanguageCommand { get; }
@@ -125,31 +131,40 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     public bool HasToast => !string.IsNullOrWhiteSpace(_toast);
 
-    public bool DrawerOpen
+    /// <summary>First drawer layer: the icon grid. It covers the top bar; home blurs behind it.</summary>
+    public bool MenuOpen
     {
-        get => _drawerOpen;
+        get => _menuOpen;
         private set
         {
-            if (!Set(ref _drawerOpen, value)) return;
-            OnPropertyChanged(nameof(DrawerOffset));
-            OnPropertyChanged(nameof(DrawerOpacity));
-            OnPropertyChanged(nameof(DrawerHitTest));
+            if (!Set(ref _menuOpen, value)) return;
+            OnPropertyChanged(nameof(MenuOffset));
+            OnPropertyChanged(nameof(MenuOpacity));
+            OnPropertyChanged(nameof(MenuHitTest));
             OnPropertyChanged(nameof(IsMenuActive));
+            OnPropertyChanged(nameof(IsScrimVisible));
+            OnPropertyChanged(nameof(HomeBlurRadius));
+            OnPropertyChanged(nameof(HomeDimOpacity));
             OnPropertyChanged(nameof(IsBackdropVisible));
+            if (!value) FutureOpen = false;
         }
     }
 
-    /// <summary>Drawer grows leftwards to reveal the reserved "future features" area.</summary>
-    public bool DrawerExpanded
+    /// <summary>
+    /// Second drawer layer: opens to the LEFT of the first one, which stays where it is.
+    /// "Expanding" is another drawer, not a wider one.
+    /// </summary>
+    public bool FutureOpen
     {
-        get => _drawerExpanded;
+        get => _futureOpen;
         private set
         {
-            if (!Set(ref _drawerExpanded, value)) return;
-            OnPropertyChanged(nameof(DrawerWidth));
-            OnPropertyChanged(nameof(DrawerOffset));
+            if (!Set(ref _futureOpen, value)) return;
+            OnPropertyChanged(nameof(FutureOffset));
+            OnPropertyChanged(nameof(FutureOpacity));
+            OnPropertyChanged(nameof(FutureHitTest));
             OnPropertyChanged(nameof(ExpandGlyph));
-            OnPropertyChanged(nameof(FutureAreaOpacity));
+            OnPropertyChanged(nameof(HomeDimOpacity));
         }
     }
 
@@ -162,6 +177,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
             OnPropertyChanged(nameof(IsMenuActive));
             OnPropertyChanged(nameof(IsSettingsActive));
             OnPropertyChanged(nameof(IsBackdropVisible));
+            OnPropertyChanged(nameof(IsScrimVisible));
         }
     }
 
@@ -176,49 +192,80 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         }
     }
 
-    public bool IsMenuActive => _drawerOpen && !_settingsOpen;
+    public bool IsMenuActive => _menuOpen && !_settingsOpen;
     public bool IsHelpActive => _helpOpen;
     public bool IsSettingsActive => _settingsOpen;
 
-    /// <summary>
-    /// Transparent catcher behind the drawer / help panel / reminder list.
-    /// It starts below the top bar on purpose, so the reminder pill stays clickable
-    /// and can toggle its own list.
-    /// </summary>
-    public bool IsBackdropVisible => (_drawerOpen || _helpOpen || Today.IsListOpen) && !_settingsOpen;
+    /// <summary>Transparent catcher behind the help panel / reminder list.</summary>
+    public bool IsBackdropVisible => (_helpOpen || Today.IsListOpen) && !_settingsOpen && !_menuOpen;
 
-    public double DrawerWidth => _drawerExpanded ? ExpandedWidth : MenuWidth;
+    /// <summary>Layer 1: icon grid, 390 wide (canvas units).</summary>
+    public double MenuWidth => 390;
+
+    /// <summary>Layer 2: reserved future area, 290 wide, sits left of layer 1.</summary>
+    public double FutureWidth => 290;
 
     /// <summary>0 when open; fully off-screen (behind the rail) when closed.</summary>
-    public double DrawerOffset => _drawerOpen ? 0 : DrawerWidth + 24;
+    public double MenuOffset => _menuOpen ? 0 : MenuWidth + 24;
 
-    public double DrawerOpacity => _drawerOpen ? 1 : 0;
+    public double MenuOpacity => _menuOpen ? 1 : 0;
 
-    public bool DrawerHitTest => _drawerOpen;
+    public bool MenuHitTest => _menuOpen;
 
-    /// <summary>Fades the reserved area in while the drawer grows.</summary>
-    public double FutureAreaOpacity => _drawerExpanded ? 1 : 0;
+    public double FutureOffset => _futureOpen ? 0 : FutureWidth + 24;
 
-    /// <summary>Chevron in the drawer footer: "&lt;" expands, "&gt;" collapses (MDL2 glyphs).</summary>
-    public string ExpandGlyph => _drawerExpanded ? "\uE76C" : "\uE76B";
+    public double FutureOpacity => _futureOpen ? 1 : 0;
 
-    private void ToggleDrawer()
+    public bool FutureHitTest => _futureOpen;
+
+    /// <summary>Home blur while a drawer is up; configurable later in 界面配置.</summary>
+    public double HomeBlurRadius => (_menuOpen || _futureOpen) ? 8 : 0;
+
+    /// <summary>Home dim while a drawer is up; a second layer dims a little more.</summary>
+    public double HomeDimOpacity => _futureOpen ? 0.2 : 0.12;
+
+    /// <summary>The dim + click catcher behind the drawer stack.</summary>
+    public bool IsScrimVisible => (_menuOpen || _futureOpen) && !_settingsOpen;
+
+    /// <summary>Footer chevron: "&lt;" opens the second layer, "&gt;" closes it.</summary>
+    public string ExpandGlyph => _futureOpen ? "\uE76C" : "\uE76B";
+
+    private void ToggleMenu()
     {
         if (SettingsOpen) SettingsOpen = false;
         HelpOpen = false;
         Today.CloseList();
-        DrawerOpen = !DrawerOpen;
+        MenuOpen = !MenuOpen;
     }
 
-    private void ExpandDrawer()
+    /// <summary>Layer 2 only; layer 1 never moves.</summary>
+    private void ToggleFuture()
     {
-        if (!DrawerOpen) DrawerOpen = true;
-        DrawerExpanded = !DrawerExpanded;
+        if (!MenuOpen)
+        {
+            MenuOpen = true;
+            FutureOpen = true;
+            return;
+        }
+
+        FutureOpen = !FutureOpen;
+    }
+
+    /// <summary>The page behind the stack closes one layer at a time.</summary>
+    public void CloseTopDrawer()
+    {
+        if (FutureOpen)
+        {
+            FutureOpen = false;
+            return;
+        }
+
+        MenuOpen = false;
     }
 
     private void ToggleSettings()
     {
-        DrawerOpen = false;
+        MenuOpen = false;
         HelpOpen = false;
         Today.CloseList();
         SettingsOpen = !SettingsOpen;
@@ -226,7 +273,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     private void ToggleHelp()
     {
-        DrawerOpen = false;
+        MenuOpen = false;
         Today.CloseList();
         HelpOpen = !HelpOpen;
     }
@@ -297,7 +344,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     public void CloseOverlays()
     {
-        DrawerOpen = false;
+        MenuOpen = false;
         SettingsOpen = false;
         HelpOpen = false;
         IsLanguageMenuOpen = false;
@@ -353,12 +400,18 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Toast = string.Empty;
         switch (state)
         {
+            case "home":
+                break;
+            case "appearance":
+                SettingsOpen = true;
+                Settings.Selected = Settings.Sections.First(section => section.Key == "Section.Appearance");
+                break;
             case "drawer":
-                DrawerOpen = true;
+                MenuOpen = true;
                 break;
             case "expanded":
-                DrawerOpen = true;
-                DrawerExpanded = true;
+                MenuOpen = true;
+                FutureOpen = true;
                 break;
             case "settings":
                 SettingsOpen = true;

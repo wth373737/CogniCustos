@@ -128,6 +128,10 @@
     <Grid Grid.Column="1" ClipToBounds="True">
 
       <Grid RowDefinitions="76,*,140">
+        <Grid.Effect>
+          <BlurEffect Radius="{Binding HomeBlurRadius}" />
+        </Grid.Effect>
+
 
         <!-- top bar: brand chip + today's reminder line + home + sound -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto" Margin="27,0,39,0">
@@ -253,18 +257,26 @@
         </Grid>
       </Border>
 
-      <!-- drawer (menu + reserved future area) -->
-      <Border Name="DrawerPanel" ZIndex="7"
-              Width="{Binding DrawerWidth}"
-              Margin="0,76,0,0"
+      <!-- ===== drawer stack: layer 1 (icon grid) + layer 2 (future area) =====
+           The stack covers the whole content area including the top bar; home blurs
+           and dims behind it. Clicking the page closes one layer at a time. -->
+
+      <Border Name="DrawerScrim" ZIndex="8" Background="Transparent"
+              IsVisible="{Binding IsScrimVisible}"
+              PointerPressed="OnScrimPressed">
+        <Border Background="Black" Opacity="{Binding HomeDimOpacity}" />
+      </Border>
+
+      <Border Name="MenuDrawer" ZIndex="9"
+              Width="{Binding MenuWidth}"
               HorizontalAlignment="Right" VerticalAlignment="Stretch"
               Background="{StaticResource DrawerBg}"
-              BorderBrush="#FFE2E0EE" BorderThickness="1,0,0,0"
+              BorderBrush="#FFDCD9E8" BorderThickness="1,0,0,0"
               ClipToBounds="True"
-              Opacity="{Binding DrawerOpacity}"
-              IsHitTestVisible="{Binding DrawerHitTest}">
+              Opacity="{Binding MenuOpacity}"
+              IsHitTestVisible="{Binding MenuHitTest}">
         <Border.RenderTransform>
-          <TranslateTransform X="{Binding DrawerOffset}">
+          <TranslateTransform X="{Binding MenuOffset}">
             <TranslateTransform.Transitions>
               <Transitions>
                 <DoubleTransition Property="X" Duration="0:0:0.24" Easing="CubicEaseOut" />
@@ -274,117 +286,128 @@
         </Border.RenderTransform>
         <Border.Transitions>
           <Transitions>
-            <DoubleTransition Property="Width" Duration="0:0:0.24" Easing="CubicEaseOut" />
             <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
           </Transitions>
         </Border.Transitions>
 
-        <Grid Width="560" HorizontalAlignment="Right" ColumnDefinitions="352,208">
-          <!-- reserved area: always laid out, faded in when the drawer expands -->
-          <Border Grid.Column="0" Opacity="{Binding FutureAreaOpacity}">
-            <Border.Transitions>
-              <Transitions>
-                <DoubleTransition Property="Opacity" Duration="0:0:0.22" />
-              </Transitions>
-            </Border.Transitions>
-            <TextBlock Text="{DynamicResource Drawer.FutureArea}"
-                       FontSize="34" FontWeight="Thin"
-                       Foreground="#FF4B4B58"
-                       TextWrapping="Wrap" Width="240"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                       LineHeight="34" />
-          </Border>
-
-          <Grid Grid.Column="1" RowDefinitions="*,Auto">
-
-            <!-- icon grid -->
-            <Grid Grid.Row="0" Margin="14,22,10,0" VerticalAlignment="Top"
-                  ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto">
-
-              <Button Grid.Row="0" Grid.Column="0" Classes="tile" ToolTip.Tip="{DynamicResource Tile.Knowledge}">
-                <StackPanel Spacing="5">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphKnowledge}" FontSize="22" />
-                  <TextBlock Text="{DynamicResource Tile.Knowledge}" FontSize="9.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
-                             TextWrapping="Wrap" HorizontalAlignment="Center" />
+        <Grid RowDefinitions="*,Auto">
+          <Grid Grid.Row="0" Margin="16,26,16,0" VerticalAlignment="Top"
+                ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto">
+              <Button Grid.Row="0" Grid.Column="0" Classes="tile" Width="100" Height="112"
+                      Margin="0,0,0,18" HorizontalAlignment="Center"
+                      ToolTip.Tip="{DynamicResource Tile.Knowledge}">
+                <StackPanel Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphKnowledge}" FontSize="30" HorizontalAlignment="Center" />
+                  <TextBlock Text="{DynamicResource Tile.Knowledge}" FontSize="11"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center"
+                             Width="86" TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
-
-              <Button Grid.Row="0" Grid.Column="1" Classes="tile" ToolTip.Tip="{DynamicResource Tile.DataBase}">
-                <StackPanel Spacing="5">
-                  <Path Width="18" Height="18" Data="{StaticResource GeoDataBase}"
-                        Stroke="{StaticResource InkSoft}" StrokeThickness="1.2" Fill="Transparent"
-                        HorizontalAlignment="Center" />
-                  <TextBlock Text="{DynamicResource Tile.DataBase}" FontSize="9.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
-                             HorizontalAlignment="Center" />
+              <Button Grid.Row="0" Grid.Column="1" Classes="tile" Width="100" Height="112"
+                      Margin="0,0,0,18" HorizontalAlignment="Center"
+                      ToolTip.Tip="{DynamicResource Tile.DataBase}">
+                <StackPanel Spacing="8" VerticalAlignment="Center">
+                  <Path Width="24" Height="24" Data="{StaticResource GeoDataBase}" Stroke="{StaticResource InkSoft}"
+                        StrokeThickness="1.2" Fill="Transparent" HorizontalAlignment="Center" />
+                  <TextBlock Text="{DynamicResource Tile.DataBase}" FontSize="11"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center"
+                             Width="86" TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
-
-              <Button Grid.Row="0" Grid.Column="2" Classes="tile" ToolTip.Tip="{DynamicResource Tile.Sandbox}">
-                <StackPanel Spacing="5">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphSandbox}" FontSize="22" />
-                  <TextBlock Text="{DynamicResource Tile.Sandbox}" FontSize="9.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
-                             HorizontalAlignment="Center" />
+              <Button Grid.Row="0" Grid.Column="2" Classes="tile" Width="100" Height="112"
+                      Margin="0,0,0,18" HorizontalAlignment="Center"
+                      ToolTip.Tip="{DynamicResource Tile.Sandbox}">
+                <StackPanel Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphSandbox}" FontSize="30" HorizontalAlignment="Center" />
+                  <TextBlock Text="{DynamicResource Tile.Sandbox}" FontSize="11"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center"
+                             Width="86" TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
-
-              <Button Grid.Row="1" Grid.Column="0" Classes="tile" ToolTip.Tip="{DynamicResource Tile.AddFiles}">
-                <StackPanel Spacing="5">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphAttach}" FontSize="22" />
-                  <TextBlock Text="{DynamicResource Tile.AddFiles}" FontSize="9.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
-                             HorizontalAlignment="Center" />
+              <Button Grid.Row="1" Grid.Column="0" Classes="tile" Width="100" Height="112"
+                      Margin="0,0,0,18" HorizontalAlignment="Center"
+                      ToolTip.Tip="{DynamicResource Tile.AddFiles}">
+                <StackPanel Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphAttach}" FontSize="30" HorizontalAlignment="Center" />
+                  <TextBlock Text="{DynamicResource Tile.AddFiles}" FontSize="11"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center"
+                             Width="86" TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
-
-              <Button Grid.Row="1" Grid.Column="1" Classes="tile" ToolTip.Tip="{DynamicResource Tile.AddAddress}">
-                <StackPanel Spacing="5">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphFolder}" FontSize="22" />
-                  <TextBlock Text="{DynamicResource Tile.AddAddress}" FontSize="9.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
-                             TextWrapping="Wrap" HorizontalAlignment="Center" />
+              <Button Grid.Row="1" Grid.Column="1" Classes="tile" Width="100" Height="112"
+                      Margin="0,0,0,18" HorizontalAlignment="Center"
+                      ToolTip.Tip="{DynamicResource Tile.AddAddress}">
+                <StackPanel Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphFolder}" FontSize="30" HorizontalAlignment="Center" />
+                  <TextBlock Text="{DynamicResource Tile.AddAddress}" FontSize="11"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center"
+                             Width="86" TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
-
-              <Button Grid.Row="2" Grid.Column="0" Classes="tile" ToolTip.Tip="{DynamicResource Tile.CheckMail}">
-                <StackPanel Spacing="5">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphMail}" FontSize="22" />
-                  <TextBlock Text="{DynamicResource Tile.CheckMail}" FontSize="9.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
-                             TextWrapping="Wrap" HorizontalAlignment="Center" />
+              <Button Grid.Row="2" Grid.Column="0" Classes="tile" Width="100" Height="112"
+                      Margin="0,0,0,18" HorizontalAlignment="Center"
+                      ToolTip.Tip="{DynamicResource Tile.CheckMail}">
+                <StackPanel Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphMail}" FontSize="30" HorizontalAlignment="Center" />
+                  <TextBlock Text="{DynamicResource Tile.CheckMail}" FontSize="11"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center"
+                             Width="86" TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
-
-              <Button Grid.Row="2" Grid.Column="1" Classes="tile" ToolTip.Tip="{DynamicResource Tile.SearchGraphical}">
-                <StackPanel Spacing="5">
-                  <Grid Width="22" Height="18">
-                    <TextBlock Classes="glyph" Text="{StaticResource GlyphPerson}" FontSize="17"
-                               HorizontalAlignment="Left" />
-                    <TextBlock Classes="glyph" Text="{StaticResource GlyphSearch}" FontSize="12"
-                               HorizontalAlignment="Right" VerticalAlignment="Bottom" />
+              <Button Grid.Row="2" Grid.Column="1" Classes="tile" Width="100" Height="112"
+                      Margin="0,0,0,18" HorizontalAlignment="Center"
+                      ToolTip.Tip="{DynamicResource Tile.SearchGraphical}">
+                <StackPanel Spacing="8" VerticalAlignment="Center">
+                  <Grid Width="30" Height="24" HorizontalAlignment="Center">
+                    <TextBlock Classes="glyph" Text="{StaticResource GlyphPerson}" FontSize="24" HorizontalAlignment="Left" />
+                    <TextBlock Classes="glyph" Text="{StaticResource GlyphSearch}" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
                   </Grid>
-                  <TextBlock Text="{DynamicResource Tile.SearchGraphical}" FontSize="9.5"
-                             Foreground="{StaticResource InkSoft}" TextAlignment="Center" Width="58"
-                             TextWrapping="Wrap" HorizontalAlignment="Center" />
+                  <TextBlock Text="{DynamicResource Tile.SearchGraphical}" FontSize="11"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center"
+                             Width="86" TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
               </Button>
-            </Grid>
-
-            <!-- drawer footer: expand chevron + calendar -->
-            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Margin="10,0,0,14"
-                        VerticalAlignment="Bottom">
-              <Button Classes="icon" Width="26" Height="26" Command="{Binding ExpandDrawerCommand}"
-                      ToolTip.Tip="{DynamicResource Tip.Expand}">
-                <TextBlock Classes="glyph" FontSize="15.5" Text="{Binding ExpandGlyph}" />
-              </Button>
-              <Button Classes="icon" Width="26" Height="26" ToolTip.Tip="{DynamicResource Tip.Calendar}">
-                <TextBlock Classes="glyph" Text="{StaticResource GlyphCalendar}" FontSize="17" />
-              </Button>
-            </StackPanel>
           </Grid>
+
+          <!-- footer: open/close the second layer, then the calendar placeholder -->
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6"
+                      Margin="16,0,0,18" VerticalAlignment="Bottom">
+            <Button Classes="icon" Width="30" Height="30" Command="{Binding ExpandDrawerCommand}"
+                    ToolTip.Tip="{DynamicResource Tip.Expand}">
+              <TextBlock Classes="glyph" FontSize="17" Text="{Binding ExpandGlyph}" />
+            </Button>
+            <Button Classes="icon" Width="30" Height="30" ToolTip.Tip="{DynamicResource Tip.Calendar}">
+              <TextBlock Classes="glyph" Text="{StaticResource GlyphCalendar}" FontSize="18" />
+            </Button>
+          </StackPanel>
         </Grid>
+      </Border>
+
+      <!-- layer 2: another drawer, pinned to the left edge of layer 1 (390) -->
+      <Border Name="FutureDrawer" ZIndex="9"
+              Width="{Binding FutureWidth}"
+              Margin="0,0,390,0"
+              HorizontalAlignment="Right" VerticalAlignment="Stretch"
+              Background="{StaticResource Surface}"
+              BorderBrush="#FFDCD9E8" BorderThickness="1,0,0,0"
+              ClipToBounds="True"
+              Opacity="{Binding FutureOpacity}"
+              IsHitTestVisible="{Binding FutureHitTest}">
+        <Border.RenderTransform>
+          <TranslateTransform X="{Binding FutureOffset}">
+            <TranslateTransform.Transitions>
+              <Transitions>
+                <DoubleTransition Property="X" Duration="0:0:0.24" Easing="CubicEaseOut" />
+              </Transitions>
+            </TranslateTransform.Transitions>
+          </TranslateTransform>
+        </Border.RenderTransform>
+        <TextBlock Text="{DynamicResource Drawer.FutureArea}"
+                   FontSize="32" FontWeight="Thin"
+                   Foreground="#FF4B4B58"
+                   TextWrapping="Wrap" Width="232"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   LineHeight="40" />
       </Border>
 
       <!-- help panel -->

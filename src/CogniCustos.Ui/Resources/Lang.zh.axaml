@@ -1,6 +1,16 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
+  <x:String x:Key="Section.Appearance">界面配置</x:String>
+  <x:String x:Key="Appearance.Hint">把已经做过的界面部件列在这里，点一个就打开对应界面，方便随时查看。</x:String>
+  <x:String x:Key="Appearance.Home">主页</x:String>
+  <x:String x:Key="Appearance.Reminder">提醒抽屉</x:String>
+  <x:String x:Key="Appearance.ReminderLong">提醒抽屉（长列表）</x:String>
+  <x:String x:Key="Appearance.MenuDrawer">图标抽屉</x:String>
+  <x:String x:Key="Appearance.FutureDrawer">未来区抽屉</x:String>
+  <x:String x:Key="Appearance.Language">语言菜单</x:String>
+  <x:String x:Key="Appearance.Help">帮助面板</x:String>
+  <x:String x:Key="Appearance.Settings">设置页</x:String>
   <!--
     简体中文 UI 文案。键必须与 Lang.en.axaml 完全一致（测试会逐键比对）。
     翻译方式：复制本文件为 Lang.<culture>.axaml，只改值、不改键。

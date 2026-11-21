@@ -14,7 +14,7 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Resource keys, in the order of the sketch. Also asserted by the tests.</summary>
     private static readonly string[] SectionKeys =
     [
-        "Section.General", "Section.Model", "Section.EmailRetrieval", "Section.ChatRetrieval",
+        "Section.General", "Section.Appearance", "Section.Model", "Section.EmailRetrieval", "Section.ChatRetrieval",
         "Section.WebsiteBrowsing", "Section.StudentNetwork", "Section.Prompt", "Section.Hotkeys",
         "Section.Privacy", "Section.KnowledgeBase", "Section.Database", "Section.Sandbox",
         "Section.Storage", "Section.Software", "Section.Notifications", "Section.Offline",
@@ -45,15 +45,21 @@ public sealed class SettingsViewModel : ObservableObject
         set
         {
             if (value is null) return;
-            if (Set(ref _selected, value)) OnPropertyChanged(nameof(SelectedTitle));
+            if (!Set(ref _selected, value)) return;
+            OnPropertyChanged(nameof(SelectedTitle));
+            OnPropertyChanged(nameof(ShowPreviewGallery));
         }
     }
 
     public string SelectedTitle => _selected?.Title ?? string.Empty;
 
+    /// <summary>The interface gallery replaces the placeholder for 界面配置 only.</summary>
+    public bool ShowPreviewGallery => _selected?.Key == "Section.Appearance";
+
     public void RefreshTitles()
     {
         foreach (var section in Sections) section.Refresh();
         OnPropertyChanged(nameof(SelectedTitle));
+        OnPropertyChanged(nameof(ShowPreviewGallery));
     }
 }

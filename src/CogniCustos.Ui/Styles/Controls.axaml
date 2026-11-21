@@ -193,6 +193,23 @@
     <Setter Property="Background" Value="#12000000" />
   </Style>
 
+  <!-- ===== settings gallery button ===== -->
+  <Style Selector="Button.preview">
+    <Setter Property="Background" Value="#FFFDFDFE" />
+    <Setter Property="BorderBrush" Value="#FFD7E2DF" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="14,9" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="Foreground" Value="#FF3C4A47" />
+    <Setter Property="Margin" Value="0,0,8,8" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.preview:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#FFF1F6F4" />
+  </Style>
+
   <!-- ===== reminder drawer list ===== -->
   <Style Selector="ListBox.reminder">
     <Setter Property="Background" Value="Transparent" />
