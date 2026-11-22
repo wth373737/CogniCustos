@@ -1,0 +1,42 @@
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Markup.Xaml;
+using CogniCustos.Core;
+using CogniCustos.Ui.ViewModels;
+
+namespace CogniCustos.Sample;
+
+public sealed partial class SampleWindow : Window
+{
+    private readonly RuntimeShellDataSource _source;
+
+    public SampleWindow()
+    {
+        AvaloniaXamlLoader.Load(this);
+
+        var root = Environment.GetEnvironmentVariable("COGNICUSTOS_HOME");
+        root ??= Path.Combine(AppContext.BaseDirectory, "data");
+        Directory.CreateDirectory(root);
+
+        var runtime = CogniCustosRuntime.Create(root);
+        _source = new RuntimeShellDataSource(runtime);
+
+        DataContext = new ShellViewModel(_source);
+        Title = $"CogniCustos — Sample · {_source.DataRoot}";
+    }
+
+    /// <summary>Escape closes the dialog / the calendar / overlays, like the sandbox.</summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape && DataContext is ShellViewModel vm)
+        {
+            if (vm.Dialog.IsOpen) vm.Dialog.CancelCommand.Execute(null);
+            else if (vm.Calendar.IsVisible) vm.Calendar.Close();
+            else vm.CloseOverlays();
+
+            e.Handled = true;
+        }
+
+        base.OnKeyDown(e);
+    }
+}

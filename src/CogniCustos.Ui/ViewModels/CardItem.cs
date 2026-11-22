@@ -32,6 +32,9 @@ public sealed class CardItem
     public bool HasSource => !string.IsNullOrWhiteSpace(Source);
     public bool HasSourceFile => !string.IsNullOrWhiteSpace(SourceFile);
 
+    /// <summary>Opaque id used by a data source (proposal id, block id, note index).</summary>
+    public string? Ref { get; set; }
+
     /// <summary>Set by the owning card when rows are clickable; null for plain rows.</summary>
     public RelayCommand? Command { get; set; }
 

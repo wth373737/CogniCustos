@@ -449,6 +449,36 @@ internal static class Program
             Check(Math.Abs(blurred!.Radius) < 0.01, $"the rendered blur stayed at {blurred.Radius}");
         });
 
+        // ---- the data-source seam (what the runnable sample plugs into) ----
+        Test("shell_actions_reach_the_data_source", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            Check(shell.Cards[1].Items.Count == 1, "the pending card did not come from the source");
+            var item = shell.Cards[1].Items[0];
+
+            item.Command!.Execute(item);
+            Pump();
+            shell.Dialog.Buttons.First(button => button.Primary).Command.Execute(null);
+            Pump();
+            Check(source.Confirmed.Count == 1, "confirm did not reach the data source");
+            Check(source.Confirmed[0].Ref == "p1", "the wrong item was confirmed");
+
+            var note = shell.Cards[2].Items[0];
+            note.Command!.Execute(note);
+            Pump();
+            shell.Dialog.Buttons.First(button => button.Text == Localizer.Get("Dialog.Edit"))
+                .Command.Execute(null);
+            Pump();
+            shell.Dialog.EditorText = "edited";
+            shell.Dialog.Buttons.First(button => button.Primary).Command.Execute(null);
+            Pump();
+            Check(source.Edited.Count == 1 && source.Edited[0].Text == "edited",
+                "editing did not reach the data source");
+        });
+
         // ---- reminder line: normal vs urgent ----
         Test("reminder_line_marks_todays_urgent_items", (vm, _) =>
         {
@@ -795,4 +825,31 @@ internal static class Program
     {
         if (!condition) throw new InvalidOperationException(message);
     }
+}
+
+/// <summary>Records what the shell asks for, so the seam can be asserted without a runtime.</summary>
+internal sealed class RecordingSource : IShellDataSource
+{
+    public List<CardItem> Confirmed { get; } = [];
+    public List<CardItem> Ignored { get; } = [];
+    public List<(CardItem Item, string Text)> Edited { get; } = [];
+
+    public IReadOnlyList<ReminderItem> Today() => [new("ordinary", false), new("urgent", true)];
+
+    public (string Title, string Empty, IReadOnlyList<CardItem> Items) CalendarCard() =>
+        ("plan", "", [new CardItem("Planned item", "11/27 3pm – 5pm")]);
+
+    public (string Title, string Empty, IReadOnlyList<CardItem> Items) PendingCard() =>
+        ("Incoming", "", [new CardItem("Incoming item", "11/28 3pm – 5pm", "From example.org") { Ref = "p1" }]);
+
+    public (string Title, string Empty, IReadOnlyList<CardItem> Items) NoteCard() =>
+        ("Notes", "", [new CardItem("A note")]);
+
+    public void IncomingConfirmed(CardItem item) => Confirmed.Add(item);
+
+    public void IncomingIgnored(CardItem item) => Ignored.Add(item);
+
+    public void NoteEdited(CardItem item, string text) => Edited.Add((item, text));
+
+    public Task<string?> AskAsync(string instruction) => Task.FromResult<string?>(null);
 }

@@ -10,6 +10,32 @@ UI 是占位的，随时会被替换；不要在这个版本上设计视觉。
 
 ---
 
+## 〇、可运行小样（UI + 运行时，单独目录）
+
+`samples/CogniCustos.Sample/` 把 `src/CogniCustos.Ui` 的界面接到本仓库的运行时上，用一条闭环验证"设计 → 数据"：
+
+```
+提醒条 / 三张卡  ←  任务、日程、待确认提议、沙箱笔记（真实数据）
+确认 / 无视        →  审批处理器（真写 SQLite）
+编辑笔记           →  沙箱 notes 分区
+底部输入           →  runtime.ChatAsync（Ollama 在则真跑，不在则降级）
+```
+
+```bash
+dotnet run --project samples/CogniCustos.Sample                      # 开发运行
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --check   # 不开窗口，验证落库
+```
+
+界面通过 `IShellDataSource` 这个接缝取数据；默认实现是演示数据（测试与出图用它），
+小样传入基于 `CogniCustosRuntime` 的实现。打包（自包含、免装 .NET）：
+
+```powershell
+dotnet publish samples/CogniCustos.Sample -c Release -r win-x64 --self-contained true `
+  -p:PublishSingleFile=false -o artifacts/sample/win-x64
+```
+
+细节见 `samples/CogniCustos.Sample/README.md`。
+
 ## 一、它现在能做什么（实测）
 
 | 能力 | 状态 |
@@ -141,7 +167,7 @@ cloud.ask → 本地规则检查（9 类：邮箱/电话/学号/密钥/密码/�
 
 界面从这一版开始独立开发：新增 `src/CogniCustos.Ui`，**不引用** Core / Adapters，用假数据把
 主窗口（顶栏 / 三张卡片 / 推理记录 / 输入条 / 右侧竖排栏）和三个抽屉（菜单抽屉、预留功能区、设置页）做出来。
-界面按 **1280×720（16:9）** 画布设计并整体等比缩放到窗口（16:9 铺满，其他比例留边、不变形）；结构是"左栏 logo+推理记录 / 顶部今天提醒条 / 三张卡（首张是压缩日历）/ 输入框 / 右栏"。文案在 `Resources/Lang.*.axaml`（运行时切换，按钮显示当前语言；新增语言=复制一份文件、只改值并登记到 `Localizer.Languages`）。配套 `tools/CogniCustos.Ui.Shots` 可无头渲染 10 个状态，`tools/CogniCustos.Ui.Tests` 有 43 条无头断言（非 0 退出即失败）。
+界面按 **1280×720（16:9）** 画布设计并整体等比缩放到窗口（16:9 铺满，其他比例留边、不变形）；结构是"左栏 logo+推理记录 / 顶部今天提醒条 / 三张卡（首张是压缩日历）/ 输入框 / 右栏"。文案在 `Resources/Lang.*.axaml`（运行时切换，按钮显示当前语言；新增语言=复制一份文件、只改值并登记到 `Localizer.Languages`）。配套 `tools/CogniCustos.Ui.Shots` 可无头渲染 10 个状态，`tools/CogniCustos.Ui.Tests` 有 44 条无头断言（非 0 退出即失败）。
 
 - 框架：Avalonia **12.1.6**（全解决方案已从 11.2.3 升级，`Selftest 37/37` 仍全过）；包版本集中在 `Directory.Packages.props`
 - 结构、交互、设计约定、回归测试与"还没做的事"：见 [docs/UI-SANDBOX.md](docs/UI-SANDBOX.md)

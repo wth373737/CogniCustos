@@ -1,0 +1,23 @@
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
+using CogniCustos.Ui.Localization;
+
+namespace CogniCustos.Sample;
+
+public sealed class App : Application
+{
+    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+
+    public override void OnFrameworkInitializationCompleted()
+    {
+        Localizer.Attach(this);
+
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            desktop.MainWindow = new SampleWindow();
+        }
+
+        base.OnFrameworkInitializationCompleted();
+    }
+}

@@ -23,8 +23,12 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     private string _toast = string.Empty;
     private bool _languageMenuOpen;
 
-    public ShellViewModel()
+    private readonly IShellDataSource _source;
+    private bool _dialogFromPending;
+
+    public ShellViewModel(IShellDataSource? source = null)
     {
+        _source = source ?? new DemoShellDataSource();
         Settings = new SettingsViewModel();
         Today = new TodayViewModel();
         Calendar = new CalendarViewModel();
@@ -356,6 +360,26 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Today.Add(text);
         InputText = string.Empty;
         SetToast(Localizer.Get("Toast.AddedToToday"));
+
+        _ = AskAndShowAsync(text);
+    }
+
+    /// <summary>Free text goes to the backing service; a non-empty answer lands on the line.</summary>
+    private async Task AskAndShowAsync(string text)
+    {
+        try
+        {
+            var answer = await _source.AskAsync(text);
+            if (!string.IsNullOrWhiteSpace(answer))
+            {
+                Today.Add(answer.Trim(), urgent: false);
+                SetToast(answer.Trim());
+            }
+        }
+        catch (Exception ex)
+        {
+            SetToast(ex.Message);
+        }
     }
 
     private void SetToast(string text)
@@ -376,13 +400,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     // ---------- mock data (localised through the resources) ----------
 
-    private IReadOnlyList<ReminderItem> BuildTodaySeeds() =>
-    [
-        new(Localizer.Get("Demo.TodayUrgent1"), true),
-        new(Localizer.Get("Demo.TodayNormal"), false),
-        new(Localizer.Get("Demo.TodayUrgent2"), true),
-        new(Localizer.Get("Demo.TodayUrgent3"), true),
-    ];
+    private IReadOnlyList<ReminderItem> BuildTodaySeeds() => _source.Today();
 
     private IReadOnlyList<ReminderItem> BuildLongTodaySeeds()
     {
@@ -395,28 +413,11 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         return items;
     }
 
-    private (string, string, IReadOnlyList<CardItem>) BuildCalendar() => (
-        DateTime.Today.ToString("yy/MM/dd"),
-        string.Empty,
-        [
-            new CardItem(Localizer.Get("Demo.Plan1.Title"), Localizer.Get("Demo.Plan1.When")),
-        ]);
+    private (string, string, IReadOnlyList<CardItem>) BuildCalendar() => _source.CalendarCard();
 
-    private (string, string, IReadOnlyList<CardItem>) BuildPending() => (
-        Localizer.Get("Card.Pending"),
-        Localizer.Get("Card.Empty.Pending"),
-        [
-            new CardItem(Localizer.Get("Demo.Plan1.Title"), Localizer.Get("Demo.Plan1.When"),
-                Localizer.Get("Demo.Incoming.Source"), Localizer.Get("Demo.Incoming.File")),
-            new CardItem(Localizer.Get("Demo.Plan2.Title"), Localizer.Get("Demo.Plan2.When")),
-        ]);
+    private (string, string, IReadOnlyList<CardItem>) BuildPending() => _source.PendingCard();
 
-    private (string, string, IReadOnlyList<CardItem>) BuildNote() => (
-        Localizer.Get("Card.Note"),
-        Localizer.Get("Card.Empty.Note"),
-        [
-            new CardItem(Localizer.Get("Demo.Note1")),
-        ]);
+    private (string, string, IReadOnlyList<CardItem>) BuildNote() => _source.NoteCard();
 
     // ---------- dialogs (incoming decision / ignore / composer / note) ----------
 
@@ -424,6 +425,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         _dialogItem = item;
         _dialogCard = card;
+        _dialogFromPending = true;
         OpenDialog(DialogKind.IncomingDecision, Localizer.Get("Dialog.Incoming.Title"), item.Summary);
     }
 
@@ -431,6 +433,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         _dialogItem = item;
         _dialogCard = card;
+        _dialogFromPending = false;
         OpenDialog(DialogKind.NoteChoice, Localizer.Get("Dialog.Note.Title"), item.Title);
     }
 
@@ -480,6 +483,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     private void ConfirmIgnore()
     {
+        if (_dialogItem is { } ignored) _source.IncomingIgnored(ignored);
         RemoveSource();
         CloseDialog();
     }
@@ -502,6 +506,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         {
             _dialogItem.Title = Dialog.EditorText;
             _dialogCard?.NotifyItemsChanged();
+            _source.NoteEdited(_dialogItem, Dialog.EditorText);
         }
 
         CloseDialog();
@@ -526,6 +531,13 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
         Cards[0].Items.Add(new CardItem(title, when));
         Today.Add(title, urgent: false);
+
+        if (_dialogItem is { } confirmed)
+        {
+            if (_dialogFromPending) _source.IncomingConfirmed(confirmed);
+            else _source.NoteEdited(confirmed, title);
+        }
+
         RemoveSource();
         CloseDialog();
     }
