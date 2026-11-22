@@ -29,8 +29,9 @@ public sealed partial class ShellWindow : LocalizedWindow
     {
         if (e.Key == Key.Escape && DataContext is ShellViewModel vm)
         {
-            // The calendar is its own window: close it before touching the shell overlays.
-            if (vm.Calendar.IsVisible) vm.Calendar.Close();
+            // Top-most first: dialog, then the calendar, then the shell overlays.
+            if (vm.Dialog.IsOpen) vm.Dialog.CancelCommand.Execute(null);
+            else if (vm.Calendar.IsVisible) vm.Calendar.Close();
             else vm.CloseOverlays();
 
             e.Handled = true;

@@ -25,6 +25,31 @@
   <x:String x:Key="Weekday.Fri">Fri</x:String>
   <x:String x:Key="Weekday.Sat">Sat</x:String>
   <x:String x:Key="Weekday.Sun">Sun</x:String>
+  <x:String x:Key="Demo.TodayNormal">There's an exam next week; you need to review in advance.</x:String>
+  <x:String x:Key="Demo.TodayUrgent1">Today is Sunday; you need to review your plans for the current week by this evening and map out your tasks for the coming week.</x:String>
+  <x:String x:Key="Demo.TodayUrgent2">There is an exam at 6 pm today.</x:String>
+  <x:String x:Key="Demo.TodayUrgent3">The noon English class was rescheduled, so there is no class.</x:String>
+  <x:String x:Key="Demo.Plan1.When">11/27 3pm – 5pm</x:String>
+  <x:String x:Key="Demo.Plan1.Title">AKP202w Organizational Behavior Test 1</x:String>
+  <x:String x:Key="Demo.Plan2.When">11/28 9am – 11am</x:String>
+  <x:String x:Key="Demo.Plan2.Title">AKP202w Study Group</x:String>
+  <x:String x:Key="Demo.Incoming.Source">From elearning.usm.my</x:String>
+  <x:String x:Key="Demo.Incoming.File">File Teaching Plan AKP202W 2026-2027</x:String>
+  <x:String x:Key="Dialog.Incoming.Title">Incoming item</x:String>
+  <x:String x:Key="Dialog.Confirm">Confirm</x:String>
+  <x:String x:Key="Dialog.Ignore">Ignore</x:String>
+  <x:String x:Key="Dialog.More">More options</x:String>
+  <x:String x:Key="Dialog.IgnoreTitle">Ignore this item?</x:String>
+  <x:String x:Key="Dialog.IgnoreYes">Yes, ignore</x:String>
+  <x:String x:Key="Dialog.Cancel">Cancel</x:String>
+  <x:String x:Key="Dialog.Composer.Title">Tell the assistant what to do</x:String>
+  <x:String x:Key="Dialog.Send">Send</x:String>
+  <x:String x:Key="Dialog.Note.Title">This note</x:String>
+  <x:String x:Key="Dialog.Edit">Edit</x:String>
+  <x:String x:Key="Dialog.AiHandle">Let AI handle it</x:String>
+  <x:String x:Key="Dialog.EditTitle">Edit the note</x:String>
+  <x:String x:Key="Dialog.Save">Save</x:String>
+  <x:String x:Key="Composer.Prompt">Type an instruction, or use the microphone</x:String>
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.
@@ -56,7 +81,7 @@
   <x:String x:Key="Demo.Today2">Group sync</x:String>
   <x:String x:Key="Demo.Pending1">Finish proposal §5.2</x:String>
   <x:String x:Key="Demo.Pending2">Check portal deadlines</x:String>
-  <x:String x:Key="Demo.Note1">Idea: collapsible future area</x:String>
+  <x:String x:Key="Demo.Note1">I have an Organizational Behavior exam on the afternoon of November 27th, so I need to study for it in advance.</x:String>
   <x:String x:Key="Demo.Note2">Ask tutor about mail scope</x:String>
 
   <!-- today's reminder line (top of the window) -->

@@ -24,6 +24,7 @@ public sealed class CardViewModel : ObservableObject
     private readonly Func<(string Title, string Empty, IReadOnlyList<CardItem> Items)> _source;
     private readonly Func<string> _newRowText;
     private readonly Action? _onDateClick;
+    private readonly Action<CardItem>? _onItemClick;
     private int _seedCount;
     private bool _collapsed;
     private string _title = string.Empty;
@@ -32,9 +33,11 @@ public sealed class CardViewModel : ObservableObject
     public CardViewModel(CardKind kind, string glyph,
         Func<(string Title, string Empty, IReadOnlyList<CardItem> Items)> source,
         Func<string> newRowText,
-        Action? onDateClick = null)
+        Action? onDateClick = null,
+        Action<CardItem>? onItemClick = null)
     {
         _onDateClick = onDateClick;
+        _onItemClick = onItemClick;
         Kind = kind;
         Glyph = glyph;
         _source = source;
@@ -58,8 +61,8 @@ public sealed class CardViewModel : ObservableObject
     /// <summary>The calendar card has no rows and no "+" (the sketch has none either... it has one, but no action yet).</summary>
     public bool CanAdd => Kind != CardKind.Calendar;
 
-    /// <summary>True for cards that carry a list of rows (pending / note).</summary>
-    public bool HasRows => Kind != CardKind.Calendar;
+    /// <summary>Every card carries rows now: the calendar card holds the plan.</summary>
+    public bool HasRows => true;
 
     /// <summary>The calendar card's date opens the calendar window.</summary>
     public bool ShowDateButton => _onDateClick is not null;
@@ -75,6 +78,17 @@ public sealed class CardViewModel : ObservableObject
 
     public RelayCommand ToggleCollapseCommand { get; }
     public RelayCommand AddCommand { get; }
+
+    /// <summary>Rows are clickable when the card has a handler (incoming → decision,
+    /// note → edit / let AI handle).</summary>
+    public bool RowsClickable => _onItemClick is not null;
+
+    public RelayCommand ItemCommand => _itemCommand ??= new RelayCommand(parameter =>
+    {
+        if (parameter is CardItem item) _onItemClick?.Invoke(item);
+    });
+
+    private RelayCommand? _itemCommand;
 
     public string Title
     {
@@ -122,16 +136,36 @@ public sealed class CardViewModel : ObservableObject
         for (var i = 0; i < _seedCount && Items.Count > 0; i++) Items.RemoveAt(0);
         for (var i = 0; i < items.Count; i++) Items.Insert(i, items[i]);
         _seedCount = items.Count;
+        StampCommands();
 
         OnPropertyChanged(nameof(IsEmpty));
     }
+
+    private void StampCommands()
+    {
+        var command = _onItemClick is null ? null : ItemCommand;
+        foreach (var item in Items) item.Command = command;
+    }
+
+    /// <summary>Removes a row (used when a decision resolves it).</summary>
+    public void Remove(CardItem item)
+    {
+        if (!Items.Remove(item)) return;
+        if (Items.Count < _seedCount) _seedCount = Items.Count;
+        OnPropertyChanged(nameof(IsEmpty));
+    }
+
+    /// <summary>Rows were edited in place (the note editor).</summary>
+    public void NotifyItemsChanged() => OnPropertyChanged(nameof(IsEmpty));
 
     private void ToggleCollapse() => IsCollapsed = !_collapsed;
 
     private void AddRow()
     {
         if (!CanAdd) return;
-        Items.Add(new CardItem(_newRowText(), DateTime.Now.ToString("HH:mm")));
+        var row = new CardItem(_newRowText(), DateTime.Now.ToString("HH:mm"));
+        row.Command = _onItemClick is null ? null : ItemCommand;
+        Items.Add(row);
         OnPropertyChanged(nameof(IsEmpty));
     }
 }

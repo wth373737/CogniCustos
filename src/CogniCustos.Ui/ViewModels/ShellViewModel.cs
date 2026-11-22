@@ -28,6 +28,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings = new SettingsViewModel();
         Today = new TodayViewModel();
         Calendar = new CalendarViewModel();
+        Dialog = new DialogViewModel();
+        Dialog.RequestClose += CloseDialog;
 
         ToggleDrawerCommand = new RelayCommand(ToggleMenu);
         ExpandDrawerCommand = new RelayCommand(ToggleFuture);
@@ -52,9 +54,11 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
             new CardViewModel(CardKind.Calendar, "\uE787", BuildCalendar, () => Localizer.Get("Card.Row.New"),
                 onDateClick: Calendar.Open),
             // 2: pending items — pink, no "+" in the sketch.
-            new CardViewModel(CardKind.Pending, "\uE9D5", BuildPending, () => Localizer.Get("Card.Row.New")),
+            new CardViewModel(CardKind.Pending, "\uE9D5", BuildPending, () => Localizer.Get("Card.Row.New"),
+                onItemClick: item => BeginIncoming(item, Cards[1])),
             // 3: note — pale yellow, with "+".
-            new CardViewModel(CardKind.Note, "\uE70F", BuildNote, () => Localizer.Get("Card.Row.New")),
+            new CardViewModel(CardKind.Note, "\uE70F", BuildNote, () => Localizer.Get("Card.Row.New"),
+                onItemClick: item => BeginNote(item, Cards[2])),
         ];
 
         // The backdrop also covers the reminder drawer; keep its binding in sync.
@@ -82,6 +86,13 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     /// <summary>The floating calendar window (opened from the first card's date).</summary>
     public CalendarViewModel Calendar { get; }
+
+    /// <summary>One dialog surface for the incoming decision, ignore confirmation,
+    /// composer and note flows.</summary>
+    public DialogViewModel Dialog { get; }
+
+    private CardItem? _dialogItem;
+    private CardViewModel? _dialogCard;
 
     public ObservableCollection<CardViewModel> Cards { get; }
 
@@ -309,6 +320,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         Settings.RefreshTitles();
         Calendar.RefreshText();
+        Dialog.RefreshText(BuildDialogButtons);
         foreach (var card in Cards) card.Refresh();
         Today.ResetSeeds(BuildTodaySeeds());
         RebuildLanguageMenu();
@@ -364,18 +376,20 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     // ---------- mock data (localised through the resources) ----------
 
-    private IReadOnlyList<string> BuildTodaySeeds() =>
+    private IReadOnlyList<ReminderItem> BuildTodaySeeds() =>
     [
-        Localizer.Get("Demo.Today1"),
-        Localizer.Get("Demo.Today2"),
+        new(Localizer.Get("Demo.TodayUrgent1"), true),
+        new(Localizer.Get("Demo.TodayNormal"), false),
+        new(Localizer.Get("Demo.TodayUrgent2"), true),
+        new(Localizer.Get("Demo.TodayUrgent3"), true),
     ];
 
-    private IReadOnlyList<string> BuildLongTodaySeeds()
+    private IReadOnlyList<ReminderItem> BuildLongTodaySeeds()
     {
-        var items = new List<string>(12);
+        var items = new List<ReminderItem>(12);
         for (var i = 1; i <= 12; i++)
         {
-            items.Add($"{i:00}  {Localizer.Get("Demo.Today1")} · {Localizer.Get("Demo.Today2")}");
+            items.Add(new ReminderItem($"{i:00}  {Localizer.Get("Demo.TodayNormal")}", i % 4 == 0));
         }
 
         return items;
@@ -384,14 +398,17 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     private (string, string, IReadOnlyList<CardItem>) BuildCalendar() => (
         DateTime.Today.ToString("yy/MM/dd"),
         string.Empty,
-        []);
+        [
+            new CardItem(Localizer.Get("Demo.Plan1.Title"), Localizer.Get("Demo.Plan1.When")),
+        ]);
 
     private (string, string, IReadOnlyList<CardItem>) BuildPending() => (
         Localizer.Get("Card.Pending"),
         Localizer.Get("Card.Empty.Pending"),
         [
-            new CardItem(Localizer.Get("Demo.Pending1")),
-            new CardItem(Localizer.Get("Demo.Pending2")),
+            new CardItem(Localizer.Get("Demo.Plan1.Title"), Localizer.Get("Demo.Plan1.When"),
+                Localizer.Get("Demo.Incoming.Source"), Localizer.Get("Demo.Incoming.File")),
+            new CardItem(Localizer.Get("Demo.Plan2.Title"), Localizer.Get("Demo.Plan2.When")),
         ]);
 
     private (string, string, IReadOnlyList<CardItem>) BuildNote() => (
@@ -399,8 +416,133 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Localizer.Get("Card.Empty.Note"),
         [
             new CardItem(Localizer.Get("Demo.Note1")),
-            new CardItem(Localizer.Get("Demo.Note2")),
         ]);
+
+    // ---------- dialogs (incoming decision / ignore / composer / note) ----------
+
+    private void BeginIncoming(CardItem item, CardViewModel card)
+    {
+        _dialogItem = item;
+        _dialogCard = card;
+        OpenDialog(DialogKind.IncomingDecision, Localizer.Get("Dialog.Incoming.Title"), item.Summary);
+    }
+
+    private void BeginNote(CardItem item, CardViewModel card)
+    {
+        _dialogItem = item;
+        _dialogCard = card;
+        OpenDialog(DialogKind.NoteChoice, Localizer.Get("Dialog.Note.Title"), item.Title);
+    }
+
+    private void OpenDialog(DialogKind kind, string title, string body, bool composer = false,
+        bool editor = false, string editorText = "", string composerText = "")
+    {
+        Dialog.Open(kind, title, body, BuildDialogButtons(kind), composer, editor, editorText, composerText);
+    }
+
+    /// <summary>Buttons for a kind; also used to re-label them after a language switch.</summary>
+    private IEnumerable<DialogButton> BuildDialogButtons(DialogKind kind) => kind switch
+    {
+        DialogKind.IncomingDecision =>
+        [
+            new(Localizer.Get("Dialog.Confirm"), new RelayCommand(ConfirmIncoming), true),
+            new(Localizer.Get("Dialog.Ignore"), new RelayCommand(AskIgnore)),
+            new(Localizer.Get("Dialog.More"), new RelayCommand(ComposeFromIncoming)),
+        ],
+        DialogKind.IgnoreConfirm =>
+        [
+            new(Localizer.Get("Dialog.IgnoreYes"), new RelayCommand(ConfirmIgnore), true),
+            new(Localizer.Get("Dialog.Cancel"), Dialog.CancelCommand),
+        ],
+        DialogKind.Composer =>
+        [
+            new(Localizer.Get("Dialog.Send"), new RelayCommand(SendComposer), true),
+            new(Localizer.Get("Dialog.Cancel"), Dialog.CancelCommand),
+        ],
+        DialogKind.NoteChoice =>
+        [
+            new(Localizer.Get("Dialog.Edit"), new RelayCommand(EditNote), true),
+            new(Localizer.Get("Dialog.AiHandle"), new RelayCommand(ComposeFromNote)),
+            new(Localizer.Get("Dialog.Cancel"), Dialog.CancelCommand),
+        ],
+        DialogKind.NoteEdit =>
+        [
+            new(Localizer.Get("Dialog.Save"), new RelayCommand(SaveNote), true),
+            new(Localizer.Get("Dialog.Cancel"), Dialog.CancelCommand),
+        ],
+        _ => [],
+    };
+
+    private void ConfirmIncoming() => AcceptPlan(_dialogItem?.When ?? string.Empty, _dialogItem?.Title ?? string.Empty);
+
+    private void AskIgnore() =>
+        OpenDialog(DialogKind.IgnoreConfirm, Localizer.Get("Dialog.IgnoreTitle"), _dialogItem?.Summary ?? string.Empty);
+
+    private void ConfirmIgnore()
+    {
+        RemoveSource();
+        CloseDialog();
+    }
+
+    private void ComposeFromIncoming() =>
+        OpenDialog(DialogKind.Composer, Localizer.Get("Dialog.Composer.Title"),
+            _dialogItem?.Summary ?? string.Empty, composer: true);
+
+    private void ComposeFromNote() =>
+        OpenDialog(DialogKind.Composer, Localizer.Get("Dialog.Composer.Title"),
+            _dialogItem?.Title ?? string.Empty, composer: true, composerText: _dialogItem?.Title ?? string.Empty);
+
+    private void EditNote() =>
+        OpenDialog(DialogKind.NoteEdit, Localizer.Get("Dialog.EditTitle"), string.Empty,
+            editor: true, editorText: _dialogItem?.Title ?? string.Empty);
+
+    private void SaveNote()
+    {
+        if (_dialogItem is not null && !string.Equals(_dialogItem.Title, Dialog.EditorText, StringComparison.Ordinal))
+        {
+            _dialogItem.Title = Dialog.EditorText;
+            _dialogCard?.NotifyItemsChanged();
+        }
+
+        CloseDialog();
+    }
+
+    /// <summary>The composer's Send: whatever was typed (or the item itself) becomes the plan.</summary>
+    private void SendComposer()
+    {
+        var typed = Dialog.ComposerText.Trim();
+        AcceptPlan(_dialogItem?.When ?? string.Empty,
+            typed.Length > 0 ? typed : _dialogItem?.Title ?? string.Empty);
+    }
+
+    /// <summary>Confirmation path: the item becomes a plan entry and a reminder.</summary>
+    private void AcceptPlan(string when, string title)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            CloseDialog();
+            return;
+        }
+
+        Cards[0].Items.Add(new CardItem(title, when));
+        Today.Add(title, urgent: false);
+        RemoveSource();
+        CloseDialog();
+    }
+
+    private void RemoveSource()
+    {
+        if (_dialogItem is not null) _dialogCard?.Remove(_dialogItem);
+        _dialogItem = null;
+        _dialogCard = null;
+    }
+
+    private void CloseDialog()
+    {
+        Dialog.Close();
+        _dialogItem = null;
+        _dialogCard = null;
+    }
 
     // ---------- headless snapshot tool ----------
 
@@ -451,6 +593,16 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
                 break;
             case "calendar":
                 Calendar.Open();
+                break;
+            case "dialog-incoming":
+                BeginIncoming(Cards[1].Items[0], Cards[1]);
+                break;
+            case "dialog-note":
+                BeginNote(Cards[2].Items[0], Cards[2]);
+                break;
+            case "dialog-compose":
+                BeginIncoming(Cards[1].Items[0], Cards[1]);
+                ComposeFromIncoming();
                 break;
             case "today-list-long":
                 Today.ResetSeeds(BuildLongTodaySeeds());

@@ -12,21 +12,27 @@
 
     <!-- one row inside a board card -->
     <DataTemplate x:Key="CardRow" x:DataType="vm:CardItem">
-      <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,6">
-        <TextBlock Grid.Column="0"
-                   Text="{Binding Meta}"
-                   FontSize="13.5"
-                   Foreground="{StaticResource InkFaint}"
-                   VerticalAlignment="Center"
-                   Margin="0,0,8,0"
-                   IsVisible="{Binding Meta, Converter={x:Static ObjectConverters.IsNotNull}}" />
-        <TextBlock Grid.Column="1"
-                   Text="{Binding Text}"
-                   FontSize="15.5"
-                   Foreground="#FF45454F"
-                   VerticalAlignment="Center"
-                   TextTrimming="CharacterEllipsis" />
-      </Grid>
+      <Button Classes="cardRow" Command="{Binding Command}" CommandParameter="{Binding}">
+        <StackPanel Spacing="1" Margin="0,2,0,6">
+          <TextBlock Text="{Binding When}" FontSize="13"
+                     Foreground="{StaticResource InkFaint}" IsVisible="{Binding HasWhen}" />
+          <TextBlock Text="{Binding Title}" FontSize="15.5"
+                     Foreground="#FF45454F" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Source}" FontSize="12.5"
+                     Foreground="{StaticResource InkFaint}" IsVisible="{Binding HasSource}" />
+          <TextBlock Text="{Binding SourceFile}" FontSize="12.5"
+                     Foreground="{StaticResource InkFaint}" IsVisible="{Binding HasSourceFile}" />
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+    <!-- one run of reminder items; the marquee uses two (original + copy) -->
+    <DataTemplate x:Key="TickerRunTemplate" x:DataType="vm:ReminderItem">
+      <StackPanel Orientation="Horizontal">
+        <TextBlock Text="{Binding Text}" FontSize="17" VerticalAlignment="Center"
+                   Classes="ticker" Classes.urgent="{Binding Urgent}" />
+        <TextBlock Text="   ·   " FontSize="17" VerticalAlignment="Center"
+                   Foreground="{StaticResource InkFaint}" />
+      </StackPanel>
     </DataTemplate>
 
     <!-- one board card: header (icon / collapse / right-aligned title) / body / footer -->
@@ -56,8 +62,11 @@
           </Grid>
 
           <Grid Grid.Row="1" IsVisible="{Binding IsExpanded}" Margin="0,10,0,0">
-            <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource CardRow}"
-                          VerticalAlignment="Top" IsVisible="{Binding HasRows}" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          IsVisible="{Binding HasRows}">
+              <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource CardRow}"
+                            VerticalAlignment="Top" />
+            </ScrollViewer>
             <TextBlock Text="{Binding EmptyText}" IsVisible="{Binding IsEmpty}"
                        Classes="muted" FontSize="14.5" VerticalAlignment="Top" />
           </Grid>
@@ -210,14 +219,14 @@
         <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
           <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphAlarm}"
                      FontSize="22" Foreground="#FFE0A23C" Margin="4,0,10,0" />
-          <Border x:Name="TickerClip" Grid.Column="1" ClipToBounds="True" Height="22" VerticalAlignment="Center">
+          <Border x:Name="TickerClip" Grid.Column="1" ClipToBounds="True" Height="24" VerticalAlignment="Center">
             <Grid>
               <StackPanel x:Name="TickerRow" Orientation="Horizontal">
-                <TextBlock x:Name="TickerText" Text="{Binding Today.Line}" FontSize="17"
-                           Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
-                <TextBlock x:Name="TickerCopy" Text="{Binding Today.Line}" FontSize="17" Margin="48,0,0,0"
-                           IsVisible="False"
-                           Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
+                <ItemsControl x:Name="TickerRuns" ItemsSource="{Binding Today.Items}"
+                              ItemTemplate="{StaticResource TickerRunTemplate}" />
+                <ItemsControl x:Name="TickerCopyRuns" ItemsSource="{Binding Today.Items}"
+                              ItemTemplate="{StaticResource TickerRunTemplate}"
+                              Margin="48,0,0,0" IsVisible="False" />
               </StackPanel>
               <TextBlock Text="{DynamicResource Today.Empty}" FontSize="16"
                          Foreground="{StaticResource InkFaint}"
@@ -250,9 +259,9 @@
               </ItemsPanelTemplate>
             </ListBox.ItemsPanel>
             <ListBox.ItemTemplate>
-              <DataTemplate x:DataType="sys:String">
-                <TextBlock Text="{Binding}" FontSize="15.5" TextWrapping="Wrap"
-                           Foreground="#FF45454F" Margin="16,12" />
+              <DataTemplate x:DataType="vm:ReminderItem">
+                <TextBlock Text="{Binding Text}" FontSize="15.5" TextWrapping="Wrap"
+                           Classes="ticker" Classes.urgent="{Binding Urgent}" Margin="16,12" />
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
@@ -465,6 +474,55 @@
 
     <!-- ============================ SETTINGS PAGE ============================ -->
     <views:SettingsPage ZIndex="20" Grid.ColumnSpan="3" IsVisible="{Binding SettingsOpen}" />
+
+    <!-- ============================ DIALOG ============================ -->
+    <!-- one surface for: incoming decision, ignore confirm, composer, note edit -->
+    <Grid Grid.ColumnSpan="3" ZIndex="40" IsVisible="{Binding Dialog.IsOpen}">
+      <Border Background="#33000000" />
+      <Border Width="560" Background="{StaticResource Surface}" CornerRadius="16" Padding="24"
+              HorizontalAlignment="Center" VerticalAlignment="Center"
+              BoxShadow="0 24 60 0 #33000000">
+        <StackPanel Spacing="14">
+          <TextBlock Text="{Binding Dialog.Title}" FontSize="19" FontWeight="SemiBold"
+                     Foreground="{StaticResource Ink}" />
+          <TextBlock Text="{Binding Dialog.Body}" FontSize="14.5" TextWrapping="Wrap"
+                     Foreground="{StaticResource InkSoft}" />
+
+          <TextBox Text="{Binding Dialog.EditorText}" IsVisible="{Binding Dialog.ShowEditor}"
+                   AcceptsReturn="True" Height="140" TextWrapping="Wrap" FontSize="15"
+                   Background="#FFF4F4F8" BorderThickness="0" Padding="12" CornerRadius="10" />
+
+          <!-- the bottom composer, lifted into the dialog -->
+          <Border IsVisible="{Binding Dialog.ShowComposer}" Background="#FFE9E9EE"
+                  CornerRadius="14" Padding="6">
+            <Grid ColumnDefinitions="Auto,*">
+              <Border Grid.Column="0" Width="36" Height="36" CornerRadius="18"
+                      Background="#FFCFCFD8" VerticalAlignment="Center">
+                <TextBlock Classes="glyph" Text="{StaticResource GlyphMic}" FontSize="16"
+                           Foreground="{StaticResource InkSoft}" />
+              </Border>
+              <TextBox Grid.Column="1" Text="{Binding Dialog.ComposerText}" Margin="8,0,0,0"
+                       Background="Transparent" BorderThickness="0" FontSize="15"
+                       PlaceholderText="{Binding Dialog.ComposerPrompt}" VerticalAlignment="Center" />
+            </Grid>
+          </Border>
+
+          <ItemsControl ItemsSource="{Binding Dialog.Buttons}" HorizontalAlignment="Right">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <StackPanel Orientation="Horizontal" Spacing="8" />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:DialogButton">
+                <Button Classes="dialog" Classes.primary="{Binding Primary}"
+                        Content="{Binding Text}" Command="{Binding Command}" />
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+    </Grid>
 
     <!-- ============================ CALENDAR WINDOW ============================ -->
     <!-- a floating child window: positioned in a Canvas so the title bar can drag it -->

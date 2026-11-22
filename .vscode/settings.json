@@ -7,5 +7,6 @@
   },
   "editor.formatOnSave": false,
   "avalonia.preview.autoOpen": true,
-  "avalonia.preview.syncWithLaunchConfig": true
+  "avalonia.preview.syncWithLaunchConfig": true,
+  "axaml.selectedSolution": "i:\\agent统筹规划\\003\\cognicustos-core\\CogniCustos.slnx"
 }

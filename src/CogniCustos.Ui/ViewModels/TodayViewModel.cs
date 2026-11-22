@@ -7,10 +7,12 @@ namespace CogniCustos.Ui.ViewModels;
 /// <summary>
 /// The reminder line at the top of the window: today's entries, played as a
 /// marquee, expandable into a list. This — not the first card — is "today".
+/// Each entry knows whether it is urgent (needs attention today) so the line can
+/// draw it in dark red.
 /// </summary>
 public sealed class TodayViewModel : ObservableObject
 {
-    private readonly List<string> _seed = [];
+    private readonly List<ReminderItem> _seed = [];
     private bool _listOpen;
 
     public TodayViewModel()
@@ -18,12 +20,9 @@ public sealed class TodayViewModel : ObservableObject
         ToggleListCommand = new RelayCommand(ToggleList);
     }
 
-    public ObservableCollection<string> Items { get; } = [];
+    public ObservableCollection<ReminderItem> Items { get; } = [];
 
     public RelayCommand ToggleListCommand { get; }
-
-    /// <summary>Single-line text for the marquee; items separated by a dot.</summary>
-    public string Line => string.Join("   ·   ", Items);
 
     public bool IsEmpty => Items.Count == 0;
 
@@ -46,10 +45,10 @@ public sealed class TodayViewModel : ObservableObject
 
     public void CloseList() => IsListOpen = false;
 
-    /// <summary>Adds a user entry (from the input box).</summary>
-    public void Add(string text)
+    /// <summary>Adds a user entry (from the input box or a confirmed incoming item).</summary>
+    public void Add(string text, bool urgent = false)
     {
-        Items.Add(text);
+        Items.Add(new ReminderItem(text, urgent));
         NotifyContent();
     }
 
@@ -57,7 +56,7 @@ public sealed class TodayViewModel : ObservableObject
     /// Replaces the localised seed entries but keeps whatever the user added,
     /// the same rule the board cards use.
     /// </summary>
-    public void ResetSeeds(IReadOnlyList<string> seeds)
+    public void ResetSeeds(IReadOnlyList<ReminderItem> seeds)
     {
         for (var i = 0; i < _seed.Count && Items.Count > 0; i++) Items.RemoveAt(0);
         for (var i = 0; i < seeds.Count; i++) Items.Insert(i, seeds[i]);
@@ -70,7 +69,6 @@ public sealed class TodayViewModel : ObservableObject
 
     private void NotifyContent()
     {
-        OnPropertyChanged(nameof(Line));
         OnPropertyChanged(nameof(IsEmpty));
     }
 }

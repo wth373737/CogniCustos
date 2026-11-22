@@ -15,9 +15,10 @@ public sealed partial class ShellView : UserControl
 
     private DispatcherTimer? _ticker;
     private TranslateTransform? _tickerTransform;
-    private Border? _tickerClip;
-    private TextBlock? _tickerText;
-    private TextBlock? _tickerCopy;
+    private Control? _tickerClip;
+    private Control? _tickerRuns;
+    private Control? _tickerCopy;
+    private StackPanel? _tickerRow;
     private ShellViewModel? _vm;
     private double _offset;
 
@@ -59,7 +60,7 @@ public sealed partial class ShellView : UserControl
 
     private void OnTodayChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(TodayViewModel.Line) or nameof(TodayViewModel.Items))
+        if (e.PropertyName is nameof(TodayViewModel.Items))
         {
             Dispatcher.UIThread.Post(ResetTicker);
         }
@@ -70,16 +71,15 @@ public sealed partial class ShellView : UserControl
     private void StartTicker()
     {
         _tickerClip = this.FindControl<Border>("TickerClip") ?? _tickerClip;
-        _tickerText = this.FindControl<TextBlock>("TickerText") ?? _tickerText;
-        _tickerCopy = this.FindControl<TextBlock>("TickerCopy") ?? _tickerCopy;
-
-        var row = this.FindControl<StackPanel>("TickerRow");
-        if (row is null) return;
+        _tickerRuns = this.FindControl<ItemsControl>("TickerRuns") ?? _tickerRuns;
+        _tickerCopy = this.FindControl<ItemsControl>("TickerCopyRuns") ?? _tickerCopy;
+        _tickerRow = this.FindControl<StackPanel>("TickerRow") ?? _tickerRow;
+        if (_tickerRow is null) return;
 
         if (_tickerTransform is null)
         {
             _tickerTransform = new TranslateTransform();
-            row.RenderTransform = _tickerTransform;
+            _tickerRow.RenderTransform = _tickerTransform;
         }
 
         _ticker ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(30) };
@@ -101,13 +101,13 @@ public sealed partial class ShellView : UserControl
 
     private void OnTick(object? sender, EventArgs e)
     {
-        if (_tickerTransform is null || _tickerText is null) return;
+        if (_tickerTransform is null || _tickerRuns is null) return;
 
-        var textWidth = _tickerText.Bounds.Width;
+        var textWidth = _tickerRuns.Bounds.Width;
         var clipWidth = _tickerClip?.Bounds.Width ?? Bounds.Width;
         if (textWidth <= 0 || clipWidth <= 0) return;
 
-        // Short entries do not need to scroll at all — and the duplicated copy
+        // Short content does not need to scroll at all — and the duplicated run
         // must stay hidden until it is actually needed, or the line reads twice.
         var needsScroll = textWidth > clipWidth;
         if (_tickerCopy is not null) _tickerCopy.IsVisible = needsScroll;

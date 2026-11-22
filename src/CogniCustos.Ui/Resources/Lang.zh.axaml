@@ -25,6 +25,31 @@
   <x:String x:Key="Weekday.Fri">五</x:String>
   <x:String x:Key="Weekday.Sat">六</x:String>
   <x:String x:Key="Weekday.Sun">日</x:String>
+  <x:String x:Key="Demo.TodayNormal">下周有考试，需要提前复习。</x:String>
+  <x:String x:Key="Demo.TodayUrgent1">今天是周日，今晚之前要复盘本周计划，并排出下周任务。</x:String>
+  <x:String x:Key="Demo.TodayUrgent2">下午六点有考试。</x:String>
+  <x:String x:Key="Demo.TodayUrgent3">中午的英语课调课了，因此无课。</x:String>
+  <x:String x:Key="Demo.Plan1.When">11/27 下午 3 点 – 5 点</x:String>
+  <x:String x:Key="Demo.Plan1.Title">AKP202w 组织行为学 测试一</x:String>
+  <x:String x:Key="Demo.Plan2.When">11/28 上午 9 点 – 11 点</x:String>
+  <x:String x:Key="Demo.Plan2.Title">AKP202w 学习小组</x:String>
+  <x:String x:Key="Demo.Incoming.Source">来自 elearning.usm.my</x:String>
+  <x:String x:Key="Demo.Incoming.File">文件 Teaching Plan AKP202W 2026-2027</x:String>
+  <x:String x:Key="Dialog.Incoming.Title">待处理的条目</x:String>
+  <x:String x:Key="Dialog.Confirm">确认</x:String>
+  <x:String x:Key="Dialog.Ignore">无视</x:String>
+  <x:String x:Key="Dialog.More">更多选项</x:String>
+  <x:String x:Key="Dialog.IgnoreTitle">确定无视这条？</x:String>
+  <x:String x:Key="Dialog.IgnoreYes">确定无视</x:String>
+  <x:String x:Key="Dialog.Cancel">取消</x:String>
+  <x:String x:Key="Dialog.Composer.Title">告诉助手要做什么</x:String>
+  <x:String x:Key="Dialog.Send">发送</x:String>
+  <x:String x:Key="Dialog.Note.Title">这条笔记</x:String>
+  <x:String x:Key="Dialog.Edit">编辑</x:String>
+  <x:String x:Key="Dialog.AiHandle">让 AI 处理</x:String>
+  <x:String x:Key="Dialog.EditTitle">编辑笔记</x:String>
+  <x:String x:Key="Dialog.Save">保存</x:String>
+  <x:String x:Key="Composer.Prompt">输入指令，或使用麦克风</x:String>
   <!--
     简体中文 UI 文案。键必须与 Lang.en.axaml 完全一致（测试会逐键比对）。
     翻译方式：复制本文件为 Lang.<culture>.axaml，只改值、不改键。
@@ -54,7 +79,7 @@
   <x:String x:Key="Demo.Today2">小组同步</x:String>
   <x:String x:Key="Demo.Pending1">补完提案 §5.2</x:String>
   <x:String x:Key="Demo.Pending2">检查门户截止时间</x:String>
-  <x:String x:Key="Demo.Note1">想法：可折叠的预留区</x:String>
+  <x:String x:Key="Demo.Note1">11 月 27 日下午有组织行为学考试，我需要提前复习。</x:String>
   <x:String x:Key="Demo.Note2">问导师邮件范围</x:String>
 
   <!-- 当日提醒（顶部那一行） -->

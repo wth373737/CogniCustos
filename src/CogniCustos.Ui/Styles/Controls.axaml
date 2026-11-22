@@ -193,6 +193,56 @@
     <Setter Property="Background" Value="#12000000" />
   </Style>
 
+  <!-- ===== card rows ===== -->
+  <Style Selector="Button.cardRow">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+  </Style>
+
+  <Style Selector="Button.cardRow /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="Button.cardRow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#0C000000" />
+  </Style>
+
+  <Style Selector="TextBlock.ticker">
+    <Setter Property="Foreground" Value="{StaticResource InkSoft}" />
+  </Style>
+
+  <Style Selector="TextBlock.ticker.urgent">
+    <Setter Property="Foreground" Value="#FF8E1B1B" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <!-- ===== dialog buttons ===== -->
+  <Style Selector="Button.dialog">
+    <Setter Property="Background" Value="#FFF4F4F8" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="18,9" />
+    <Setter Property="FontSize" Value="14.5" />
+    <Setter Property="Foreground" Value="{StaticResource Ink}" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.dialog:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#FFE7E7EF" />
+  </Style>
+
+  <Style Selector="Button.dialog.primary">
+    <Setter Property="Background" Value="#FF2E2E33" />
+    <Setter Property="Foreground" Value="#FFFFFFFF" />
+  </Style>
+
+  <Style Selector="Button.dialog.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#FF45454F" />
+  </Style>
+
   <!-- ===== calendar window ===== -->
   <Style Selector="Button.winBtn">
     <Setter Property="Width" Value="30" />
