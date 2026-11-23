@@ -50,6 +50,15 @@
   <x:String x:Key="Dialog.EditTitle">Edit the note</x:String>
   <x:String x:Key="Dialog.Save">Save</x:String>
   <x:String x:Key="Composer.Prompt">Type an instruction, or use the microphone</x:String>
+  <x:String x:Key="Reasoning.Trajectory">Thought Trajectory</x:String>
+  <x:String x:Key="Reasoning.Today">TODAY</x:String>
+  <x:String x:Key="Reasoning.Empty">No records yet.</x:String>
+  <x:String x:Key="Demo.Record1">Check your email and submit the event for confirmation</x:String>
+  <x:String x:Key="Demo.Record2">Check the student portal and submit the incident for confirmation</x:String>
+  <x:String x:Key="Demo.Record3">Review this week's plan and draft the task list</x:String>
+
+  <x:String x:Key="Reasoning.Yesterday">YESTERDAY</x:String>
+  <x:String x:Key="Tip.Close">Close</x:String>
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.

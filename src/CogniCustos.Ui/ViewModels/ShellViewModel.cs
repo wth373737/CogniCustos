@@ -32,6 +32,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings = new SettingsViewModel();
         Today = new TodayViewModel();
         Calendar = new CalendarViewModel();
+        Reasoning = new ReasoningViewModel();
         Dialog = new DialogViewModel();
         Dialog.RequestClose += CloseDialog;
 
@@ -90,6 +91,9 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     /// <summary>The floating calendar window (opened from the first card's date).</summary>
     public CalendarViewModel Calendar { get; }
+
+    /// <summary>The record list and the thought trace; two independent panels.</summary>
+    public ReasoningViewModel Reasoning { get; }
 
     /// <summary>One dialog surface for the incoming decision, ignore confirmation,
     /// composer and note flows.</summary>
@@ -325,6 +329,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.RefreshTitles();
         Calendar.RefreshText();
         Dialog.RefreshText(BuildDialogButtons);
+        Reasoning.RefreshText();
         foreach (var card in Cards) card.Refresh();
         Today.ResetSeeds(BuildTodaySeeds());
         RebuildLanguageMenu();
@@ -391,6 +396,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     public void CloseOverlays()
     {
+        Reasoning.Close();
         MenuOpen = false;
         SettingsOpen = false;
         HelpOpen = false;
@@ -605,6 +611,12 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
                 break;
             case "calendar":
                 Calendar.Open();
+                break;
+            case "reasoning":
+                Reasoning.OpenList();
+                break;
+            case "trajectory":
+                Reasoning.ToggleTrajectory();
                 break;
             case "dialog-incoming":
                 BeginIncoming(Cards[1].Items[0], Cards[1]);

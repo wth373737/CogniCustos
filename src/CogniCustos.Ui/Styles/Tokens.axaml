@@ -51,6 +51,9 @@
   <SolidColorBrush x:Key="Line" Color="{StaticResource LineColor}" />
 
   <!-- ============ Typography ============ -->
+  <!-- the raw thought trace: monospace first, CJK fallback after it -->
+  <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas, Microsoft YaHei UI, Segoe UI</FontFamily>
+
   <FontFamily x:Key="UiFont">Inter, Microsoft YaHei UI, Segoe UI</FontFamily>
   <!-- Windows icon font. Segoe MDL2 Assets ships on Win10/11, Fluent Icons on Win11. -->
   <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
@@ -76,6 +79,7 @@
   <x:String x:Key="GlyphChevronDown">&#xE70D;</x:String>
   <x:String x:Key="GlyphChevronUp">&#xE70E;</x:String>
   <x:String x:Key="GlyphChevronLeft">&#xE76B;</x:String>
+  <x:String x:Key="GlyphClose">&#xE711;</x:String>
   <x:String x:Key="GlyphChevronRight">&#xE76C;</x:String>
   <x:String x:Key="GlyphPlus">&#xE710;</x:String>
   <x:String x:Key="GlyphMic">&#xE720;</x:String>

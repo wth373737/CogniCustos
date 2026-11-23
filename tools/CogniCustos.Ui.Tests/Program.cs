@@ -449,6 +449,86 @@ internal static class Program
             Check(Math.Abs(blurred!.Radius) < 0.01, $"the rendered blur stayed at {blurred.Radius}");
         });
 
+        // ---- reasoning record list and thought trace (two independent entries) ----
+        Test("reasoning_row_opens_the_record_list", (vm, _) =>
+        {
+            Check(!vm.Reasoning.IsAnyOpen, "a panel is open before anything was clicked");
+
+            vm.Reasoning.OpenListCommand.Execute(null);
+            Pump();
+
+            Check(vm.Reasoning.IsListOpen, "the record list did not open");
+            Check(!vm.Reasoning.IsTrajectoryOpen, "the trace opened as well");
+            Check(vm.Reasoning.Groups.Count >= 3, "the list has no day groups");
+            Check(vm.Reasoning.Groups[^1].IsExpanded, "today's group must start expanded");
+            Check(vm.Reasoning.Groups[^1].Records.Count > 0, "today's group has no records");
+            Check(vm.Reasoning.Groups[0].Chevron == "\uE70D", "a collapsed group must show a down chevron");
+            Check(vm.Reasoning.Groups[^1].Chevron == "\uE70E", "an expanded group must show an up chevron");
+        });
+
+        Test("reasoning_groups_collapse_and_expand", (vm, _) =>
+        {
+            var group = vm.Reasoning.Groups[0];
+            Check(!group.IsExpanded, "the oldest group should start collapsed");
+
+            group.ToggleCommand.Execute(null);
+            Pump();
+            Check(group.IsExpanded, "the group did not expand");
+
+            group.ToggleCommand.Execute(null);
+            Pump();
+            Check(!group.IsExpanded, "the group did not collapse again");
+        });
+
+        Test("the_bottom_chevron_opens_the_thought_trace", (vm, _) =>
+        {
+            vm.Reasoning.ToggleTrajectoryCommand.Execute(null);
+            Pump();
+
+            Check(vm.Reasoning.IsTrajectoryOpen, "the trace did not open");
+            Check(!vm.Reasoning.IsListOpen, "the record list should not be open at the same time");
+            Check(vm.Reasoning.TrajectoryText.Length > 0, "the trace is empty");
+            Check(vm.Reasoning.TrajectoryText.Contains("think:"), "the trace does not look like a thought stream");
+            Check(vm.Reasoning.TrajectoryRecordTitle.Length > 0, "the trace has no record title");
+
+            vm.Reasoning.ToggleTrajectoryCommand.Execute(null);
+            Pump();
+            Check(!vm.Reasoning.IsTrajectoryOpen, "the trace did not close");
+        });
+
+        Test("the_two_reasoning_panels_are_exclusive", (vm, _) =>
+        {
+            vm.Reasoning.OpenListCommand.Execute(null);
+            Pump();
+            Check(vm.Reasoning.IsListOpen, "the list did not open");
+
+            vm.Reasoning.ToggleTrajectoryCommand.Execute(null);
+            Pump();
+            Check(vm.Reasoning.IsTrajectoryOpen && !vm.Reasoning.IsListOpen,
+                "opening the trace must close the list");
+
+            vm.Reasoning.OpenListCommand.Execute(null);
+            Pump();
+            Check(vm.Reasoning.IsListOpen && !vm.Reasoning.IsTrajectoryOpen,
+                "opening the list must close the trace");
+
+            vm.Reasoning.CloseCommand.Execute(null);
+            Pump();
+            Check(!vm.Reasoning.IsAnyOpen, "closing did not hide both panels");
+        });
+
+        Test("reasoning_titles_follow_the_language", (vm, _) =>
+        {
+            var englishTitle = vm.Reasoning.ListTitle;
+            var englishToday = vm.Reasoning.Groups[^1].Header;
+
+            vm.ToggleLanguageCommand.Execute(null);
+            Pump();
+
+            Check(vm.Reasoning.ListTitle != englishTitle, "the list title did not switch language");
+            Check(vm.Reasoning.Groups[^1].Header != englishToday, "today's header did not switch language");
+        });
+
         // ---- the data-source seam (what the runnable sample plugs into) ----
         Test("shell_actions_reach_the_data_source", (_, _) =>
         {

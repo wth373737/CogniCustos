@@ -32,6 +32,7 @@ public sealed partial class ShellWindow : LocalizedWindow
             // Top-most first: dialog, then the calendar, then the shell overlays.
             if (vm.Dialog.IsOpen) vm.Dialog.CancelCommand.Execute(null);
             else if (vm.Calendar.IsVisible) vm.Calendar.Close();
+            else if (vm.Reasoning.IsAnyOpen) vm.Reasoning.Close();
             else vm.CloseOverlays();
 
             e.Handled = true;

@@ -50,6 +50,15 @@
   <x:String x:Key="Dialog.EditTitle">编辑笔记</x:String>
   <x:String x:Key="Dialog.Save">保存</x:String>
   <x:String x:Key="Composer.Prompt">输入指令，或使用麦克风</x:String>
+  <x:String x:Key="Reasoning.Trajectory">思考轨迹</x:String>
+  <x:String x:Key="Reasoning.Today">今天</x:String>
+  <x:String x:Key="Reasoning.Empty">还没有记录。</x:String>
+  <x:String x:Key="Demo.Record1">检查邮件，并把该事项提交确认</x:String>
+  <x:String x:Key="Demo.Record2">检查学生门户，并把该事件提交确认</x:String>
+  <x:String x:Key="Demo.Record3">复盘本周计划，起草任务清单</x:String>
+
+  <x:String x:Key="Reasoning.Yesterday">昨天</x:String>
+  <x:String x:Key="Tip.Close">关闭</x:String>
   <!--
     简体中文 UI 文案。键必须与 Lang.en.axaml 完全一致（测试会逐键比对）。
     翻译方式：复制本文件为 Lang.<culture>.axaml，只改值、不改键。

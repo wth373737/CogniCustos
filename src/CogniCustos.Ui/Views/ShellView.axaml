@@ -104,13 +104,18 @@
                      Foreground="{StaticResource Ink}" />
         </Border>
 
-        <!-- reasoning record caption -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="6" Margin="12,0,10,44">
-          <TextBlock Classes="glyph" Text="{StaticResource GlyphDoc}" FontSize="17"
-                     Foreground="{StaticResource InkSoft}" />
-          <TextBlock Text="{DynamicResource Reasoning.Title}" FontSize="13.5"
-                     Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
-        </StackPanel>
+        <!-- reasoning record caption: the entry of the record list -->
+        <Button Grid.Row="2" Classes="rowLink" Margin="8,0,6,40"
+                HorizontalAlignment="Left" VerticalAlignment="Center"
+                Command="{Binding Reasoning.OpenListCommand}"
+                ToolTip.Tip="{DynamicResource Reasoning.Title}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphDoc}" FontSize="17"
+                       Foreground="{StaticResource InkSoft}" />
+            <TextBlock Text="{DynamicResource Reasoning.Title}" FontSize="13.5"
+                       Foreground="{StaticResource InkSoft}" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
 
         <!-- reasoning panel -->
         <Border Grid.Row="3" Height="165" Background="{StaticResource Surface}">
@@ -128,8 +133,9 @@
             </StackPanel>
             <Button Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Classes="icon"
                     Width="24" Height="24" HorizontalAlignment="Right"
-                    ToolTip.Tip="{DynamicResource Tip.ReasoningRecord}">
-              <TextBlock Classes="glyph" Text="{StaticResource GlyphChevronRight}" FontSize="13" />
+                    Command="{Binding Reasoning.ToggleTrajectoryCommand}"
+                    ToolTip.Tip="{DynamicResource Reasoning.Trajectory}">
+              <TextBlock Classes="glyph" Text="{Binding Reasoning.TrajectoryChevron}" FontSize="13" />
             </Button>
           </Grid>
         </Border>
@@ -474,6 +480,92 @@
 
     <!-- ============================ SETTINGS PAGE ============================ -->
     <views:SettingsPage ZIndex="20" Grid.ColumnSpan="3" IsVisible="{Binding SettingsOpen}" />
+
+    <!-- ============ REASONING RECORD (list) and THOUGHT TRAJECTORY (trace) ============ -->
+    <!-- two independent panels, two independent entries; neither dims the page -->
+    <Border Name="ReasoningScrim" Grid.ColumnSpan="3" ZIndex="11" Background="Transparent"
+            IsVisible="{Binding Reasoning.IsAnyOpen}"
+            PointerPressed="OnReasoningScrimPressed" />
+
+    <Border Grid.ColumnSpan="3" ZIndex="12" Width="617" Height="600"
+            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="211,104,0,0"
+            Background="{StaticResource Surface}" CornerRadius="4"
+            BoxShadow="0 18 44 0 #26000000"
+            IsVisible="{Binding Reasoning.IsListOpen}">
+      <Grid RowDefinitions="Auto,*" Margin="26,18,18,18">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,10">
+          <TextBlock Grid.Column="0" Text="{Binding Reasoning.ListTitle}" FontSize="23"
+                     Foreground="{StaticResource Ink}" />
+          <Button Grid.Column="1" Classes="roundClose" Width="30" Height="30"
+                  Command="{Binding Reasoning.CloseCommand}"
+                  ToolTip.Tip="{DynamicResource Tip.Close}">
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphClose}" FontSize="13"
+                       Foreground="{StaticResource Ink}" />
+          </Button>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl ItemsSource="{Binding Reasoning.Groups}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:ReasoningGroup">
+                <StackPanel>
+                  <Button Classes="reasonHeader" Command="{Binding ToggleCommand}">
+                    <Grid ColumnDefinitions="*,Auto" Height="34">
+                      <TextBlock Grid.Column="0" Text="{Binding Header}" FontSize="17"
+                                 Foreground="{StaticResource Ink}" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Classes="glyph" Text="{Binding Chevron}"
+                                 FontSize="13" Foreground="{StaticResource Ink}" VerticalAlignment="Center" />
+                    </Grid>
+                  </Button>
+                  <ItemsControl ItemsSource="{Binding Records}" IsVisible="{Binding IsExpanded}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:ReasoningRecord">
+                        <Grid ColumnDefinitions="Auto,*" Margin="0,8,0,8">
+                          <TextBlock Grid.Column="0" Text="{Binding Time}" FontSize="13"
+                                     Width="128" Foreground="#FF45454F" VerticalAlignment="Top" />
+                          <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="13"
+                                     TextWrapping="Wrap" Foreground="#FF45454F" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Grid>
+    </Border>
+
+    <Border Grid.ColumnSpan="3" ZIndex="12" Width="823" Height="468"
+            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="211,242,0,0"
+            Background="{StaticResource Surface}" CornerRadius="4"
+            BoxShadow="0 18 44 0 #26000000"
+            IsVisible="{Binding Reasoning.IsTrajectoryOpen}">
+      <Grid RowDefinitions="Auto,*" Margin="22,16,16,16">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+          <TextBlock Grid.Column="0" Text="{Binding Reasoning.TrajectoryTitle}" FontSize="23"
+                     Foreground="{StaticResource Ink}" VerticalAlignment="Top" />
+          <TextBlock Grid.Column="1" Text="{Binding Reasoning.TrajectoryRecordTitle}"
+                     FontSize="14" TextWrapping="Wrap" Margin="14,4,14,0"
+                     Foreground="{StaticResource Ink}" />
+          <Button Grid.Column="2" Classes="roundClose" Width="32" Height="32"
+                  Command="{Binding Reasoning.CloseCommand}"
+                  ToolTip.Tip="{DynamicResource Tip.Close}">
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphClose}" FontSize="14"
+                       Foreground="{StaticResource Ink}" />
+          </Button>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+          <TextBlock Text="{Binding Reasoning.TrajectoryText}"
+                     FontFamily="{StaticResource MonoFont}" FontSize="12.5"
+                     LineHeight="17" TextWrapping="Wrap" Foreground="#FF2B2B32" />
+        </ScrollViewer>
+      </Grid>
+    </Border>
 
     <!-- ============================ DIALOG ============================ -->
     <!-- one surface for: incoming decision, ignore confirm, composer, note edit -->

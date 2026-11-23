@@ -58,6 +58,13 @@ public sealed partial class ShellView : UserControl
         e.Handled = true;
     }
 
+    /// <summary>A click outside the record list or the trace closes them.</summary>
+    private void OnReasoningScrimPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is ShellViewModel vm) vm.Reasoning.Close();
+        e.Handled = true;
+    }
+
     private void OnTodayChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(TodayViewModel.Items))
