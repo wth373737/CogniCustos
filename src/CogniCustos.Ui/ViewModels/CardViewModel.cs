@@ -80,10 +80,8 @@ public sealed class CardViewModel : ObservableObject
     public RelayCommand AddCommand { get; }
 
     /// <summary>Rows are clickable when the card has a handler (incoming → decision,
-    /// note → edit / let AI handle).</summary>
-    public bool RowsClickable => _onItemClick is not null;
-
-    public RelayCommand ItemCommand => _itemCommand ??= new RelayCommand(parameter =>
+    /// note → edit / let AI handle); the same command is stamped onto every row.</summary>
+    private RelayCommand ItemCommand => _itemCommand ??= new RelayCommand(parameter =>
     {
         if (parameter is CardItem item) _onItemClick?.Invoke(item);
     });

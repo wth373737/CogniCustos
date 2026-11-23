@@ -142,7 +142,7 @@ internal static class Program
         // ---- cards ----
         Test("reminder_drawer_virtualises_and_caps_its_height", (vm, w) =>
         {
-            vm.ShowState("today-list-long");
+            ShellScenarios.Apply(vm, "today-list-long");
             Pump();
 
             var drawer = w.GetVisualDescendants().OfType<Border>().First(b => b.Name == "ReminderDrawer");
@@ -611,6 +611,61 @@ internal static class Program
             Check(vm.Reasoning.Groups[^1].Header != englishToday, "today's header did not switch language");
         });
 
+        // ---- fixture states live outside the shell ----
+        Test("scenarios_drive_the_shell_from_the_outside", (vm, _) =>
+        {
+            ShellScenarios.Apply(vm, "expanded");
+            Pump();
+            Check(vm.MenuOpen && vm.FutureOpen, "the expanded drawer fixture did not apply");
+
+            ShellScenarios.Apply(vm, "reasoning");
+            Pump();
+            Check(vm.Reasoning.IsListOpen, "the reasoning fixture did not apply");
+            Check(!vm.MenuOpen, "the previous fixture was not reset");
+
+            ShellScenarios.Apply(vm, "settings-model");
+            Pump();
+            Check(vm.SettingsOpen, "the settings fixture did not open the page");
+            Check(vm.Settings.ShowModelConfiguration, "the settings fixture did not select the model section");
+
+            ShellScenarios.Apply(vm, "dialog-incoming");
+            Pump();
+            Check(vm.Dialog.IsOpen && vm.Dialog.Kind == DialogKind.IncomingDecision,
+                "the dialog fixture did not open the decision dialog");
+        });
+
+        Test("dialog_origin_decides_what_confirm_means", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            // from a note: "let AI handle it" must report an edit, not a confirmation
+            var note = shell.Cards[2].Items[0];
+            note.Command!.Execute(note);
+            Pump();
+            shell.Dialog.Buttons.First(button => button.Text == Localizer.Get("Dialog.AiHandle"))
+                .Command.Execute(null);
+            Pump();
+            shell.Dialog.ComposerText = "turn this into a plan";
+            shell.Dialog.Buttons.First(button => button.Primary).Command.Execute(null);
+            Pump();
+
+            Check(source.Confirmed.Count == 0, "a note flow was reported as an incoming confirmation");
+            Check(source.Edited.Count == 1, "the note flow did not report an edit");
+            Check(!shell.Dialog.IsOpen, "the dialog stayed open");
+
+            // and cancelling leaves the source untouched
+            var incoming = shell.Cards[1].Items[0];
+            incoming.Command!.Execute(incoming);
+            Pump();
+            shell.Dialog.CancelCommand.Execute(null);
+            Pump();
+            Check(!shell.Dialog.IsOpen, "cancel did not close the dialog");
+            Check(source.Confirmed.Count == 0 && source.Ignored.Count == 0,
+                "cancel reported a decision to the data source");
+        });
+
         // ---- the data-source seam (what the runnable sample plugs into) ----
         Test("shell_actions_reach_the_data_source", (_, _) =>
         {
@@ -869,7 +924,7 @@ internal static class Program
 
         Test("settings_has_an_appearance_gallery", (vm, w) =>
         {
-            vm.ShowState("appearance");
+            ShellScenarios.Apply(vm, "appearance");
             Pump();
             Check(vm.Settings.Selected?.Key == "Section.Appearance", "the appearance section was not selected");
             Check(vm.Settings.ShowPreviewGallery, "the gallery did not replace the placeholder");

@@ -7,8 +7,10 @@ using CogniCustos.Ui.Mvvm;
 namespace CogniCustos.Ui.ViewModels;
 
 /// <summary>
-/// State of the window shell: which drawer / page is open, the reminder line at
-/// the top, plus the mock board. No services, no persistence — this is the UI sandbox.
+/// State of the window shell: which drawer / page / panel is open, the reminder line,
+/// the board, the settings page and the one dialog surface. Content and actions go
+/// through <see cref="IShellDataSource"/>, which the demo fills and the sample binds to
+/// the runtime; nothing here touches storage directly.
 /// </summary>
 public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 {
@@ -24,27 +26,27 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     private bool _languageMenuOpen;
 
     private readonly IShellDataSource _source;
-    private bool _dialogFromPending;
+    private DialogOrigin _dialogOrigin;
+
+    /// <summary>Where the open dialog came from: it decides what "confirm" means.</summary>
+    private enum DialogOrigin { None, Pending, Note }
 
     public ShellViewModel(IShellDataSource? source = null)
     {
         _source = source ?? new DemoShellDataSource();
         Settings = new SettingsViewModel();
-        Settings.Model.AdvancedRequested += () => ShowInfoDialog("Settings.Model.AdvancedTitle", "Settings.Model.AdvancedPending");
-        Settings.Model.CheckRequested += () => ShowInfoDialog("Settings.Model.CheckTitle", "Settings.Model.CheckPending");
-        Settings.Model.AddRequested += () => ShowInfoDialog("Settings.Model.AddTitle", "Settings.Model.AddPending");
-        Settings.Model.DeleteRequested += AskRemoveLocalModel;
+        WireModelSection();
         Today = new TodayViewModel();
         Calendar = new CalendarViewModel();
         Reasoning = new ReasoningViewModel();
         Dialog = new DialogViewModel();
-        Dialog.RequestClose += CloseDialog;
+        Dialog.RequestClose += () => FinishDialog();
 
         ToggleDrawerCommand = new RelayCommand(ToggleMenu);
         ExpandDrawerCommand = new RelayCommand(ToggleFuture);
         PreviewCommand = new RelayCommand(parameter =>
         {
-            if (parameter is string state) ShowState(state);
+            if (parameter is string state) ShellScenarios.Apply(this, state);
         });
         ToggleSettingsCommand = new RelayCommand(ToggleSettings);
         ToggleHelpCommand = new RelayCommand(ToggleHelp);
@@ -59,7 +61,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
         Cards =
         [
-            // 1: compressed calendar — a date, no rows, no "+" yet.
+            // 1: compressed calendar — the date title plus the confirmed plan rows.
             new CardViewModel(CardKind.Calendar, "\uE787", BuildCalendar, () => Localizer.Get("Card.Row.New"),
                 onDateClick: Calendar.Open),
             // 2: pending items — pink, no "+" in the sketch.
@@ -111,7 +113,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     public RelayCommand ToggleDrawerCommand { get; }
     public RelayCommand ExpandDrawerCommand { get; }
 
-    /// <summary>Settings "interface" gallery: parameter is a ShowState state name.</summary>
+    /// <summary>Developer gallery in the settings page: parameter is a <see cref="ShellScenarios"/> state.</summary>
     public RelayCommand PreviewCommand { get; }
     public RelayCommand ToggleSettingsCommand { get; }
     public RelayCommand ToggleHelpCommand { get; }
@@ -123,9 +125,6 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     public RelayCommand ToggleLanguageMenuCommand { get; }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand SubmitInputCommand { get; }
-
-    /// <summary>Exposed for the headless snapshot tool and for diagnostics.</summary>
-    public string LanguageCode => Localizer.Current;
 
     /// <summary>Short code shown on the language picker ("EN" / "中").</summary>
     public string CurrentLanguageCode => Localizer.Code(Localizer.Current);
@@ -378,17 +377,42 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         try
         {
-            var answer = await _source.AskAsync(text);
-            if (!string.IsNullOrWhiteSpace(answer))
+            var answer = await _source.AskAsync(text).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(answer)) return;
+
+            var line = answer.Trim();
+            if (Dispatcher.UIThread.CheckAccess())
             {
-                Today.Add(answer.Trim(), urgent: false);
-                SetToast(answer.Trim());
+                ShowAnswer(line);
+            }
+            else
+            {
+                // A backing service may answer from a worker thread; the board is UI state.
+                Dispatcher.UIThread.Post(() => ShowAnswer(line));
             }
         }
         catch (Exception ex)
         {
-            SetToast(ex.Message);
+            Dispatcher.UIThread.Post(() => SetToast(ex.Message));
         }
+    }
+
+    private void ShowAnswer(string line)
+    {
+        Today.Add(line, urgent: false);
+        SetToast(line);
+    }
+
+    /// <summary>The Model Configuration form reports intent through events; the shell answers.</summary>
+    private void WireModelSection()
+    {
+        Settings.Model.AdvancedRequested += () =>
+            ShowInfoDialog("Settings.Model.AdvancedTitle", "Settings.Model.AdvancedPending");
+        Settings.Model.CheckRequested += () =>
+            ShowInfoDialog("Settings.Model.CheckTitle", "Settings.Model.CheckPending");
+        Settings.Model.AddRequested += () =>
+            ShowInfoDialog("Settings.Model.AddTitle", "Settings.Model.AddPending");
+        Settings.Model.DeleteRequested += AskRemoveLocalModel;
     }
 
     private void SetToast(string text)
@@ -412,17 +436,6 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     private IReadOnlyList<ReminderItem> BuildTodaySeeds() => _source.Today();
 
-    private IReadOnlyList<ReminderItem> BuildLongTodaySeeds()
-    {
-        var items = new List<ReminderItem>(12);
-        for (var i = 1; i <= 12; i++)
-        {
-            items.Add(new ReminderItem($"{i:00}  {Localizer.Get("Demo.TodayNormal")}", i % 4 == 0));
-        }
-
-        return items;
-    }
-
     private (string, string, IReadOnlyList<CardItem>) BuildCalendar() => _source.CalendarCard();
 
     private (string, string, IReadOnlyList<CardItem>) BuildPending() => _source.PendingCard();
@@ -435,7 +448,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         _dialogItem = item;
         _dialogCard = card;
-        _dialogFromPending = true;
+        _dialogOrigin = DialogOrigin.Pending;
         OpenDialog(DialogKind.IncomingDecision, Localizer.Get("Dialog.Incoming.Title"), item.Summary);
     }
 
@@ -443,7 +456,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         _dialogItem = item;
         _dialogCard = card;
-        _dialogFromPending = false;
+        _dialogOrigin = DialogOrigin.Note;
         OpenDialog(DialogKind.NoteChoice, Localizer.Get("Dialog.Note.Title"), item.Title);
     }
 
@@ -507,7 +520,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     private void ConfirmRemoveLocalModel()
     {
         Settings.Model.RemoveLocalModel();
-        Dialog.Close();
+        FinishDialog();
     }
 
     private void ConfirmIncoming() => AcceptPlan(_dialogItem?.When ?? string.Empty, _dialogItem?.Title ?? string.Empty);
@@ -518,8 +531,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     private void ConfirmIgnore()
     {
         if (_dialogItem is { } ignored) _source.IncomingIgnored(ignored);
-        RemoveSource();
-        CloseDialog();
+        FinishDialog(removeSource: true);
     }
 
     private void ComposeFromIncoming() =>
@@ -543,7 +555,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
             _source.NoteEdited(_dialogItem, Dialog.EditorText);
         }
 
-        CloseDialog();
+        FinishDialog();
     }
 
     /// <summary>The composer's Send: whatever was typed (or the item itself) becomes the plan.</summary>
@@ -559,7 +571,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         if (string.IsNullOrWhiteSpace(title))
         {
-            CloseDialog();
+            FinishDialog();
             return;
         }
 
@@ -568,112 +580,27 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
         if (_dialogItem is { } confirmed)
         {
-            if (_dialogFromPending) _source.IncomingConfirmed(confirmed);
-            else _source.NoteEdited(confirmed, title);
+            switch (_dialogOrigin)
+            {
+                case DialogOrigin.Pending:
+                    _source.IncomingConfirmed(confirmed);
+                    break;
+                case DialogOrigin.Note:
+                    _source.NoteEdited(confirmed, title);
+                    break;
+            }
         }
 
-        RemoveSource();
-        CloseDialog();
+        FinishDialog(removeSource: true);
     }
 
-    private void RemoveSource()
+    /// <summary>The one way a dialog ends: forget the item, forget the origin, close the surface.</summary>
+    private void FinishDialog(bool removeSource = false)
     {
-        if (_dialogItem is not null) _dialogCard?.Remove(_dialogItem);
+        if (removeSource && _dialogItem is not null) _dialogCard?.Remove(_dialogItem);
         _dialogItem = null;
         _dialogCard = null;
-    }
-
-    private void CloseDialog()
-    {
+        _dialogOrigin = DialogOrigin.None;
         Dialog.Close();
-        _dialogItem = null;
-        _dialogCard = null;
-    }
-
-    // ---------- headless snapshot tool ----------
-
-    /// <summary>Convenience for the headless screenshot tool.</summary>
-    public void ShowState(string state)
-    {
-        CloseOverlays();
-        Toast = string.Empty;
-        switch (state)
-        {
-            case "home":
-                break;
-            case "appearance":
-                SettingsOpen = true;
-                Settings.Selected = Settings.Sections.First(section => section.Key == "Section.Appearance");
-                break;
-            case "drawer":
-                MenuOpen = true;
-                break;
-            case "expanded":
-                MenuOpen = true;
-                FutureOpen = true;
-                break;
-            case "settings":
-                SettingsOpen = true;
-                break;
-            case "settings-zh":
-                ApplyLanguage(Localizer.Chinese);
-                SettingsOpen = true;
-                break;
-            case "settings-deep":
-                // Select first, switch language after: this used to clear the selection.
-                SettingsOpen = true;
-                Settings.Selected = Settings.Sections[5];
-                ApplyLanguage(Localizer.Chinese);
-                break;
-            case "help":
-                HelpOpen = true;
-                break;
-            case "collapsed":
-                foreach (var card in Cards) card.ToggleCollapseCommand.Execute(null);
-                break;
-            case "today-list":
-                Today.ToggleList();
-                break;
-            case "language-menu":
-                IsLanguageMenuOpen = true;
-                break;
-            case "calendar":
-                Calendar.Open();
-                break;
-            case "settings-model":
-                SettingsOpen = true;
-                Settings.Selected = Settings.Sections.First(section => section.Key == "Section.Model");
-                break;
-            case "settings-model-zh":
-                SettingsOpen = true;
-                Settings.Selected = Settings.Sections.First(section => section.Key == "Section.Model");
-                SetLanguageCommand.Execute("zh");
-                break;
-            case "reasoning":
-                Reasoning.OpenList();
-                break;
-            case "trajectory":
-                Reasoning.ToggleTrajectory();
-                break;
-            case "dialog-incoming":
-                BeginIncoming(Cards[1].Items[0], Cards[1]);
-                break;
-            case "dialog-note":
-                BeginNote(Cards[2].Items[0], Cards[2]);
-                break;
-            case "dialog-compose":
-                BeginIncoming(Cards[1].Items[0], Cards[1]);
-                ComposeFromIncoming();
-                break;
-            case "today-list-long":
-                Today.ResetSeeds(BuildLongTodaySeeds());
-                Today.ToggleList();
-                break;
-            case "toast":
-                ApplyLanguage(Localizer.Chinese);
-                InputText = Localizer.Get("Demo.Note1");
-                SubmitInput();
-                break;
-        }
     }
 }

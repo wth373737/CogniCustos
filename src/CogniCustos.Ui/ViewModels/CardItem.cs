@@ -38,8 +38,6 @@ public sealed class CardItem
     /// <summary>Set by the owning card when rows are clickable; null for plain rows.</summary>
     public RelayCommand? Command { get; set; }
 
-    public bool CanClick => Command is not null;
-
     /// <summary>The one-line form used in dialogs and tooltips.</summary>
     public string Summary => HasWhen ? $"{When} · {Title}" : Title;
 }

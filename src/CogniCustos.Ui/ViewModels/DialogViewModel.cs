@@ -106,6 +106,10 @@ public sealed class DialogViewModel : ObservableObject
     {
         _kind = DialogKind.None;
         Buttons.Clear();
+        ShowComposer = false;
+        ShowEditor = false;
+        ComposerText = string.Empty;
+        EditorText = string.Empty;
         OnPropertyChanged(nameof(IsOpen));
         OnPropertyChanged(nameof(Kind));
     }
@@ -119,6 +123,7 @@ public sealed class DialogViewModel : ObservableObject
 
         Buttons.Clear();
         foreach (var button in buttons) Buttons.Add(button);
+        OnPropertyChanged(nameof(ComposerPrompt));
     }
 
     public string ComposerPrompt => Localizer.Get("Composer.Prompt");

@@ -78,7 +78,7 @@ internal static class Program
     private static WriteableBitmap? RenderState(string state, int width, int height)
     {
         var vm = new ShellViewModel();
-        // Every state starts from English; the zh states switch inside ShowState.
+        // Every state starts from English; the zh states switch inside ShellScenarios.
         vm.ApplyLanguage(Localizer.English);
 
         var window = new ShellWindow(vm) { Width = width, Height = height };
@@ -94,7 +94,7 @@ internal static class Program
 
         // State goes on after the window opened: opening calls RefreshText, which
         // would otherwise reset the fixture (that is what the app wants, not the shots).
-        vm.ShowState(state);
+        ShellScenarios.Apply(vm, state);
 
         // Overlays animate (slide + fade); pump real time so the capture shows the
         // settled state instead of a half-finished transition.

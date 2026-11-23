@@ -21,11 +21,6 @@ public sealed class ReasoningViewModel : ObservableObject
         OpenListCommand = new RelayCommand(ToggleList);
         ToggleTrajectoryCommand = new RelayCommand(ToggleTrajectory);
         CloseCommand = new RelayCommand(Close);
-        ShowTrajectoryCommand = new RelayCommand(parameter =>
-        {
-            if (parameter is ReasoningRecord record) ShowTrajectory(record);
-        });
-
         BuildDemo();
     }
 
@@ -34,7 +29,6 @@ public sealed class ReasoningViewModel : ObservableObject
     public RelayCommand OpenListCommand { get; }
     public RelayCommand ToggleTrajectoryCommand { get; }
     public RelayCommand CloseCommand { get; }
-    public RelayCommand ShowTrajectoryCommand { get; }
 
     public string ListTitle => Localizer.Get("Reasoning.Title");
 

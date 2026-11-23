@@ -20,18 +20,18 @@ public sealed class ModelField : ObservableObject
         _labelKey = labelKey;
         _value = value;
         _editText = value;
-        IsSecret = secret;
+        _secret = secret;
         BeginEditCommand = new RelayCommand(BeginEdit);
     }
 
     public string Label => Localizer.Get(_labelKey);
 
-    public bool IsSecret { get; }
+    private readonly bool _secret;
 
     public string Value => _value;
 
     /// <summary>What the read-only row shows; a secret is always the same run of dots.</summary>
-    public string DisplayValue => IsSecret ? new string('•', 22) : _value;
+    public string DisplayValue => _secret ? new string('•', 22) : _value;
 
     public bool IsEditing
     {

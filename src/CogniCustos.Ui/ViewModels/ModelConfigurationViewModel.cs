@@ -61,10 +61,10 @@ public sealed class ModelConfigurationViewModel : ObservableObject
     public string DeleteLabel => Localizer.Get("Settings.Model.Delete");
     public string AddLabel => Localizer.Get("Settings.Model.Add");
 
-    public bool AdvancedOpen
+    private bool AdvancedOpen
     {
         get => _advancedOpen;
-        private set
+        set
         {
             if (!Set(ref _advancedOpen, value)) return;
             OnPropertyChanged(nameof(AdvancedChevron));

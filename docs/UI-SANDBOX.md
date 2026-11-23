@@ -177,6 +177,25 @@ AI 改写修辞属于项目里的 AI 设计，UI 这轮用"输入什么就写什
 
 数值目前只在内存里（`ModelField.Value`），下一步接 API 时换到 `state/settings.json` 的模型。
 
+## 一之九、View-Model 的职责划分（第 18 轮整理）
+
+| 文件 | 只负责 | 不再是 |
+|---|---|---|
+| `ShellViewModel` | 窗口状态：抽屉/页面/面板开关、提醒条、看板、对话框编排、语言切换 | 不再有截图用的状态机、示例种子、死成员 |
+| `ShellScenarios` | 截图与"界面配置"预览用的命名状态（`expanded`、`reasoning`、`settings-model`、`dialog-incoming`…） | — |
+| `IShellDataSource` / `DemoShellDataSource` / 小样的 `RuntimeShellDataSource` | 内容与动作的接缝 | — |
+| `DialogViewModel` | 一个对话框表面；关闭时清掉临时态（composer/editor 开关与文本） | — |
+| `ModelField` / `ModelConfigurationViewModel` | 设置页 Model Configuration 的字段与动作事件 | — |
+
+同时修掉的具体问题：
+
+1. 对话框来源用 `enum DialogOrigin { None, Pending, Note }`，替掉原来的 `bool _dialogFromPending`；
+2. 关闭只有一条路径 `FinishDialog(removeSource)`，不再有 `RemoveSource + CloseDialog` 两次关闭；
+3. 删掉无引用的 `LanguageCode`、`CardItem.CanClick`、`CardViewModel.RowsClickable`、`ReasoningViewModel.ShowTrajectoryCommand`，
+   `CardViewModel.ItemCommand` / `ModelField.IsSecret` / `ModelConfigurationViewModel.AdvancedOpen` 改为私有；
+4. `AskAndShowAsync` 的返回值统一回 UI 线程再改看板（服务在后台线程答复时不再碰 UI 集合）；
+5. `DialogViewModel.RefreshText` 也会刷新 composer 的占位文字（切语言不再留旧提示）。
+
 ## 二、等比缩放（任何分辨率都保持示例图比例）
 
 `ShellWindow` 里是
@@ -329,6 +348,10 @@ VS Code 里对应 `shots-compare` 任务。第 4、5 个参数是草图的裁切
 7. **图标是 MDL2 字形，不是手绘**：草图里的图标更粗、形状也不完全一样（草图的 ≡ 带喇叭，这里用汉堡）。
 
 ## 十、变更记录
+
+**第 18 轮（2026-11-24）**：代码整理（不属于新功能）——把截图状态机搬出 `ShellViewModel` 到
+`ShellScenarios`，对话框来源改成枚举 + 单一关闭路径，清掉死成员，异步答复回 UI 线程。
+新增 2 条断言（共 57 条）。
 
 **第 17 轮（2026-11-24）**：设置页 Model Configuration 真表单（三字段双击编辑、API 掩码、
 高级设置/Check/添加的占位窗、删除本地模型二次确认、Ollama 段与通栏按钮），骨架与左列未改动。
