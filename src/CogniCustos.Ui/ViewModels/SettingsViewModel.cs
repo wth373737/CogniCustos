@@ -32,7 +32,11 @@ public sealed class SettingsViewModel : ObservableObject
         }
 
         _selected = Sections[0];
+        Model = new ModelConfigurationViewModel();
     }
+
+    /// <summary>The content of the Model Configuration section.</summary>
+    public ModelConfigurationViewModel Model { get; }
 
     public static IReadOnlyList<string> Keys => SectionKeys;
 
@@ -48,6 +52,8 @@ public sealed class SettingsViewModel : ObservableObject
             if (!Set(ref _selected, value)) return;
             OnPropertyChanged(nameof(SelectedTitle));
             OnPropertyChanged(nameof(ShowPreviewGallery));
+            OnPropertyChanged(nameof(ShowModelConfiguration));
+            OnPropertyChanged(nameof(ShowPlaceholder));
         }
     }
 
@@ -56,10 +62,19 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>The interface gallery replaces the placeholder for 界面配置 only.</summary>
     public bool ShowPreviewGallery => _selected?.Key == "Section.Appearance";
 
+    /// <summary>Model Configuration owns the only real form so far.</summary>
+    public bool ShowModelConfiguration => _selected?.Key == "Section.Model";
+
+    /// <summary>The generic placeholder only shows for sections with neither form nor gallery.</summary>
+    public bool ShowPlaceholder => !ShowPreviewGallery && !ShowModelConfiguration;
+
     public void RefreshTitles()
     {
         foreach (var section in Sections) section.Refresh();
         OnPropertyChanged(nameof(SelectedTitle));
         OnPropertyChanged(nameof(ShowPreviewGallery));
+        OnPropertyChanged(nameof(ShowModelConfiguration));
+        OnPropertyChanged(nameof(ShowPlaceholder));
+        Model.RefreshText();
     }
 }

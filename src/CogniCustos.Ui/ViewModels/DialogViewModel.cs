@@ -9,6 +9,8 @@ public enum DialogKind
 {
     None,
     IncomingDecision,
+    Info,
+    LocalModelDelete,
     IgnoreConfirm,
     Composer,
     NoteChoice,

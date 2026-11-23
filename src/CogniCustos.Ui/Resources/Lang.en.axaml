@@ -59,6 +59,33 @@
 
   <x:String x:Key="Reasoning.Yesterday">YESTERDAY</x:String>
   <x:String x:Key="Tip.Close">Close</x:String>
+  <x:String x:Key="Settings.Model.Primary">Primary Inference Model</x:String>
+  <x:String x:Key="Settings.Model.Name">Model name</x:String>
+  <x:String x:Key="Settings.Model.Url">URL(OpenAI format)</x:String>
+  <x:String x:Key="Settings.Model.Api">API</x:String>
+  <x:String x:Key="Settings.Model.DocsNote">Please refer to the official documentation for the information above.</x:String>
+  <x:String x:Key="Settings.Model.Advanced">Advanced settings</x:String>
+  <x:String x:Key="Settings.Model.AdvancedNote">Open the advanced settings window to configure parameters such as the AI model's prompts, temperature, and maximum context length. It is not recommended for users without sufficient understanding to make adjustments here.</x:String>
+  <x:String x:Key="Settings.Model.AdvancedTitle">Advanced settings</x:String>
+  <x:String x:Key="Settings.Model.AdvancedPending">The parameter window is not implemented yet.</x:String>
+  <x:String x:Key="Settings.Model.LocalModel">Small local model</x:String>
+  <x:String x:Key="Settings.Model.LocalModelName">qwen2.5:7b</x:String>
+  <x:String x:Key="Settings.Model.LocalModelNone">No local model installed</x:String>
+  <x:String x:Key="Settings.Model.LocalModelNote">This software includes various features and privacy controls that rely on local models. Uninstalling them frees up hardware resources, which is not recommended. If your hardware is not well suited to the installed model, run Check to get a recommendation for this machine.</x:String>
+  <x:String x:Key="Settings.Model.Check">Check</x:String>
+  <x:String x:Key="Settings.Model.CheckTitle">Check</x:String>
+  <x:String x:Key="Settings.Model.CheckPending">Hardware detection and model recommendation are not implemented yet.</x:String>
+  <x:String x:Key="Settings.Model.Delete">Delete</x:String>
+  <x:String x:Key="Settings.Model.DeleteTitle">Remove the local model?</x:String>
+  <x:String x:Key="Settings.Model.DeleteBody">The local model will be removed and the features that rely on it will fall back until you install one again.</x:String>
+  <x:String x:Key="Settings.Model.Ollama">I have custom local models, using Ollama</x:String>
+  <x:String x:Key="Settings.Model.OllamaNote">If you configure local models through Ollama, open the small window to do it; the built-in small models are then removed to free up space. To keep them and simply add Ollama models, use the button below instead.</x:String>
+  <x:String x:Key="Settings.Model.Add">Add custom models and services</x:String>
+  <x:String x:Key="Settings.Model.AddTitle">Add custom models and services</x:String>
+  <x:String x:Key="Settings.Model.AddPending">The model and service window is not implemented yet.</x:String>
+  <x:String x:Key="Dialog.Ok">OK</x:String>
+  <x:String x:Key="Dialog.Delete">Delete</x:String>
+
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.

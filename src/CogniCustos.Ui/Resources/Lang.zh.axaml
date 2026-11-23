@@ -59,6 +59,33 @@
 
   <x:String x:Key="Reasoning.Yesterday">昨天</x:String>
   <x:String x:Key="Tip.Close">关闭</x:String>
+  <x:String x:Key="Settings.Model.Primary">主推理模型</x:String>
+  <x:String x:Key="Settings.Model.Name">模型名称</x:String>
+  <x:String x:Key="Settings.Model.Url">接口地址（OpenAI 格式）</x:String>
+  <x:String x:Key="Settings.Model.Api">API 密钥</x:String>
+  <x:String x:Key="Settings.Model.DocsNote">以上信息的获取方式请参考官方文档。</x:String>
+  <x:String x:Key="Settings.Model.Advanced">高级设置</x:String>
+  <x:String x:Key="Settings.Model.AdvancedNote">打开高级设置窗口可配置提示词、temperature 与最大上下文长度等参数。不了解这些参数的含义时不建议在此调整。</x:String>
+  <x:String x:Key="Settings.Model.AdvancedTitle">高级设置</x:String>
+  <x:String x:Key="Settings.Model.AdvancedPending">参数配置窗口尚未实现。</x:String>
+  <x:String x:Key="Settings.Model.LocalModel">本地小模型</x:String>
+  <x:String x:Key="Settings.Model.LocalModelName">qwen2.5:7b</x:String>
+  <x:String x:Key="Settings.Model.LocalModelNone">未安装本地模型</x:String>
+  <x:String x:Key="Settings.Model.LocalModelNote">本软件的部分功能与隐私控制依赖本地模型。卸载本地模型可以释放硬件资源，但不建议这样做。如果本机硬件与已安装的模型不匹配，可点「Check」获取针对本机的推荐。</x:String>
+  <x:String x:Key="Settings.Model.Check">检查</x:String>
+  <x:String x:Key="Settings.Model.CheckTitle">检查</x:String>
+  <x:String x:Key="Settings.Model.CheckPending">硬件检测与模型推荐尚未实现。</x:String>
+  <x:String x:Key="Settings.Model.Delete">删除</x:String>
+  <x:String x:Key="Settings.Model.DeleteTitle">移除本地模型？</x:String>
+  <x:String x:Key="Settings.Model.DeleteBody">本地模型将被移除，依赖它的功能会退回到备用方案，直到你重新安装。</x:String>
+  <x:String x:Key="Settings.Model.Ollama">我有自定义本地模型，使用 Ollama</x:String>
+  <x:String x:Key="Settings.Model.OllamaNote">如果你习惯用 Ollama 配置本地模型，请在小窗口里完成配置；软件会随之移除自带的小模型以释放空间。若想保留自带模型、只是新增 Ollama 模型，请使用下方按钮。</x:String>
+  <x:String x:Key="Settings.Model.Add">添加自定义模型与服务</x:String>
+  <x:String x:Key="Settings.Model.AddTitle">添加自定义模型与服务</x:String>
+  <x:String x:Key="Settings.Model.AddPending">模型与服务窗口尚未实现。</x:String>
+  <x:String x:Key="Dialog.Ok">好</x:String>
+  <x:String x:Key="Dialog.Delete">删除</x:String>
+
   <!--
     简体中文 UI 文案。键必须与 Lang.en.axaml 完全一致（测试会逐键比对）。
     翻译方式：复制本文件为 Lang.<culture>.axaml，只改值、不改键。

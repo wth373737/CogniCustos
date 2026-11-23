@@ -30,6 +30,10 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         _source = source ?? new DemoShellDataSource();
         Settings = new SettingsViewModel();
+        Settings.Model.AdvancedRequested += () => ShowInfoDialog("Settings.Model.AdvancedTitle", "Settings.Model.AdvancedPending");
+        Settings.Model.CheckRequested += () => ShowInfoDialog("Settings.Model.CheckTitle", "Settings.Model.CheckPending");
+        Settings.Model.AddRequested += () => ShowInfoDialog("Settings.Model.AddTitle", "Settings.Model.AddPending");
+        Settings.Model.DeleteRequested += AskRemoveLocalModel;
         Today = new TodayViewModel();
         Calendar = new CalendarViewModel();
         Reasoning = new ReasoningViewModel();
@@ -474,6 +478,15 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
             new(Localizer.Get("Dialog.AiHandle"), new RelayCommand(ComposeFromNote)),
             new(Localizer.Get("Dialog.Cancel"), Dialog.CancelCommand),
         ],
+        DialogKind.Info =>
+        [
+            new(Localizer.Get("Dialog.Ok"), Dialog.CancelCommand, true),
+        ],
+        DialogKind.LocalModelDelete =>
+        [
+            new(Localizer.Get("Dialog.Delete"), new RelayCommand(ConfirmRemoveLocalModel), true),
+            new(Localizer.Get("Dialog.Cancel"), Dialog.CancelCommand),
+        ],
         DialogKind.NoteEdit =>
         [
             new(Localizer.Get("Dialog.Save"), new RelayCommand(SaveNote), true),
@@ -481,6 +494,21 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         ],
         _ => [],
     };
+
+    private void ShowInfoDialog(string titleKey, string bodyKey) =>
+        Dialog.Open(DialogKind.Info, Localizer.Get(titleKey), Localizer.Get(bodyKey),
+            BuildDialogButtons(DialogKind.Info));
+
+    private void AskRemoveLocalModel() =>
+        Dialog.Open(DialogKind.LocalModelDelete, Localizer.Get("Settings.Model.DeleteTitle"),
+            Localizer.Get("Settings.Model.DeleteBody"),
+            BuildDialogButtons(DialogKind.LocalModelDelete));
+
+    private void ConfirmRemoveLocalModel()
+    {
+        Settings.Model.RemoveLocalModel();
+        Dialog.Close();
+    }
 
     private void ConfirmIncoming() => AcceptPlan(_dialogItem?.When ?? string.Empty, _dialogItem?.Title ?? string.Empty);
 
@@ -611,6 +639,15 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
                 break;
             case "calendar":
                 Calendar.Open();
+                break;
+            case "settings-model":
+                SettingsOpen = true;
+                Settings.Selected = Settings.Sections.First(section => section.Key == "Section.Model");
+                break;
+            case "settings-model-zh":
+                SettingsOpen = true;
+                Settings.Selected = Settings.Sections.First(section => section.Key == "Section.Model");
+                SetLanguageCommand.Execute("zh");
                 break;
             case "reasoning":
                 Reasoning.OpenList();

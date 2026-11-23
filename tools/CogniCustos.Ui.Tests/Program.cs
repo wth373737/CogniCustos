@@ -449,6 +449,88 @@ internal static class Program
             Check(Math.Abs(blurred!.Radius) < 0.01, $"the rendered blur stayed at {blurred.Radius}");
         });
 
+        // ---- settings: the Model Configuration form ----
+        Test("model_section_shows_the_form_instead_of_the_placeholder", (vm, _) =>
+        {
+            vm.Settings.Selected = vm.Settings.Sections.First(section => section.Key == "Section.Model");
+            Pump();
+            Check(vm.Settings.ShowModelConfiguration, "the model form is not shown");
+            Check(!vm.Settings.ShowPlaceholder, "the placeholder still shows over the form");
+            Check(!vm.Settings.ShowPreviewGallery, "the appearance gallery shows on the model section");
+
+            vm.Settings.Selected = vm.Settings.Sections.First(section => section.Key == "Section.General");
+            Pump();
+            Check(!vm.Settings.ShowModelConfiguration, "the model form leaked into General");
+            Check(vm.Settings.ShowPlaceholder, "General lost its placeholder");
+        });
+
+        Test("model_field_edits_by_double_click_and_commits", (vm, _) =>
+        {
+            var field = vm.Settings.Model.ModelName;
+            Check(field.IsReadOnly, "the field must start read-only");
+
+            field.BeginEdit();
+            Pump();
+            Check(field.IsEditing, "double-click did not enter edit mode");
+            Check(field.EditText == "deepseek-flash", "the editor did not start from the current value");
+
+            field.EditText = "deepseek-reasoner";
+            field.Commit();
+            Pump();
+            Check(!field.IsEditing, "the field stayed in edit mode");
+            Check(field.Value == "deepseek-reasoner", "the new value was not committed");
+            Check(field.DisplayValue == "deepseek-reasoner", "the row does not show the new value");
+        });
+
+        Test("model_field_escape_restores_the_old_value", (vm, _) =>
+        {
+            var field = vm.Settings.Model.ModelName;
+            field.BeginEdit();
+            field.EditText = "thrown away";
+            field.Cancel();
+            Pump();
+            Check(!field.IsEditing, "the field stayed in edit mode");
+            Check(field.Value == "deepseek-flash", "cancel changed the value");
+            Check(field.EditText == "deepseek-flash", "the editor kept the abandoned text");
+        });
+
+        Test("model_api_is_masked_and_never_shown", (vm, _) =>
+        {
+            var api = vm.Settings.Model.ApiKey;
+            Check(api.DisplayValue != api.Value, "the API key is shown in clear text");
+            Check(api.DisplayValue.All(c => c == '\u2022'), "the API row is not a run of dots");
+        });
+
+        Test("model_actions_open_dialogs", (vm, _) =>
+        {
+            vm.Settings.Model.ToggleAdvancedCommand.Execute(null);
+            Pump();
+            Check(vm.Dialog.IsOpen && vm.Dialog.Kind == DialogKind.Info, "advanced settings did not open a dialog");
+            vm.Dialog.CancelCommand.Execute(null);
+            Pump();
+
+            vm.Settings.Model.DeleteCommand.Execute(null);
+            Pump();
+            Check(vm.Dialog.Kind == DialogKind.LocalModelDelete, "delete did not ask for confirmation");
+
+            vm.Dialog.Buttons.First(button => button.Primary).Command.Execute(null);
+            Pump();
+            Check(!vm.Dialog.IsOpen, "the dialog stayed open after deleting");
+            Check(vm.Settings.Model.LocalModelName == Localizer.Get("Settings.Model.LocalModelNone"),
+                "the local model was not removed");
+        });
+
+        Test("model_form_labels_follow_the_language", (vm, _) =>
+        {
+            var englishLabel = vm.Settings.Model.ModelName.Label;
+
+            vm.ToggleLanguageCommand.Execute(null);
+            Pump();
+
+            Check(vm.Settings.Model.ModelName.Label != englishLabel, "field labels did not switch language");
+            Check(vm.Settings.Model.PrimaryHeader.Length > 0, "the section header went blank");
+        });
+
         // ---- reasoning record list and thought trace (two independent entries) ----
         Test("reasoning_row_opens_the_record_list", (vm, _) =>
         {

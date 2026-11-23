@@ -193,6 +193,74 @@
     <Setter Property="Background" Value="#12000000" />
   </Style>
 
+  <!-- ===== settings form ===== -->
+  <Style Selector="Button.fieldPencil">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.fieldPencil /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="Button.chip">
+    <Setter Property="Background" Value="#FFFFFFFF" />
+    <Setter Property="BorderBrush" Value="#FFCFDAD7" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="10,3" />
+    <Setter Property="Foreground" Value="#FF2B2B32" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#FFF0F4F3" />
+  </Style>
+
+  <Style Selector="Button.chipGhost">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.chipGhost /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+
+  <Style Selector="Button.danger">
+    <Setter Property="Background" Value="#FF9E2B25" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="12,4" />
+    <Setter Property="FontSize" Value="12.5" />
+    <Setter Property="Foreground" Value="#FFFFFFFF" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#FFB8362F" />
+  </Style>
+
+  <Style Selector="Button.wideAction">
+    <Setter Property="Background" Value="#FFFFFFFF" />
+    <Setter Property="BorderBrush" Value="#FFC3CFCC" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Height" Value="34" />
+    <Setter Property="HorizontalAlignment" Value="Stretch" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="FontSize" Value="13.5" />
+    <Setter Property="Foreground" Value="#FF2B2B32" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Button.wideAction:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="#FFF4F8F7" />
+  </Style>
+
   <!-- ===== circled close (record list / trace) ===== -->
   <Style Selector="Button.roundClose">
     <Setter Property="Background" Value="Transparent" />
