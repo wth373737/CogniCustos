@@ -16,7 +16,7 @@ internal static class ModelCheck
         Directory.CreateDirectory(root);
 
         var rt = CogniCustosRuntime.Create(root);
-        rt.LocalModels.BuiltInFactory = path => gpu
+        rt.LocalModels.BuiltInFactory = (path, useGpu) => useGpu || gpu
             ? new LlamaModelProvider(path, gpuLayers: 99, preferVulkan: true)
             : new LlamaModelProvider(path);
 
@@ -76,6 +76,13 @@ internal static class ModelCheck
 
         var provider = rt.Models.All.FirstOrDefault(p => p.Role == CogniCustos.Contracts.ModelRole.Reasoning);
         Console.WriteLine($"provider   : {provider?.Id ?? "(none)"} available={provider?.IsAvailable}");
+        Console.WriteLine($"judge      : {rt.Judge.GetType().Name}");
+
+        // the judge is the model now: prove it still answers with handles only
+        var probe = rt.Raw.Put("note", "model-check", "数学分析 期末考试定在 4 月 8 日 上午 9 点。", "数学分析考试");
+        var verdicts = rt.Judge.Find("数学分析考试几点", rt.Raw.List(10));
+        var hit = verdicts.FirstOrDefault(v => v.ArtifactId == probe.Id);
+        Console.WriteLine($"judge hit  : #{hit?.ArtifactId} relevant={hit?.Relevant} category={hit?.Category} title={hit?.Title}");
 
         return reply.Contains("内置模型调用失败") ? 1 : 0;
     }

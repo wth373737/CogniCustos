@@ -12,6 +12,9 @@ public sealed record AppSettings
     /// <summary>False after the bundled model has been removed (or before it was ever installed).</summary>
     public bool BuiltInInstalled { get; init; } = true;
 
+    /// <summary>Run the bundled model on the GPU (Vulkan) instead of the CPU.</summary>
+    public bool UseGpu { get; init; }
+
     /// <summary>Fixed by design: the Ollama path is the advanced, pre-filled option.</summary>
     public string OllamaBaseUrl { get; init; } = "http://127.0.0.1:11434";
     public string OllamaModel { get; init; } = "qwen2.5:7b";

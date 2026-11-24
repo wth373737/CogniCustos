@@ -51,7 +51,22 @@ public sealed class LocalModelService
     /// Creates the provider for a built-in model file. The desktop app sets this to the
     /// LLamaSharp provider; Core cannot reference the adapter that owns it.
     /// </summary>
-    public Func<string, IModelProvider>? BuiltInFactory { get; set; }
+    public Func<string, bool, IModelProvider>? BuiltInFactory { get; set; }
+
+    /// <summary>Hardware acceleration for the bundled model (Vulkan on AMD/Intel, CUDA on NVIDIA).</summary>
+    public bool UseGpu
+    {
+        get => Settings.UseGpu;
+        set
+        {
+            if (Settings.UseGpu == value) return;
+            Settings = Settings with { UseGpu = value };
+            SettingsStore.Save(_settingsPath, Settings);
+        }
+    }
+
+    /// <summary>What the hardware-acceleration row shows.</summary>
+    public string GpuStatusText() => UseGpu ? "已开启（Vulkan）" : "已关闭（CPU）";
 
     public AppSettings Settings { get; private set; }
 
@@ -112,7 +127,7 @@ public sealed class LocalModelService
         Source = LocalModelSource.BuiltIn;
 
         _router.ReplaceRole(ModelRole.Reasoning,
-            BuiltInFactory is null ? null : BuiltInFactory(Installer.ModelPath));
+            BuiltInFactory is null ? null : BuiltInFactory(Installer.ModelPath, UseGpu));
 
         return (true, "已切换回内置本地模型");
     }

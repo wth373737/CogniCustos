@@ -95,6 +95,13 @@
   <x:String x:Key="Settings.Model.Installing">Installing the bundled model…</x:String>
   <x:String x:Key="Settings.Model.Downloading">Downloading</x:String>
 
+  <x:String x:Key="Settings.Model.GpuLabel">Hardware acceleration (Vulkan)</x:String>
+  <x:String x:Key="Settings.Model.GpuOn">On</x:String>
+  <x:String x:Key="Settings.Model.GpuOff">Off (CPU)</x:String>
+
+  <x:String x:Key="Settings.Model.GpuNoteOn">Runs on the GPU (Vulkan). If the model does not fit, lower the offload in the advanced settings.</x:String>
+  <x:String x:Key="Settings.Model.GpuNoteOff">Runs on the CPU. On a supported graphics card this is roughly 4x slower.</x:String>
+
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.

@@ -331,6 +331,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         Settings.RefreshTitles();
         Settings.Model.SetLocalStatus(_source.LocalModelStatus());
+        Settings.Model.SetGpuState(_source.GpuEnabled(), string.Empty);
         Calendar.RefreshText();
         Dialog.RefreshText(BuildDialogButtons);
         Reasoning.RefreshText();
@@ -408,6 +409,22 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     /// The Ollama window asks the backing store to switch; the mention that switching
     /// frees the bundled model is part of the window's own note.
     /// </summary>
+    /// <summary>
+    /// Hardware acceleration: the store owns the flag; the row only shows it. Switching it
+    /// re-registers the provider, so it takes effect on the next model call.
+    /// </summary>
+    private void ToggleGpu(bool enabled)
+    {
+        if (_source.SetGpu(enabled) is { } failure)
+        {
+            SetToast(failure);
+            return;
+        }
+
+        Settings.Model.SetGpuState(_source.GpuEnabled(), string.Empty);
+        SetToast(Settings.Model.GpuStateLabel);
+    }
+
     private void EnableOllama(string model)
     {
         if (_source.EnableOllama(model) is { } failure)
@@ -430,6 +447,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
             ShowInfoDialog("Settings.Model.AddTitle", "Settings.Model.AddPending");
         Settings.Model.DeleteRequested += AskRemoveLocalModel;
         Settings.Model.OllamaEnableRequested += EnableOllama;
+        Settings.Model.GpuToggleRequested += ToggleGpu;
     }
 
     private void SetToast(string text)

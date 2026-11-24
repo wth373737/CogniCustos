@@ -66,4 +66,8 @@ public sealed class DemoShellDataSource : IShellDataSource
     }
 
     public string? SwitchToBuiltIn() => null;
+
+    public bool GpuEnabled() => false;
+
+    public string? SetGpu(bool enabled) => null;
 }

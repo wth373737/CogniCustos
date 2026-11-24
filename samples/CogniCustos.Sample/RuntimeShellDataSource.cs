@@ -160,6 +160,14 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         return ok ? null : message;
     }
 
+    public bool GpuEnabled() => _rt.LocalModels.UseGpu;
+
+    public string? SetGpu(bool enabled)
+    {
+        _rt.LocalModels.UseGpu = enabled;
+        return null;
+    }
+
     public string? SwitchToBuiltIn()
     {
         var (ok, message) = _rt.SwitchToBuiltIn();

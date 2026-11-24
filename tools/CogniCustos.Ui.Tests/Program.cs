@@ -622,6 +622,22 @@ internal static class Program
                 $"the row does not show the installed model: '{shell.Settings.Model.LocalStatus}'");
         });
 
+        Test("gpu_toggle_reaches_the_store_and_updates_the_row", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            Check(!shell.Settings.Model.GpuOn, "hardware acceleration started enabled");
+
+            shell.Settings.Model.ToggleGpuCommand.Execute(null);
+            Pump();
+
+            Check(source.Gpu, "the switch did not reach the store");
+            Check(shell.Settings.Model.GpuOn, "the row did not follow the store");
+            Check(shell.Settings.Model.GpuStateLabel.Length > 0, "the row lost its state label");
+        });
+
         // ---- reasoning record list and thought trace (two independent entries) ----
         Test("reasoning_row_opens_the_record_list", (vm, _) =>
         {
@@ -1210,6 +1226,16 @@ internal sealed class RecordingSource : IShellDataSource
 
     public string? SwitchToBuiltIn() => null;
 
+    public bool Gpu { get; private set; }
+
+    public bool GpuEnabled() => Gpu;
+
+    public string? SetGpu(bool enabled)
+    {
+        Gpu = enabled;
+        return null;
+    }
+
     public List<string> OllamaSwitches { get; } = [];
 
     public string? EnableOllama(string model)
@@ -1256,4 +1282,8 @@ internal sealed class RefusingSource : IShellDataSource
     }
 
     public string? SwitchToBuiltIn() => "switch refused";
+
+    public bool GpuEnabled() => false;
+
+    public string? SetGpu(bool enabled) => "gpu refused";
 }

@@ -182,6 +182,18 @@
                            TextWrapping="Wrap" Foreground="#FF6D7C79" />
               </Grid>
 
+              <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+                <StackPanel Spacing="2" Grid.Column="0">
+                  <TextBlock Text="{Binding Settings.Model.GpuLabel}" FontSize="13" Foreground="#FF2B2B32" />
+                  <TextBlock Text="{Binding Settings.Model.GpuNoteText}" FontSize="12"
+                             Foreground="#FF6D7C79" TextWrapping="Wrap" />
+                </StackPanel>
+                <Button Grid.Column="1" Classes="chip" VerticalAlignment="Center"
+                        Command="{Binding Settings.Model.ToggleGpuCommand}">
+                  <TextBlock Text="{Binding Settings.Model.GpuStateLabel}" FontSize="12.5" />
+                </Button>
+              </Grid>
+
               <TextBlock Text="{Binding Settings.Model.InstallNote}" FontSize="12"
                          IsVisible="{Binding Settings.Model.HasInstallNote}"
                          Foreground="#FF3C4A47" Margin="0,2,0,0" />

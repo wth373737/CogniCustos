@@ -46,4 +46,10 @@ public interface IShellDataSource
 
     /// <summary>Switch to the bundled model. Null on success, else the reason.</summary>
     string? SwitchToBuiltIn();
+
+    /// <summary>Is the bundled model running on the GPU?</summary>
+    bool GpuEnabled();
+
+    /// <summary>Turn hardware acceleration on/off. Null on success, else the reason.</summary>
+    string? SetGpu(bool enabled);
 }

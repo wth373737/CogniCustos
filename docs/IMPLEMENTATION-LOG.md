@@ -635,3 +635,61 @@ dotnet run --project src/CogniCustos.Selftest -c Debug      # passed=70
 
 1. **摘要仍同步**：`Raw.Put` 走模型摘要时会阻塞约 0.6 s；批量抓取应改为后台队列（下一步）。
 2. **判定器仍是关键词版**：`IJudge` 的模型实现还没做（再下一步）。
+
+---
+
+## 2026-11-25 · LM-J 判定器换成模型版 + 硬件加速开关
+
+### 1. 判定器（`ModelJudge`）
+
+| 项 | 内容 |
+|---|---|
+| 契约不变 | 仍是 `IJudge.Find(question, candidates)` → `JudgeVerdict`（裁决 + 句柄），模型只看到**标题 + R1 概括**（每条截 80 字，最多 8 条）。 |
+| 双层结构 | 关键词判定**总是先跑**（免费、可复现、就是兜底答案）；模型可用时再问一次，用模型的裁决覆盖对应的 id，模型没提的 id 保留关键词结果。 |
+| 容错 | 模型输出不是 JSON、或没模型、或模型抛异常 → 直接用关键词结果，不抛错、不空返回。 |
+| 接线 | `CogniCustosRuntime.Judge` 跟着当前模型走：`SwitchToBuiltIn` / `SwitchToOllama` 里换成 `ModelJudge`，没有模型时回到 `KeywordJudge`。 |
+| 实测 | `--model-check --gpu`：`judge : ModelJudge`，`judge hit : #2 relevant=True category=日程`——由 0.5B 模型自己判的相关性。 |
+
+### 2. 硬件加速开关
+
+| 项 | 内容 |
+|---|---|
+| 设置 | `AppSettings.UseGpu`；`LocalModelService.UseGpu`（读写即落盘）、`GpuStatusText()`。 |
+| 生效方式 | `BuiltInFactory` 签名变成 `(path, gpu)`；桌面/示例传 `gpu ? 99 层偏移 + Vulkan : CPU`。切换开关后**下一次**模型调用生效（provider 在切换模型时重建）。 |
+| 界面 | 模型配置页"本地小模型"下面一行：左侧"硬件加速（Vulkan）"+ 说明（"在 CPU 上运行；有支持的显卡时约慢 4 倍"/"在显卡上运行（Vulkan）…"），右侧一个 chip 显示"已开启/已关闭（CPU）"，点击切换。 |
+| 语言 | 标签、状态、说明三条资源都随中英切换刷新（`RefreshText` 里补了三个属性）。 |
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/Judge.cs` | 新增 `ModelJudge` |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | `Judge` 可变 + 两处切换 |
+| `src/CogniCustos.Core/SettingsAndReminders.cs` / `LocalModelService.cs` | `UseGpu`、工厂签名 |
+| `src/CogniCustos.Ui/...`（IShellDataSource/ModelConfigurationViewModel/ShellViewModel/SettingsPage.axaml/Lang.*） | 开关的接缝、状态、行与资源 |
+| `src/CogniCustos.Desktop/MainWindow.cs`、`samples/.../SampleWindow.axaml.cs`、`ModelCheck.cs` | 工厂改成带 GPU 参数；`--model-check` 顺带验证判定器 |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 3 条（70 → 73） |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 1 条（61 → 62） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug        # passed=73
+dotnet run --project tools/CogniCustos.Ui.Tests -c Debug      # ALL PASS（62）
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --model-check --gpu
+# 期望：judge : ModelJudge / judge hit : #N relevant=True category=…
+```
+
+判定器断言：模型裁决被采用并分类；模型输出无法解析时与关键词结果完全一致；没有模型时仍是关键词结果。
+
+### 5. 以后要改哪里
+
+- **换判定提示词/阈值**：`ModelJudge.Ask` 一处；`MaxSummaryChars` 控制给模型看多少概括。
+- **让判定更省**：现在是每条消息都调一次模型（GPU 上 ~0.2 s）。要省就在 `Find` 里先看关键词是否已有高分命中，命中就跳过模型。
+- **硬件加速默认开**：把 `AppSettings.UseGpu` 默认值改成 `true` 即可；注意没有 Vulkan 驱动的机器会退化（`preferVulkan` 找不到 natives 时仍走 CPU 文件，但需要包存在）。
+- **NVIDIA**：换 `LLamaSharp.Backend.Cuda12`，`Devices=["CUDA0"]`。
+
+### 6. 已知未做
+
+- 摘要仍是同步调用（记录里的最后一件事）。
+- 硬件加速没有做"探测：这台机器有没有可用 Vulkan/CUDA"——现在用户点了就点了，失败会在模型调用时以错误文本呈现。

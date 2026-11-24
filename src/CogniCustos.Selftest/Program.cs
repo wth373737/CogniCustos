@@ -859,6 +859,57 @@ internal static class Program
             return artifact.SummaryKind == "fallback" && artifact.Summary.Length > 0;
         });
 
+        // ---------- the judge: model verdicts, with the deterministic fallback ----------
+
+        await Check("judge: a model verdict is used and merged with the deterministic one", async () =>
+        {
+            var artifacts = new List<RawArtifact>
+            {
+                new("1", "h1", "note", "portal", "校历", "2026-2027 学年第二学期", "fallback", null, 0,
+                    DateTimeOffset.Now, "kept", "R1"),
+                new("2", "h2", "note", "portal", "考试周安排", "4 月 6 日至 10 日", "fallback", null, 0,
+                    DateTimeOffset.Now, "kept", "R1"),
+            };
+
+            var provider = new ScriptedProvider("""[{"id":"2","relevant":true,"category":"日程"}]""");
+            var judge = new ModelJudge(() => provider);
+
+            var verdicts = judge.Find("考试周是什么时候", artifacts);
+
+            var second = verdicts.First(v => v.ArtifactId == "2");
+            var first = verdicts.First(v => v.ArtifactId == "1");
+            return second.Relevant && second.Category == "日程" && !first.Relevant;
+        });
+
+        await Check("judge: an unparsable model answer falls back to keywords", async () =>
+        {
+            var artifacts = new List<RawArtifact>
+            {
+                new("3", "h3", "note", "portal", "考试周", "4 月 6 日到 4 月 10 日", "fallback", null, 0,
+                    DateTimeOffset.Now, "kept", "R1"),
+            };
+
+            var provider = new ScriptedProvider("抱歉，我不确定。");
+            var byModel = new ModelJudge(() => provider).Find("考试周", artifacts);
+            var byKeywords = new KeywordJudge().Find("考试周", artifacts);
+
+            return byModel.Count == byKeywords.Count
+                   && byModel[0].Relevant == byKeywords[0].Relevant
+                   && byModel[0].Score == byKeywords[0].Score;
+        });
+
+        await Check("judge: no model means the deterministic judge, not an empty answer", async () =>
+        {
+            var artifacts = new List<RawArtifact>
+            {
+                new("4", "h4", "note", "portal", "考试周", "4 月 6 日到 4 月 10 日", "fallback", null, 0,
+                    DateTimeOffset.Now, "kept", "R1"),
+            };
+
+            var verdicts = new ModelJudge(() => null).Find("考试周", artifacts);
+            return verdicts.Count == 1 && verdicts[0].Relevant;
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;
@@ -892,4 +943,18 @@ internal static class Program
             Console.WriteLine($"  FAIL  {name}  ({ex.GetType().Name}: {ex.Message})");
         }
     }
+}
+
+/// <summary>A provider that always answers with one fixed string, for judge tests.</summary>
+internal sealed class ScriptedProvider(string answer) : CogniCustos.Contracts.IModelProvider
+{
+    public string Id => "scripted";
+    public CogniCustos.Contracts.ModelRole Role => CogniCustos.Contracts.ModelRole.Reasoning;
+    public bool IsAvailable => true;
+
+    public Task<float[]> EmbedAsync(string text, CancellationToken ct = default)
+        => Task.FromResult(Array.Empty<float>());
+
+    public Task<string> CompleteAsync(string system, string user, CancellationToken ct = default)
+        => Task.FromResult(answer);
 }

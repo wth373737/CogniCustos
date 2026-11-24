@@ -39,8 +39,11 @@ public sealed class CogniCustosRuntime
     /// <summary>The information side: what was fetched, byte for byte, append only.</summary>
     public IRawStore Raw { get; }
 
-    /// <summary>The isolated judgement step: verdicts and handles, never material.</summary>
-    public IJudge Judge { get; } = new KeywordJudge();
+    /// <summary>
+    /// The isolated judgement step: verdicts and handles, never material. It follows
+    /// whichever model is active and falls back to the deterministic judge when none is.
+    /// </summary>
+    public IJudge Judge { get; private set; } = new KeywordJudge();
 
     /// <summary>Bundled local model ⇄ the user's Ollama; choosing Ollama frees the bundled model.</summary>
     public LocalModelService LocalModels { get; private init; } = null!;
@@ -56,6 +59,8 @@ public sealed class CogniCustosRuntime
 
         var provider = Models.All.FirstOrDefault(p =>
             p.Role == ModelRole.Reasoning && p.Id.StartsWith("builtin:", StringComparison.Ordinal));
+
+        Judge = provider is null ? new KeywordJudge() : new ModelJudge(() => provider);
 
         Raw.Summarizer = provider is null
             ? null
@@ -74,7 +79,12 @@ public sealed class CogniCustosRuntime
     public (bool Ok, string Message) SwitchToOllama(string model)
     {
         var (ok, message) = LocalModels.UseOllama(model);
-        if (ok) Raw.Summarizer = null;
+        if (!ok) return (ok, message);
+
+        Raw.Summarizer = null;
+
+        var provider = Models.All.FirstOrDefault(p => p.Id.StartsWith("ollama:", StringComparison.Ordinal));
+        Judge = provider is null ? new KeywordJudge() : new ModelJudge(() => provider);
         return (ok, message);
     }
     public IKnowledgeBase Knowledge { get; }

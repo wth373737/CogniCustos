@@ -29,6 +29,7 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         });
         CloseOllamaCommand = new RelayCommand(() => IsOllamaWindowOpen = false);
         EnableOllamaCommand = new RelayCommand(() => OllamaEnableRequested?.Invoke(OllamaModelText.Trim()));
+        ToggleGpuCommand = new RelayCommand(() => GpuToggleRequested?.Invoke(!GpuOn));
 
         ToggleAdvancedCommand = new RelayCommand(() =>
         {
@@ -53,6 +54,49 @@ public sealed class ModelConfigurationViewModel : ObservableObject
 
     /// <summary>Raised when the user asks to switch; the shell answers via the data source.</summary>
     public event Action<string>? OllamaEnableRequested;
+
+    /// <summary>Raised when the hardware-acceleration switch is flipped.</summary>
+    public event Action<bool>? GpuToggleRequested;
+
+    public RelayCommand ToggleGpuCommand { get; }
+
+    private bool _gpuOn;
+    private string _gpuNote = string.Empty;
+
+    public bool GpuOn
+    {
+        get => _gpuOn;
+        private set
+        {
+            if (!Set(ref _gpuOn, value)) return;
+            OnPropertyChanged(nameof(GpuStateLabel));
+        OnPropertyChanged(nameof(GpuNoteText));
+            OnPropertyChanged(nameof(GpuNoteText));
+        }
+    }
+
+    public string GpuLabel => Localizer.Get("Settings.Model.GpuLabel");
+
+    public string GpuStateLabel => GpuOn
+        ? Localizer.Get("Settings.Model.GpuOn")
+        : Localizer.Get("Settings.Model.GpuOff");
+
+    public string GpuNoteText => Localizer.Get(GpuOn
+        ? "Settings.Model.GpuNoteOn"
+        : "Settings.Model.GpuNoteOff");
+
+    /// <summary>Shown under the row: why it may be off, or what it costs.</summary>
+    public string GpuNote
+    {
+        get => _gpuNote;
+        private set => Set(ref _gpuNote, value);
+    }
+
+    public void SetGpuState(bool enabled, string note)
+    {
+        GpuOn = enabled;
+        GpuNote = note;
+    }
 
     public RelayCommand ToggleAdvancedCommand { get; }
     public RelayCommand CheckCommand { get; }
@@ -199,6 +243,9 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         OnPropertyChanged(nameof(AdvancedNote));
         OnPropertyChanged(nameof(LocalModelHeader));
         OnPropertyChanged(nameof(LocalModelNote));
+        OnPropertyChanged(nameof(GpuLabel));
+        OnPropertyChanged(nameof(GpuStateLabel));
+        OnPropertyChanged(nameof(GpuNoteText));
         OnPropertyChanged(nameof(OllamaLabel));
         OnPropertyChanged(nameof(OllamaNote));
         OnPropertyChanged(nameof(CheckLabel));
@@ -211,6 +258,8 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         OnPropertyChanged(nameof(OllamaEnableLabel));
         OnPropertyChanged(nameof(CancelLabel));
         OnPropertyChanged(nameof(InstallNote));
+        OnPropertyChanged(nameof(GpuLabel));
+        OnPropertyChanged(nameof(GpuStateLabel));
         if (IsBusy) InstallNote = Localizer.Get("Settings.Model.Installing");
     }
 }
