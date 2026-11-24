@@ -115,6 +115,35 @@ public interface IScheduleStore
     Task<IReadOnlyList<ScheduleBlock>> ListRangeAsync(string fromDate, string toDate, CancellationToken ct = default);
 }
 
+/// <summary>One fetched artifact in the raw store: low trust, append only, never citable.</summary>
+public sealed record RawArtifact(
+    string Id,
+    string Hash,
+    string Kind,
+    string Source,
+    string Title,
+    string Summary,
+    string SummaryKind,
+    string? BytesPath,
+    int Chars,
+    DateTimeOffset FetchedAt,
+    string Status);
+
+/// <summary>
+/// The information side of the partition model. Only the application writes here;
+/// retrieval may read summaries, never the bytes (docs/PARTITION-MODEL.md §3.1).
+/// </summary>
+public interface IRawStore
+{
+    string Root { get; }
+    RawArtifact Put(string kind, string source, string text, string? title = null);
+    RawArtifact? Get(string id);
+    IReadOnlyList<RawArtifact> List(int limit = 20);
+    IReadOnlyList<RawArtifact> SearchSummaries(string query, int limit = 10);
+    /// <summary>Application-only path to the bytes; no tool is allowed to expose this.</summary>
+    string? ReadText(string id);
+}
+
 public sealed record KnowledgeHit(string Source, string Snippet, double Score);
 
 public interface IKnowledgeBase

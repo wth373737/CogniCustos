@@ -63,7 +63,8 @@ public static class BuiltinTools
                 args.TryGetValue("level", out var rawLevel);
                 if (string.IsNullOrWhiteSpace(title)) return ToolResult.Fail("title is required");
 
-                var level = SqliteTaskStore.NormalizeLevel(rawLevel);
+                if (!SqliteTaskStore.TryNormalizeLevel(rawLevel, out var level))
+                return ToolResult.Fail($"unknown level '{rawLevel}' (expected long | mid | short)");
                 var payload = JsonSerializer.Serialize(new { title, due, level });
                 var p = gate.Propose($"[{level}] Add task: {title}", $"Due: {(string.IsNullOrWhiteSpace(due) ? "(none)" : due)}", TargetTasksAdd, payload);
                 await sandbox.WriteSectionAsync("proposals", $"- [{p.CreatedAt:HH:mm:ss}] {p.Title}  ({p.Id})\n", CancellationToken.None).ConfigureAwait(false);

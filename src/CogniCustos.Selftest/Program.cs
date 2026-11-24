@@ -367,6 +367,88 @@ internal static class Program
         }
 
         Console.WriteLine();
+        // ---------- P0: schema, provenance, raw store, strict levels ----------
+
+        await Check("schema: the file is at the current version and reopening is a no-op", async () =>
+        {
+            var dbPath = Path.Combine(root, "state", "cognicustos.db");
+            using var first = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}");
+            first.Open();
+            var before = SqliteSchema.UserVersion(first);
+            SqliteSchema.EnsureUpgraded(first);
+            var after = SqliteSchema.UserVersion(first);
+            return before == SqliteSchema.Version && after == before;
+        });
+
+        await Check("schema: every authoritative row carries partition / author / source_ref / representation", async () =>
+        {
+            var dbPath = Path.Combine(root, "state", "cognicustos.db");
+            using var conn = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}");
+            conn.Open();
+
+            foreach (var table in new[] { "tasks", "schedule_blocks" })
+            {
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"PRAGMA table_info({table});";
+                var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read()) columns.Add(reader.GetString(1));
+                reader.Close();
+
+                if (!columns.Contains("partition") || !columns.Contains("author") ||
+                    !columns.Contains("source_ref") || !columns.Contains("representation"))
+                    return false;
+            }
+
+            return true;
+        });
+
+        await Check("raw: the same text is one artifact (content addressed)", async () =>
+        {
+            var text = "校历：2026-2027 学年第二学期 2 月 23 日开学，4 月 6 日到 4 月 10 日为考试周。";
+            var first = rt.Raw.Put("calendar", "portal.usm.my", text);
+            var second = rt.Raw.Put("calendar", "portal.usm.my", text);
+            var all = rt.Raw.List(50);
+            return first.Id == second.Id && all.Count(a => a.Hash == first.Hash) == 1;
+        });
+
+        await Check("raw: the fallback summary exists offline, is deterministic and keeps its bytes", async () =>
+        {
+            var text = "1. 学期起止：2026-09-07 至 2027-01-16。\n2. 考试周：2027-01-04 至 2027-01-15。";
+            var artifact = rt.Raw.Put("calendar", "portal.usm.my", text, "2026-2027 校历");
+
+            var again = rt.Raw.Put("calendar", "portal.usm.my", text, "2026-2027 校历");
+            var summaryOk = artifact.SummaryKind == "fallback"
+                            && artifact.Summary.Length > 0
+                            && artifact.Summary == again.Summary;
+            var bytesOk = artifact.BytesPath is not null
+                          && File.Exists(Path.Combine(root, "state", artifact.BytesPath))
+                          && rt.Raw.ReadText(artifact.Id) == text;
+            return summaryOk && bytesOk && artifact.Title == "2026-2027 校历";
+        });
+
+        await Check("raw: retrieval can find a summary by keyword without opening the bytes", async () =>
+        {
+            var hits = rt.Raw.SearchSummaries("考试周");
+            return hits.Count > 0 && hits.Any(h => h.Summary.Contains("考试周"));
+        });
+
+        await Check("level: an unknown level is refused, not silently turned into short", async () =>
+        {
+            var rejected = !SqliteTaskStore.TryNormalizeLevel("urgent", out _)
+                           && SqliteTaskStore.TryNormalizeLevel("long", out var normalized)
+                           && normalized == "long";
+
+            var tool = rt.Tools.Find("task.add")!;
+            var result = await tool.InvokeAsync(new Dictionary<string, string>
+            {
+                ["title"] = "级别写错的任务",
+                ["level"] = "urgent",
+            });
+
+            return rejected && !result.Ok && result.Content.Contains("level");
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

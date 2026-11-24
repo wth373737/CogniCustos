@@ -26,23 +26,7 @@ public sealed class SqliteTaskStore : ITaskStore
     private void Init()
     {
         using var conn = Open();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            CREATE TABLE IF NOT EXISTS tasks (
-                id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                title   TEXT NOT NULL,
-                due     TEXT NULL,
-                done    INTEGER NOT NULL DEFAULT 0,
-                created TEXT NOT NULL
-            );
-            """;
-        cmd.ExecuteNonQuery();
-
-        var columns = Columns(conn, "tasks");
-        if (!columns.Contains("level"))
-            Exec(conn, "ALTER TABLE tasks ADD COLUMN level TEXT NOT NULL DEFAULT 'short';");
-        if (!columns.Contains("parent_id"))
-            Exec(conn, "ALTER TABLE tasks ADD COLUMN parent_id INTEGER NULL;");
+        SqliteSchema.EnsureUpgraded(conn);
     }
 
     private static HashSet<string> Columns(SqliteConnection conn, string table)
@@ -90,12 +74,38 @@ public sealed class SqliteTaskStore : ITaskStore
         return Task.FromResult(id);
     }
 
-    public static string NormalizeLevel(string? level) => (level ?? "").Trim().ToLowerInvariant() switch
+    /// <summary>
+    /// Levels are an enumeration, not a hint: an unknown value is an error.
+    /// Silently mapping it to "short" is how wrong data enters the authoritative store
+    /// (docs/PARTITION-MODEL.md §6.3 "解析失败不猜").
+    /// </summary>
+    public static bool TryNormalizeLevel(string? level, out string normalized)
     {
-        "long" or "长期" or "long-term" => "long",
-        "mid" or "中期" or "mid-term" or "medium" => "mid",
-        _ => "short"
-    };
+        switch ((level ?? string.Empty).Trim().ToLowerInvariant())
+        {
+            case "long" or "长期" or "long-term":
+                normalized = "long";
+                return true;
+            case "mid" or "中期" or "mid-term" or "medium":
+                normalized = "mid";
+                return true;
+            case "short" or "短期" or "short-term":
+                normalized = "short";
+                return true;
+            case "":
+                normalized = "short";
+                return true;
+            default:
+                normalized = string.Empty;
+                return false;
+        }
+    }
+
+    /// <summary>Throwing form for call sites that cannot continue with a wrong level.</summary>
+    public static string NormalizeLevel(string? level) =>
+        TryNormalizeLevel(level, out var normalized)
+            ? normalized
+            : throw new ArgumentException($"unknown level '{level}' (expected long | mid | short)", nameof(level));
 
     public Task<IReadOnlyList<TaskItem>> ListAsync(CancellationToken ct = default)
     {
@@ -146,18 +156,7 @@ public sealed class SqliteScheduleStore : IScheduleStore
 
         using var conn = new SqliteConnection(_connectionString);
         conn.Open();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            CREATE TABLE IF NOT EXISTS schedule_blocks (
-                id      INTEGER PRIMARY KEY AUTOINCREMENT,
-                date    TEXT NOT NULL,
-                start   TEXT NOT NULL,
-                end     TEXT NOT NULL,
-                title   TEXT NOT NULL,
-                task_id INTEGER NULL
-            );
-            """;
-        cmd.ExecuteNonQuery();
+        SqliteSchema.EnsureUpgraded(conn);
     }
 
     private SqliteConnection Open()

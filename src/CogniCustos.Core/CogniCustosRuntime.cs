@@ -13,14 +13,15 @@ public sealed class CogniCustosRuntime
     private readonly ToolRegistry _registry;
 
     private CogniCustosRuntime(string root, SandboxStore sandbox, ApprovalGate gate, SqliteTaskStore tasks,
-        SqliteScheduleStore schedule, KeywordKnowledgeBase knowledge, ToolRegistry registry, ModelRouter models,
-        SelfDocs selfDocs, ISensitiveContentChecker checker, IOutboundAudit audit)
+        SqliteScheduleStore schedule, IRawStore raw, KeywordKnowledgeBase knowledge, ToolRegistry registry,
+        ModelRouter models, SelfDocs selfDocs, ISensitiveContentChecker checker, IOutboundAudit audit)
     {
         Root = root;
         Sandbox = sandbox;
         Gate = gate;
         Tasks = tasks;
         Schedule = schedule;
+        Raw = raw;
         Knowledge = knowledge;
         _registry = registry;
         Models = models;
@@ -34,6 +35,9 @@ public sealed class CogniCustosRuntime
     public IApprovalGate Gate { get; }
     public ITaskStore Tasks { get; }
     public IScheduleStore Schedule { get; }
+
+    /// <summary>The information side: what was fetched, byte for byte, append only.</summary>
+    public IRawStore Raw { get; }
     public IKnowledgeBase Knowledge { get; }
     public IModelRouter Models { get; }
     public ISelfDocs SelfDocs { get; }
@@ -54,6 +58,7 @@ public sealed class CogniCustosRuntime
         var gate = new ApprovalGate(Path.Combine(state, "proposals.json"));
         var tasks = new SqliteTaskStore(Path.Combine(state, "cognicustos.db"));
         var schedule = new SqliteScheduleStore(tasks.DbPath);
+        var raw = new SqliteRawStore(state);
         var knowledge = new KeywordKnowledgeBase(Path.Combine(state, "knowledge.json"));
         var registry = new ToolRegistry();
         var models = new ModelRouter();
@@ -61,7 +66,7 @@ public sealed class CogniCustosRuntime
         var checker = new SensitiveContentChecker(models);
         var audit = new OutboundAudit(Path.Combine(state, "outbound-audit.jsonl"));
 
-        var rt = new CogniCustosRuntime(root, sandbox, gate, tasks, schedule, knowledge, registry, models, selfDocs, checker, audit);
+        var rt = new CogniCustosRuntime(root, sandbox, gate, tasks, schedule, raw, knowledge, registry, models, selfDocs, checker, audit);
         if (log is not null) rt.Log += log;
 
         // The confirmation handler owns the only path from a proposal to the real stores.
@@ -71,7 +76,9 @@ public sealed class CogniCustosRuntime
             var title = doc.RootElement.GetProperty("title").GetString() ?? "";
             var due = doc.RootElement.TryGetProperty("due", out var d) ? d.GetString() : null;
             var level = doc.RootElement.TryGetProperty("level", out var l) ? l.GetString() : "short";
-            var id = tasks.AddPlannedAsync(title, string.IsNullOrWhiteSpace(due) ? null : due, SqliteTaskStore.NormalizeLevel(level), null)
+            if (!SqliteTaskStore.TryNormalizeLevel(level, out var normalized))
+                return ToolResult.Fail($"unknown level '{level}' (expected long | mid | short)");
+            var id = tasks.AddPlannedAsync(title, string.IsNullOrWhiteSpace(due) ? null : due, normalized, null)
                 .GetAwaiter().GetResult();
             return ToolResult.Ok0($"task #{id} added: {title}");
         });
@@ -102,8 +109,10 @@ public sealed class CogniCustosRuntime
             var level = doc.RootElement.TryGetProperty("level", out var l) ? l.GetString() : "short";
             int? parent = doc.RootElement.TryGetProperty("parentId", out var p) && p.ValueKind == JsonValueKind.Number
                 ? p.GetInt32() : null;
+            if (!SqliteTaskStore.TryNormalizeLevel(level, out var normalized))
+                return ToolResult.Fail($"unknown level '{level}' (expected long | mid | short)");
             var id = tasks.AddPlannedAsync(title, string.IsNullOrWhiteSpace(due) ? null : due,
-                SqliteTaskStore.NormalizeLevel(level), parent).GetAwaiter().GetResult();
+                normalized, parent).GetAwaiter().GetResult();
             return ToolResult.Ok0($"plan item #{id} added ({level}): {title}");
         });
 
