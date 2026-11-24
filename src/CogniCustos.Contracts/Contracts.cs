@@ -187,6 +187,9 @@ public interface IRawStore
     IReadOnlyList<RawArtifact> SearchSummaries(string query, int limit = 10);
     /// <summary>Application-only path to the bytes; no tool is allowed to expose this.</summary>
     string? ReadText(string id);
+
+    /// <summary>Application-only status change (kept / accepted / expired).</summary>
+    bool SetStatus(string id, string status);
 }
 
 public sealed record KnowledgeHit(string Source, string Snippet, double Score);

@@ -348,3 +348,54 @@ dotnet run --project src/CogniCustos.Selftest -c Debug     # passed=60
 - 判定器还没接进 `ChatAsync`：现在只有应用侧能调（`rt.Judge`），对话里不会主动提"我发现一份相关材料"。
 - 用户"确认收录"到知识库的入口还没有（现在只有 `kb.index` 建议 + 确认这条路径）。
 - 概要是"前 200 字"的确定性降级，接内置本地模型后会换成真摘要（`summary_kind=model`）。
+
+---
+
+## 2026-11-25 · P3 判定进对话 + 用户自己收录
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 对话里提一句 | `ChatAsync` 现在先跑一次判定：取「未被收录」的原始材料，命中相关的（最多 2 条）就在回答前加一行——`（未确认材料，未进入上下文）#id「标题」类别 —— 要确认后我再用吗？`。**只有句柄与标题，不带摘要或正文**。 |
+| 用户收录通道 | `rt.AcceptRawAsync(id)`（应用侧，不是工具）：应用读字节 → 写知识库（`source = "raw:<id>"`）→ 把该条目状态标成 `accepted` → 记一条沙箱思考。 |
+| 收录后不再追问 | 判定只针对 `status != accepted` 的条目；已收录的不会再被当作"未确认材料"提起（断言精确到 **这个 id 不再出现**，其他未确认材料仍可被提）。 |
+| 状态可写 | `IRawStore.SetStatus(id, status)`，`raw_artifacts.status` 从 `kept` 走向 `accepted`（保留策略以后用同一列）。 |
+
+### 2. 为什么（对应条款）
+
+- §3.2「判定对话只回裁决与句柄」→ 主对话拿到的是一行提示，不是材料。
+- §3.3「三种同意：发现 / 读取 / 确认」→ 发现 = `raw.search`；确认 = `AcceptRawAsync`；中间那次读取由应用直接做，不经过模型。
+- §6.6「删除原始条目不影响已确认的事实」→ 收录时把文本复制进知识库，之后原始字节可以清理。
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | `ChatAsync` 前置提示；`AcceptRawAsync`；`MaterialNotice` |
+| `src/CogniCustos.Contracts/Contracts.cs` | `IRawStore.SetStatus` |
+| `src/CogniCustos.Core/RawStore.cs` | 实现 `SetStatus` |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 4 条断言（60 → 64） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug     # passed=64
+```
+
+断言覆盖：相关问题会看到"未确认材料 + #id + 标题"且**不引用正文**；无关问题没有提示；
+`AcceptRawAsync` 之后知识库能按 `raw:<id>` 检索到、状态变 `accepted`、该 id 不再被提；未知 id 失败。
+
+### 5. 以后要改哪里
+
+- **判定换成模型**：实现新的 `IJudge`（输入仍只有标题 + 概括），替换 `CogniCustosRuntime` 里 `new KeywordJudge()`；
+  **不要**给 `JudgeVerdict` 加"摘要"字段，否则提示里迟早会把正文带出来。
+- **提示文案/位置**：改 `MaterialNotice` 一处即可；若以后要在 UI 里做成卡片，把返回的 id 列表暴露给 ViewModel，
+  不要在这里拼界面文案。
+- **用户收录入口做成界面**：接 `rt.AcceptRawAsync(id)`，卡片上「确认收录」按钮即可；原始字节由应用读，不用过模型。
+
+### 6. 已知未做
+
+- 判定仍是关键词/字符重合（`KeywordJudge`），中文短问题容易误命中——这就是"接内置模型"那一轮要替换的东西。
+- 界面上还没有"未确认材料"列表与"确认收录"按钮（数据与 API 已就绪）。
+- 概要是前 200 字降级；`accept` 之后知识库里存的仍是原文，将来接模型后可换成结构化摘要。

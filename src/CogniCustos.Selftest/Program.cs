@@ -735,6 +735,49 @@ internal static class Program
                    && second is not null && second.Relevant;
         });
 
+        // ---------- P3: the notice and the user's own acceptance ----------
+
+        await Check("chat: a relevant unconfirmed material is mentioned by handle, not quoted", async () =>
+        {
+            var artifact = rt.Raw.Put("calendar", "portal.usm.my",
+                "考试周：2027-04-06 至 2027-04-10，具体安排见附件。", "2027 考试周（未确认）");
+
+            var reply = await rt.ChatAsync("考试周是什么时候");
+            var mentioned = reply.Contains("未确认材料") && reply.Contains("#" + artifact.Id) && reply.Contains("考试周");
+            var noBody = !reply.Contains("具体安排见附件");
+
+            return mentioned && noBody;
+        });
+
+        await Check("chat: an unrelated question gets no notice", async () =>
+        {
+            var reply = await rt.ChatAsync("今天心情不错");
+            return !reply.Contains("未确认材料");
+        });
+
+        await Check("accept: the user can turn raw material into confirmed knowledge", async () =>
+        {
+            var artifact = rt.Raw.Put("calendar", "manual", "确认后才进知识库：2027-05-01 是校庆日。", "校庆日");
+
+            var accepted = await rt.AcceptRawAsync(artifact.Id);
+            var hits = await rt.Knowledge.SearchAsync("校庆日");
+            var stored = rt.Raw.Get(artifact.Id)!;
+            var reply = await rt.ChatAsync("校庆日是哪天");
+
+            // other unconfirmed material may legitimately still be mentioned; what must
+            // stop is this artifact being offered as unconfirmed
+            return accepted.Ok
+                   && stored is not null && stored.Status == "accepted"
+                   && hits.Any(h => h.Source == "raw:" + artifact.Id)
+                   && !reply.Contains("#" + artifact.Id);
+        });
+
+        await Check("accept: an unknown id fails cleanly", async () =>
+        {
+            var result = await rt.AcceptRawAsync("999999");
+            return !result.Ok && result.Content.Contains("no raw material");
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

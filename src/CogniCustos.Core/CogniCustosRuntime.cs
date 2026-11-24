@@ -179,7 +179,58 @@ public sealed class CogniCustosRuntime
         Log?.Invoke($"tool registered: {tool.Describe().Name}");
     }
 
+    /// <summary>
+    /// Answer, but first say whether unconfirmed material looks relevant
+    /// (docs/PARTITION-MODEL.md §3.2: the main conversation gets a verdict and a handle,
+    /// never the material itself).
+    /// </summary>
     public async Task<string> ChatAsync(string userMessage, CancellationToken ct = default)
+    {
+        var notice = MaterialNotice(userMessage);
+        var answer = await ChatCoreAsync(userMessage, ct).ConfigureAwait(false);
+        return notice is null ? answer : notice + "\n\n" + answer;
+    }
+
+    /// <summary>
+    /// The "确认收录" path that belongs to the user, not the model: the original is read by
+    /// the application, indexed as confirmed material, and its status becomes accepted.
+    /// </summary>
+    public async Task<ToolResult> AcceptRawAsync(string artifactId, CancellationToken ct = default)
+    {
+        var artifact = Raw.Get(artifactId);
+        if (artifact is null) return ToolResult.Fail($"no raw material #{artifactId}");
+
+        var text = Raw.ReadText(artifactId);
+        if (string.IsNullOrWhiteSpace(text)) return ToolResult.Fail($"raw #{artifactId} has no readable bytes");
+
+        await Knowledge.IndexAsync("raw:" + artifact.Id, text, ct).ConfigureAwait(false);
+        Raw.SetStatus(artifact.Id, "accepted");
+        await Sandbox.AppendThoughtAsync($"accepted raw #{artifact.Id} into the knowledge base", ct).ConfigureAwait(false);
+
+        return ToolResult.Ok0($"raw #{artifact.Id} 已确认为知识库资料（{text.Length} 字）");
+    }
+
+    private string? MaterialNotice(string question)
+    {
+        if (string.IsNullOrWhiteSpace(question) || Raw.List(1).Count == 0) return null;
+
+        // once the user accepted a piece it lives in the knowledge base; do not keep
+        // asking about it as if it were still unconfirmed
+        var unconfirmed = Raw.List(20).Where(a => a.Status != "accepted").ToList();
+        if (unconfirmed.Count == 0) return null;
+
+        var hits = Judge.Find(question, unconfirmed)
+            .Where(v => v.Relevant)
+            .Take(2)
+            .ToList();
+
+        if (hits.Count == 0) return null;
+
+        var handles = string.Join("；", hits.Select(h => $"#{h.ArtifactId}「{h.Title}」{h.Category}"));
+        return $"（未确认材料，未进入上下文）{handles} —— 要确认后我再用吗？";
+    }
+
+    private async Task<string> ChatCoreAsync(string userMessage, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(userMessage)) return "";
         await Sandbox.AppendThoughtAsync("user: " + userMessage, ct).ConfigureAwait(false);

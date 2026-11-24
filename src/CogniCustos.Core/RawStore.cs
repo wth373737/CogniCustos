@@ -101,6 +101,18 @@ public sealed class SqliteRawStore : IRawStore
         return ReadAll(cmd);
     }
 
+    public bool SetStatus(string id, string status)
+    {
+        if (!int.TryParse(id, out var key)) return false;
+
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE raw_artifacts SET status = $s WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$s", status);
+        cmd.Parameters.AddWithValue("$id", key);
+        return cmd.ExecuteNonQuery() > 0;
+    }
+
     /// <summary>The bytes are readable by the application only, never by a retrieval tool.</summary>
     public string? ReadText(string id)
     {
