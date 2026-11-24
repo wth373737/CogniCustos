@@ -425,8 +425,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         Settings.Model.AdvancedRequested += () =>
             ShowInfoDialog("Settings.Model.AdvancedTitle", "Settings.Model.AdvancedPending");
-        Settings.Model.CheckRequested += () =>
-            ShowInfoDialog("Settings.Model.CheckTitle", "Settings.Model.CheckPending");
+        Settings.Model.CheckRequested += () => _ = CheckLocalModelAsync();
         Settings.Model.AddRequested += () =>
             ShowInfoDialog("Settings.Model.AddTitle", "Settings.Model.AddPending");
         Settings.Model.DeleteRequested += AskRemoveLocalModel;
@@ -537,8 +536,60 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     private void ConfirmRemoveLocalModel()
     {
-        Settings.Model.RemoveLocalModel();
+        if (_source.DeleteBuiltIn(out var message) is { } failure)
+        {
+            SetToast(failure);
+            FinishDialog();
+            return;
+        }
+
+        Settings.Model.SetLocalStatus(_source.LocalModelStatus());
+        SetToast(message);
         FinishDialog();
+    }
+
+    /// <summary>
+    /// Check: install the bundled model when it is missing (with progress), then switch to
+    /// it. Downloading is I/O, so it runs off the UI thread; every completion comes back
+    /// through the dispatcher.
+    /// </summary>
+    private async Task CheckLocalModelAsync()
+    {
+        Settings.Model.BeginInstall();
+
+        var progress = new Progress<double>(fraction =>
+            Dispatcher.UIThread.Post(() => Settings.Model.ReportInstallProgress(fraction)));
+
+        string? failure;
+        try
+        {
+            failure = await Task.Run(() => _source.InstallBuiltIn(progress));
+        }
+        catch (Exception ex)
+        {
+            failure = ex.Message;
+        }
+
+        Settings.Model.EndInstall();
+
+        if (failure is not null)
+        {
+            Settings.Model.EndInstallBusy();
+            SetToast(failure);
+            return;
+        }
+
+        var switchFailure = _source.SwitchToBuiltIn();
+        Settings.Model.EndInstallBusy();
+
+        if (switchFailure is not null)
+        {
+            SetToast(switchFailure);
+            return;
+        }
+
+        Settings.Model.SetLocalStatus(_source.LocalModelStatus());
+        SetToast(_source.LocalModelStatus());
     }
 
     private void ConfirmIncoming() => AcceptPlan(_dialogItem?.When ?? string.Empty, _dialogItem?.Title ?? string.Empty);

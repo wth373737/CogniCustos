@@ -545,8 +545,8 @@ internal static class Program
             vm.Dialog.Buttons.First(button => button.Primary).Command.Execute(null);
             Pump();
             Check(!vm.Dialog.IsOpen, "the dialog stayed open after deleting");
-            Check(vm.Settings.Model.LocalModelName == Localizer.Get("Settings.Model.LocalModelNone"),
-                "the local model was not removed");
+            Check(vm.Settings.Model.LocalStatus.Length > 0, "the row lost its status after deleting");
+            Check(vm.Toast.Length > 0, "deleting did not report anything");
         });
 
         Test("model_form_labels_follow_the_language", (vm, _) =>
@@ -599,6 +599,27 @@ internal static class Program
 
             Check(shell.Settings.Model.IsOllamaWindowOpen, "a refused switch closed the window");
             Check(shell.Toast.Contains("refused"), $"the refusal was not shown: '{shell.Toast}'");
+        });
+
+        Test("check_downloads_the_model_and_updates_the_row", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Settings.Model.CheckCommand.Execute(null);
+            for (var i = 0; i < 12; i++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                System.Threading.Thread.Sleep(16);
+            }
+
+            Check(source.InstallCalls == 1, $"Check did not ask the store to install (calls={source.InstallCalls})");
+            Check(!shell.Settings.Model.IsBusy, "the row stayed busy after installing");
+            Check(!shell.Settings.Model.HasInstallNote,
+                $"progress text was left behind: '{shell.Settings.Model.InstallNote}'");
+            Check(shell.Settings.Model.LocalStatus.Contains("qwen2.5:7b"),
+                $"the row does not show the installed model: '{shell.Settings.Model.LocalStatus}'");
         });
 
         // ---- reasoning record list and thought trace (two independent entries) ----
@@ -1172,6 +1193,23 @@ internal sealed class RecordingSource : IShellDataSource
 
     public string LocalModelStatus() => "qwen2.5:7b（内置）";
 
+    public int InstallCalls { get; private set; }
+
+    public string? InstallBuiltIn(IProgress<double> progress)
+    {
+        InstallCalls++;
+        progress.Report(0.5);
+        return null;
+    }
+
+    public string? DeleteBuiltIn(out string message)
+    {
+        message = "已删除";
+        return null;
+    }
+
+    public string? SwitchToBuiltIn() => null;
+
     public List<string> OllamaSwitches { get; } = [];
 
     public string? EnableOllama(string model)
@@ -1208,4 +1246,14 @@ internal sealed class RefusingSource : IShellDataSource
     public string LocalModelStatus() => "未安装本地模型";
 
     public string? EnableOllama(string model) => "refused by the store";
+
+    public string? InstallBuiltIn(IProgress<double> progress) => "download refused";
+
+    public string? DeleteBuiltIn(out string message)
+    {
+        message = string.Empty;
+        return "delete refused";
+    }
+
+    public string? SwitchToBuiltIn() => "switch refused";
 }

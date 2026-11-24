@@ -148,6 +148,24 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         return ok ? null : message;
     }
 
+    public string? InstallBuiltIn(IProgress<double> progress)
+    {
+        var (ok, message) = _rt.LocalModels.InstallBuiltInAsync(progress).GetAwaiter().GetResult();
+        return ok ? null : message;
+    }
+
+    public string? DeleteBuiltIn(out string message)
+    {
+        var ok = _rt.LocalModels.DeleteBuiltIn(out message);
+        return ok ? null : message;
+    }
+
+    public string? SwitchToBuiltIn()
+    {
+        var (ok, message) = _rt.SwitchToBuiltIn();
+        return ok ? null : message;
+    }
+
     public async Task<string?> AskAsync(string instruction)
     {
         var answer = await _rt.ChatAsync(instruction);

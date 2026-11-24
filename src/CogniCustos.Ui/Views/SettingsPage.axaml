@@ -167,6 +167,7 @@
                 <TextBlock Text="{Binding Settings.Model.LocalStatus}" FontSize="13" Margin="0,0,12,0"
                            Foreground="#FF2B2B32" VerticalAlignment="Center" />
                 <Button Grid.Column="1" Classes="chip" Margin="0,0,8,0"
+                        IsEnabled="{Binding Settings.Model.IsIdle}"
                         Command="{Binding Settings.Model.CheckCommand}">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <TextBlock Text="{Binding Settings.Model.CheckLabel}" FontSize="12.5" />
@@ -174,11 +175,16 @@
                   </StackPanel>
                 </Button>
                 <Button Grid.Column="2" Classes="danger" Margin="0,0,14,0"
+                        IsEnabled="{Binding Settings.Model.IsIdle}"
                         Content="{Binding Settings.Model.DeleteLabel}"
                         Command="{Binding Settings.Model.DeleteCommand}" />
                 <TextBlock Grid.Column="3" Text="{Binding Settings.Model.LocalModelNote}" FontSize="12"
                            TextWrapping="Wrap" Foreground="#FF6D7C79" />
               </Grid>
+
+              <TextBlock Text="{Binding Settings.Model.InstallNote}" FontSize="12"
+                         IsVisible="{Binding Settings.Model.HasInstallNote}"
+                         Foreground="#FF3C4A47" Margin="0,2,0,0" />
 
               <Button Classes="chipGhost" HorizontalAlignment="Left" Margin="0,6,0,0"
                       Command="{Binding Settings.Model.OpenOllamaCommand}"

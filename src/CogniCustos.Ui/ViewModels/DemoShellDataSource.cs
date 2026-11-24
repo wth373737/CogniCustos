@@ -52,4 +52,18 @@ public sealed class DemoShellDataSource : IShellDataSource
     public string LocalModelStatus() => "qwen2.5:7b（内置）";
 
     public string? EnableOllama(string model) => null;
+
+    public string? InstallBuiltIn(IProgress<double> progress)
+    {
+        progress.Report(1);
+        return null;
+    }
+
+    public string? DeleteBuiltIn(out string message)
+    {
+        message = "已删除内置模型（演示）";
+        return null;
+    }
+
+    public string? SwitchToBuiltIn() => null;
 }

@@ -128,6 +128,53 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         private set => Set(ref _localStatus, value);
     }
 
+    private string _installNote = string.Empty;
+    private bool _busy;
+
+    /// <summary>"下载中 42%" while the bundled model installs; empty otherwise.</summary>
+    public string InstallNote
+    {
+        get => _installNote;
+        private set
+        {
+            if (!Set(ref _installNote, value)) return;
+            OnPropertyChanged(nameof(HasInstallNote));
+        }
+    }
+
+    public bool HasInstallNote => _installNote.Length > 0;
+
+    /// <summary>Disables Check/Delete while a download is running.</summary>
+    public bool IsBusy
+    {
+        get => _busy;
+        private set
+        {
+            if (!Set(ref _busy, value)) return;
+            OnPropertyChanged(nameof(IsIdle));
+        }
+    }
+
+    public bool IsIdle => !_busy;
+
+    public void BeginInstall()
+    {
+        IsBusy = true;
+        InstallNote = Localizer.Get("Settings.Model.Installing");
+    }
+
+    public void ReportInstallProgress(double fraction)
+    {
+        // progress callbacks can arrive after the install finished (they are posted);
+        // do not resurrect the note once the row is idle again
+        if (!IsBusy) return;
+        InstallNote = $"{Localizer.Get("Settings.Model.Downloading")} {fraction * 100:0}%";
+    }
+
+    public void EndInstall() => InstallNote = string.Empty;
+
+    public void EndInstallBusy() => IsBusy = false;
+
     public void SetLocalStatus(string status) => LocalStatus = status;
 
     /// <summary>The shell reports back after trying to switch.</summary>
@@ -163,5 +210,7 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         OnPropertyChanged(nameof(OllamaWindowNote));
         OnPropertyChanged(nameof(OllamaEnableLabel));
         OnPropertyChanged(nameof(CancelLabel));
+        OnPropertyChanged(nameof(InstallNote));
+        if (IsBusy) InstallNote = Localizer.Get("Settings.Model.Installing");
     }
 }

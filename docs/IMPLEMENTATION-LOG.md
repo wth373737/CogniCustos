@@ -579,3 +579,59 @@ samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --model-check
 
 - 设置页还没有"硬件加速"开关（现在只有命令行 `--gpu`）；GPU 用户的显存/驱动探测也没做。
 - Vulkan 包让示例输出目录多 ~52 MB；发布时应按用户环境选择包，而不是全部带上。
+
+---
+
+## 2026-11-25 · LM-UI 设置页的 Check / Delete 接到真下载与真删除
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 接缝 | `IShellDataSource` 新增 `InstallBuiltIn(IProgress<double>)`、`DeleteBuiltIn(out string message)`、`SwitchToBuiltIn()`；UI 仍不引用 Core。 |
+| Check | 真下载（缺模型时）→ 校验 → 切到内置。下载在 `Task.Run` 上跑，进度经 `Progress<double>` + `Dispatcher.UIThread.Post` 回到界面；下载期间 Check/Delete 置灰，行下方显示"下载中 N%"。 |
+| Delete | 走 `LocalModels.DeleteBuiltIn`（真删 `<root>/models/builtin`），结果（释放多少 MB / 没有可删）进状态栏；删完刷新行状态。 |
+| 语言 | 新增 `Settings.Model.Installing` / `Downloading` 两条资源。 |
+| 示例 | `RuntimeShellDataSource` 直接把三个成员接到 `rt.LocalModels` / `rt.SwitchToBuiltIn`。 |
+
+### 2. 踩到并修掉的一个时序 bug
+
+进度回调是 **post** 到 UI 线程的，可能在"安装结束、已经清空提示"之后才到达，于是行下留下 `Downloading 50%`。
+修法：`ReportInstallProgress` 在 `!IsBusy` 时直接忽略——晚到的进度不允许把空闲状态重新点亮。
+
+另有一处 XAML 事故：进度文字被插到了 Ollama 那个 `Button` 里面，导致按钮有了两个 Content，Avalonia 直接报
+`AVLN3000 ... multiple assignments to the property Content`，整包 XAML 编译失败（表现是测试宿主
+"No precompiled XAML found"）。已把文字移到按钮外。
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Ui/ViewModels/IShellDataSource.cs` | 三个新成员 |
+| `src/CogniCustos.Ui/ViewModels/DemoShellDataSource.cs` | 演示实现（下载"瞬间完成"） |
+| `src/CogniCustos.Ui/ViewModels/ModelConfigurationViewModel.cs` | `InstallNote` / `IsBusy` / `ReportInstallProgress` / `CompleteOllamaSwitch` |
+| `src/CogniCustos.Ui/ViewModels/ShellViewModel.cs` | `CheckLocalModelAsync`、删除改走数据源 |
+| `src/CogniCustos.Ui/Views/SettingsPage.axaml` | 进度行、忙碌置灰 |
+| `samples/CogniCustos.Sample/RuntimeShellDataSource.cs` | 接真实现 |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 1 条（60 → 61） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project tools/CogniCustos.Ui.Tests -c Debug    # ALL PASS（61）
+dotnet run --project src/CogniCustos.Selftest -c Debug      # passed=70
+```
+
+新增断言：点 Check 会让数据源执行安装、期间忙碌、结束后提示消失、行上显示已安装的模型名。
+
+### 5. 以后要改哪里
+
+- **换下载源/加校验**：只改 `BuiltInModelInstaller`（`DownloadUrl`、`ExpectedBytes`、`model.json` 里的 sha256）。
+- **给 Check 加"检测硬件推荐模型"**：在 `CheckLocalModelAsync` 里先调探测器，选好 `ModelFileName` 再 download；
+  界面已有进度位，不需要新控件。
+- **下载可取消**：`InstallBuiltInAsync` 已接受 `CancellationToken`，只需把界面的取消按钮接到它。
+
+### 6. 已知未做（我记录里剩下的两件）
+
+1. **摘要仍同步**：`Raw.Put` 走模型摘要时会阻塞约 0.6 s；批量抓取应改为后台队列（下一步）。
+2. **判定器仍是关键词版**：`IJudge` 的模型实现还没做（再下一步）。

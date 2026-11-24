@@ -37,4 +37,13 @@ public interface IShellDataSource
     /// refused. Choosing this path is expected to free the bundled model.
     /// </summary>
     string? EnableOllama(string model);
+
+    /// <summary>Download the bundled model if missing. Null on success, else the reason.</summary>
+    string? InstallBuiltIn(IProgress<double> progress);
+
+    /// <summary>Delete the bundled model's files. Null on success, else the reason.</summary>
+    string? DeleteBuiltIn(out string message);
+
+    /// <summary>Switch to the bundled model. Null on success, else the reason.</summary>
+    string? SwitchToBuiltIn();
 }
