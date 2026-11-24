@@ -68,3 +68,52 @@ dotnet run --project samples/CogniCustos.Sample -- --check  # 小样链路仍通
 - 提议（`proposals.json`）还没进数据库，变更集与原子应用未做 → §6.2 仍不满足。
 - `sandbox_entries` 只有表，`SandboxStore` 还在写 `SANDBOX.md` 整节覆盖 → §6.7 未满足。
 - 详情卡片的人话渲染仍只覆盖 `schedule.add` → §6.4 未满足。
+
+---
+
+## 2026-11-24 · P0-2 沙箱条目化（SANDBOX.md 变成导出视图）
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 条目化存储 | `SandboxStore` 接数据库：每次写入在 `sandbox_entries` 插一行（`section / kind / text / created_at / source_ref / status`），**旧条目永不覆盖**。 |
+| 文档降级为视图 | `SANDBOX.md` 仍在写，但内容改为「每个 section 取最新一条」的渲染结果 —— 是**导出/便于人看**，不是数据源。 |
+| 思考也条目化 | `AppendThoughtAsync` 除了追加 `THOUGHTS.md`，同时记一条 `kind='thought'` 的条目。 |
+| 新增应用内 API | `AppendEntryAsync(section, kind, text, sourceRef)` 与 `Entries(section, limit)`：前者给将来的"记录发现"用，后者给应用读（**都不是工具**，AI 看不到）。 |
+| 构造参数 | `SandboxStore(root, dbPath?)`：不传 dbPath 时保持旧的纯文件行为（测试与外部调用不受影响）。 |
+
+### 2. 为什么（对应条款）
+
+- §6.7「沙箱整节覆盖可能丢失早期判断」→ 每次写入留一行 + 时间戳，`SANDBOX.md` 只呈现最新态。
+- §1.2「沙箱：AI 自由写；用户可读、可改」→ 旧判断仍可查（`Entries`），用户干预可以另开条目标记。
+- §2.1「结构性关闭」→ `SandboxStore` 只提供插入，没有 update/delete。
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/SandboxStore.cs` | 重写：条目化 + 导出视图 + `AppendEntryAsync` / `Entries` |
+| `src/CogniCustos.Contracts/Contracts.cs` | 新增 `SandboxEntry` 记录 |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | 构造 sandbox 时传入同一个数据库路径 |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 2 条断言（43 → 45） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug     # 期望 passed=45 failed=0
+```
+
+新增断言覆盖：同一 section 写两次 = 两条条目、顺序与新→旧、时间戳递增、文件只含最新版；
+思考条目 `kind='thought'`。原有"sandbox 写读一节""拒绝未知 section"两条仍然通过。
+
+### 5. 以后要改哪里
+
+- **加 section**：只改 `SandboxStore.Sections` 数组；`Render`/`Parse` 会自动覆盖。注意 `CogniCustosRuntime` 的自文档里提到 section 名，需同步。
+- **给条目加字段**（例如"是否已被用户干预"）：`SqliteSchema.Version` +1，加一列；读取集中在 `Entries` 与 `Record` 两处。
+- **换成条目浏览 UI**：`Entries(section)` 已经是现成数据源，直接给 ViewModel 用；不要再解析 Markdown。
+
+### 6. 已知未做
+
+- 用户干预（用户改沙箱）还没有单独标记入口 —— 计划在 P1 里给 `AppendEntryAsync` 传 `kind='intervention'`。
+- 提议（`proposals.json`）仍未进数据库：变更集与原子应用是下一步（P0-3）。

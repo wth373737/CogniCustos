@@ -297,7 +297,7 @@
 | 区 | 现状（2026-11-24 P0-1 之后） |
 |---|---|
 | 主数据库 | 有。SQLite `tasks` + `schedule_blocks`；**已有迁移框架**（`PRAGMA user_version`）；**每行已有四问列**（partition/author/source_ref/representation）。仍无课程表、无校历事实表、无外键索引 |
-| 沙箱 | 有雏形，仍是 `SANDBOX.md` 单文件整节覆盖；`sandbox_entries` 表已建但写入路径未接（无条目化/时间戳/来源） |
+| 沙箱 | **已条目化**（`sandbox_entries`，带时间戳/来源/状态）；`SANDBOX.md` 降为"最新一条"的导出视图。仍未标记用户干预、未接进卡片的条目浏览 |
 | 知识库 | 占位。`KeywordKnowledgeBase`，关键词打分，无分段、无向量、无元数据、无溯源 |
 | 原始数据库 | **已有**。内容寻址（sha256 去重）+ 字节文件 + `raw_artifacts` 表 + 离线可用的 R1 概括；检索只到概括层。抓取器（门户/邮件）仍**未写入**它 |
 

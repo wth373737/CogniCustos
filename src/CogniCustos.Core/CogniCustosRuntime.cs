@@ -54,7 +54,8 @@ public sealed class CogniCustosRuntime
         var state = Path.Combine(root, "state");
         Directory.CreateDirectory(state);
 
-        var sandbox = new SandboxStore(Path.Combine(root, "sandbox"));
+        // itemised storage lives in the same database as the main tables
+        var sandbox = new SandboxStore(Path.Combine(root, "sandbox"), Path.Combine(state, "cognicustos.db"));
         var gate = new ApprovalGate(Path.Combine(state, "proposals.json"));
         var tasks = new SqliteTaskStore(Path.Combine(state, "cognicustos.db"));
         var schedule = new SqliteScheduleStore(tasks.DbPath);

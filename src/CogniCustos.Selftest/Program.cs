@@ -449,6 +449,34 @@ internal static class Program
             return rejected && !result.Ok && result.Content.Contains("level");
         });
 
+        // ---------- P0-2: the sandbox is itemised, the markdown is an export ----------
+
+        await Check("sandbox: two writes of the same section are two entries, the file keeps the latest", async () =>
+        {
+            await rt.Sandbox.WriteSectionAsync("notes", "第一版判断");
+            await Task.Delay(5);
+            await rt.Sandbox.WriteSectionAsync("notes", "第二版判断，修正了第一版");
+
+            var store = (SandboxStore)rt.Sandbox;
+            var entries = store.Entries("notes");
+            var file = await File.ReadAllTextAsync(store.DocumentPath);
+
+            return entries.Count >= 2
+                   && entries[0].Text.Contains("第二版")
+                   && entries[1].Text.Contains("第一版")
+                   && entries[0].CreatedAt >= entries[1].CreatedAt
+                   && file.Contains("第二版判断")
+                   && !file.Contains("第一版判断");
+        });
+
+        await Check("sandbox: a thought is recorded as its own entry", async () =>
+        {
+            await rt.Sandbox.AppendThoughtAsync("thinking about the calendar import");
+            var store = (SandboxStore)rt.Sandbox;
+            var thoughts = store.Entries("thoughts");
+            return thoughts.Count >= 1 && thoughts[0].Kind == "thought";
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

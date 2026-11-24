@@ -115,6 +115,16 @@ public interface IScheduleStore
     Task<IReadOnlyList<ScheduleBlock>> ListRangeAsync(string fromDate, string toDate, CancellationToken ct = default);
 }
 
+/// <summary>One itemised sandbox write: never overwritten, always timestamped.</summary>
+public sealed record SandboxEntry(
+    int Id,
+    string Section,
+    string Kind,
+    string Text,
+    DateTimeOffset CreatedAt,
+    string? SourceRef,
+    string Status);
+
 /// <summary>One fetched artifact in the raw store: low trust, append only, never citable.</summary>
 public sealed record RawArtifact(
     string Id,
