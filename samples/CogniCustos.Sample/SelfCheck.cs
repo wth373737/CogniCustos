@@ -1,3 +1,4 @@
+using CogniCustos.Contracts;
 using CogniCustos.Core;
 using CogniCustos.Ui.ViewModels;
 
@@ -51,7 +52,22 @@ internal static class SelfCheck
 
             Console.WriteLine($"approve  : blocks {before} -> {after}, pending left {stillPending}");
 
-            var ok = after == before + 1 && stillPending == 0;
+            // a two-landing-point set must show up as two rows on the incoming card
+            runtime.Gate.ProposeSet("two lands", "card shows one row per landing point", new[]
+            {
+                new Change("tasks.add", """{"title":"row one","due":"2026-12-24","level":"short"}"""),
+                new Change("schedule.add", """{"date":"2026-12-24","start":"10:00","end":"11:00","title":"row two"}"""),
+            });
+
+            var setRows = source.PendingCard().Items;
+            var multiOk = setRows.Count >= 2
+                          && setRows.Any(row => row.Title.Contains("row one"))
+                          && setRows.Any(row => row.Title.Contains("row two"))
+                          && setRows.Any(row => row.When is not null && row.When.Contains("共 2 处写入"));
+
+            Console.WriteLine($"card rows: {setRows.Count} (multi landing point: {multiOk})");
+
+            var ok = after == before + 1 && stillPending == 0 && multiOk;
             Console.WriteLine(ok ? "OK: confirm wrote through the approval gate" : "CHECK FAIL");
             return ok ? 0 : 1;
         }

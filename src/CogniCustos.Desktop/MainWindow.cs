@@ -59,7 +59,7 @@ public sealed class MainWindow : Window
         _rt = CogniCustosRuntime.Create(home, msg => AppendLine("[log] " + msg));
         TryWireOllama();
         TryWireCloud();
-        _rt.AddTool(new PortalSidecarTool(_settings.PortalSidecarUrl));
+        _rt.AddTool(new PortalSidecarTool(_settings.PortalSidecarUrl, _rt.Raw));
 
         _reminders = new ReminderService(_rt.Tasks, TimeSpan.FromSeconds(20));
         _reminders.ReminderRaised += text => AppendLine("🔔 " + text);

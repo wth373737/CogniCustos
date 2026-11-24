@@ -127,7 +127,7 @@ internal static class Program
 
         await Check("adapter: portal tool without a sidecar reports honestly", async () =>
         {
-            var tool = new PortalSidecarTool(null);
+            var tool = new PortalSidecarTool(null, rt.Raw);
             var r = await tool.InvokeAsync(new Dictionary<string, string> { ["url"] = "https://example.com" });
             return !r.Ok && r.Content.Contains("未配置");
         });
@@ -145,7 +145,7 @@ internal static class Program
         await Check("persistence: proposals survive a new runtime over the same root", async () =>
         {
             var rt2 = CogniCustosRuntime.Create(root);
-            rt2.AddTool(new PortalSidecarTool(null));
+            rt2.AddTool(new PortalSidecarTool(null, rt2.Raw));
             var tasks = await rt2.Tasks.ListAsync();
             return tasks.Count == 1;
         });
@@ -621,6 +621,54 @@ internal static class Program
                    && preview.Problem.Contains("预演")
                    && after.Count == before
                    && rt.Gate.Get(set.Id)!.Status == ProposalStatus.Pending;
+        });
+
+        // ---------- step 1: the fetcher writes the raw store, the model may only discover ----------
+
+        await Check("raw: list and search expose summaries, never the bytes", async () =>
+        {
+            rt.Raw.Put("portal", "https://elearning.usm.my/akp202w", "AKP202w teaching plan: test 1 on 2026-11-30, 15:00-17:00.",
+                "AKP202w Teaching Plan");
+
+            var list = await rt.Tools.InvokeAsync("raw.list", new Dictionary<string, string> { ["limit"] = "5" });
+            var search = await rt.Tools.InvokeAsync("raw.search", new Dictionary<string, string> { ["query"] = "AKP202w" });
+
+            var noByteTool = rt.Tools.Find("raw.read") is null && rt.Tools.Find("raw.get") is null;
+
+            return list.Ok && list.Content.Contains("AKP202w Teaching Plan")
+                   && search.Ok && search.Content.Contains("unconfirmed")
+                   && !search.Content.Contains("测试 1 在 2026-11-30") // the bytes are not returned
+                   && noByteTool;
+        });
+
+        await Check("portal: a successful read lands in the raw store and returns its handle", async () =>
+        {
+            var before = rt.Raw.List(50).Count;
+            var tool = new PortalSidecarTool("http://stub.invalid", rt.Raw, (url, domain) =>
+                Task.FromResult((true, """{"title":"2026-2027 Calendar","text":"Term 2 starts 2027-02-23; exam week 2027-04-06 to 2027-04-10."}""")));
+
+            var result = await tool.InvokeAsync(new Dictionary<string, string> { ["url"] = "https://portal.usm.my/calendar" });
+            var after = rt.Raw.List(50);
+
+            return result.Ok
+                   && result.Content.Contains("[raw #")
+                   && after.Count == before + 1
+                   && after[0].Title == "2026-2027 Calendar"
+                   && after[0].Source == "https://portal.usm.my/calendar"
+                   && rt.Raw.ReadText(after[0].Id)!.Contains("exam week");
+        });
+
+        await Check("portal: the same page read twice is one artifact", async () =>
+        {
+            var body = """{"title":"Same Page","text":"unchanged bytes"}""";
+            var tool = new PortalSidecarTool("http://stub.invalid", rt.Raw, (url, domain) =>
+                Task.FromResult((true, body)));
+
+            var first = await tool.InvokeAsync(new Dictionary<string, string> { ["url"] = "https://portal.usm.my/same" });
+            var second = await tool.InvokeAsync(new Dictionary<string, string> { ["url"] = "https://portal.usm.my/same" });
+
+            return first.Ok && second.Ok
+                   && ((RawArtifact)first.Data!).Id == ((RawArtifact)second.Data!).Id;
         });
 
         Console.WriteLine($"passed={_passed} failed={_failed}");

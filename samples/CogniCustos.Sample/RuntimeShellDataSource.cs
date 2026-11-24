@@ -80,7 +80,8 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         {
             var preview = _rt.Gate.Preview(proposal.Id);
 
-            for (var i = 0; i < preview.Changes.Count; i++)
+            var count = preview.Changes.Count;
+            for (var i = 0; i < count; i++)
             {
                 var change = preview.Changes[i];
                 var status = i switch
@@ -90,10 +91,11 @@ public sealed class RuntimeShellDataSource : IShellDataSource
                     _ => null,
                 };
 
-                items.Add(new CardItem(change.Line, i == 0 ? proposal.Title : string.Empty, change.Label, status)
-                {
-                    Ref = proposal.Id,
-                });
+                var head = i == 0
+                    ? (count > 1 ? $"{proposal.Title} · 共 {count} 处写入" : proposal.Title)
+                    : string.Empty;
+
+                items.Add(new CardItem(change.Line, head, change.Label, status) { Ref = proposal.Id });
             }
         }
 

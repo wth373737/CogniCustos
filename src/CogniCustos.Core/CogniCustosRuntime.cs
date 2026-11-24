@@ -140,6 +140,10 @@ public sealed class CogniCustosRuntime
         foreach (var tool in BuiltinTools.Create(sandbox, gate, tasks, knowledge, gate.Pending, () => models.All))
             registry.Register(tool);
 
+        // discovery only: the model may see that raw material exists and read its summary
+        foreach (var tool in RawTools.Create(raw))
+            registry.Register(tool);
+
         foreach (var tool in PlannerTools.Create(sandbox, gate, tasks, schedule))
             registry.Register(tool);
 

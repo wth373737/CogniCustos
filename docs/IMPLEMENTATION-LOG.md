@@ -234,3 +234,59 @@ dotnet run --project samples/CogniCustos.Sample -- --check      # 期望 OK
 - 预演还是"跑一遍再回滚"：对真实副作用（比如将来带网络的 applier）不安全，届时必须先做静态校验。
 - 卡片上仍不显示"变更集共几条"的汇总行；多落点时第一行的状态挂在第一行上。
 - 抓取器仍未接入原始区（`raw_artifacts` 目前只有测试写入）。
+
+---
+
+## 2026-11-24 · P1.5 抓取器接原始区 + 卡片汇总行
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 门户读取落原始区 | `PortalSidecarTool` 每次成功读取都先 `IRawStore.Put("portal", url, text, title)`，返回值末尾附 `[raw #id]`。同一页面读两次 = 一个 artifact（内容寻址）。 |
+| 可注入的读取器 | 构造参数新增 `IRawStore? raw` 与 `Func<url, domain, (ok, body)>? fetch`：测试可以注入假读取器，不需要真 sidecar。 |
+| 模型的发现面 | 新增两个只读工具 `raw.list`（最近条目：id/标题/来源/摘要类型/字数）与 `raw.search`（按关键词搜**摘要**）。**没有 `raw.read` / `raw.get`**：字节只能由应用读（`IRawStore.ReadText` 不在工具里）。 |
+| 卡片汇总行 | 变更集超过一处写入时，第一行标题显示 `… · 共 N 处写入`（不新增控件）。 |
+| 示例自检 | `--check` 现在还会造一个两落点变更集，断言待处理卡出现两行、且首行带"共 2 处写入"。 |
+
+### 2. 为什么（对应条款）
+
+- §1.3「外部 → 原始」这条通道原来只有"预留接口"，现在真的写入；§10 里"原始区没有写入者"不再成立（邮件仍未接）。
+- §3.1「R0 只能发现」→ 模型只见摘要；`raw.search` 的输出明确标注 "unconfirmed material"。
+- §6.6「内容寻址、同一文件自动去重」→ 门户读两次是一个 artifact。
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/RawTools.cs` | **新增**：`raw.list` / `raw.search` |
+| `src/CogniCustos.Adapters/PortalSidecarTool.cs` | 写原始区 + 可注入读取器 |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | 注册 `RawTools` |
+| `src/CogniCustos.Desktop/MainWindow.cs` | 传入 `rt.Raw` |
+| `samples/CogniCustos.Sample/RuntimeShellDataSource.cs` | 汇总行 |
+| `samples/CogniCustos.Sample/SelfCheck.cs` | 两落点卡片断言 |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 3 条断言（53 → 56） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug        # passed=56
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --check
+# 期望出现：card rows: 2 (multi landing point: True) / OK
+```
+
+断言覆盖：`raw.list`/`raw.search` 只给摘要且不存在 `raw.read`；门户读取落库并回传 handle；
+同一页面两次读取是同一个 artifact。
+
+### 5. 以后要改哪里
+
+- **接入邮件**：写一个和 `PortalSidecarTool` 同形的工具（`mail.read`），内部同样 `raw.Put("mail", ...)`；
+  **不要**直接往 `raw_artifacts` 写 SQL，走 `IRawStore` 才能保证去重与摘要一致。
+- **给抓取器加"来源时间/抓取者"**：`IRawStore.Put` 现在只有 kind/source/text/title；要加字段就扩展接口 + `SqliteSchema` v5。
+- **摘要接模型**：只改 `SqliteRawStore.Put` 的 `summary` 与 `summary_kind`（`model`），`raw.search` 无需改动。
+
+### 6. 已知未做
+
+- 邮件抓取、定时抓取、抓取失败的记录都还没做（现在只有"读一次写一次"）。
+- 原始区的保留/清理策略（§8 待定）未实现，`status` 列已预留。
+- 变更集卡片还没有"整批不可确认时置灰"的交互（现在只是把 `✗ 原因` 写在行上，按钮仍可点，点了会被门禁拒绝）。
