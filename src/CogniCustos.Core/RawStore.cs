@@ -43,6 +43,14 @@ public sealed class SqliteRawStore : IRawStore
     /// </summary>
     public Func<string, string?>? Summarizer { get; set; }
 
+    public bool BackgroundSummaries { get; set; }
+
+    public event Action<RawArtifact>? SummaryUpdated;
+
+    private readonly object _queueLock = new();
+    private readonly Queue<(string Id, string Text)> _pending = new();
+    private Task? _worker;
+
     public RawArtifact Put(string kind, string source, string text, string? title = null)
     {
         if (string.IsNullOrWhiteSpace(text)) throw new ArgumentException("nothing to store", nameof(text));
@@ -62,7 +70,7 @@ public sealed class SqliteRawStore : IRawStore
 
         var summary = FallbackSummary(text);
         var summaryKind = "fallback";
-        if (Summarizer is not null)
+        if (Summarizer is not null && !BackgroundSummaries)
         {
             try
             {
@@ -96,9 +104,88 @@ public sealed class SqliteRawStore : IRawStore
         cmd.Parameters.AddWithValue("$f", DateTimeOffset.Now.ToString("O"));
 
         var id = Convert.ToInt32(cmd.ExecuteScalar());
+
+        if (BackgroundSummaries)
+        {
+            EnqueueSummary(id.ToString(), text);
+        }
+
         return new RawArtifact(
             id.ToString(), hash, kind, source, fallbackTitle, summary, summaryKind,
             relative, text.Length, DateTimeOffset.Now, "kept", Visibility.RawSummary);
+    }
+
+    /// <summary>Queue the model summary so the caller never waits for the model.</summary>
+    private void EnqueueSummary(string id, string text)
+    {
+        if (Summarizer is null) return;
+
+        lock (_queueLock)
+        {
+            _pending.Enqueue((id, text));
+            _worker ??= Task.Run(DrainSummaries);
+        }
+    }
+
+    private async Task DrainSummaries()
+    {
+        try
+        {
+            while (true)
+            {
+                (string Id, string Text) item;
+                lock (_queueLock)
+                {
+                    if (_pending.Count == 0)
+                    {
+                        _worker = null;
+                        return;
+                    }
+
+                    item = _pending.Dequeue();
+                }
+
+                try
+                {
+                    var summarizer = Summarizer;
+                    if (summarizer is null) return;
+
+                    var text = await Task.Run(() => summarizer(item.Text)).ConfigureAwait(false);
+                    if (string.IsNullOrWhiteSpace(text)) continue;
+
+                    var trimmed = text.Trim();
+                    if (trimmed.Length > SummaryChars) trimmed = trimmed[..SummaryChars] + "…";
+
+                    if (UpdateSummary(item.Id, trimmed) is { } updated) SummaryUpdated?.Invoke(updated);
+                }
+                catch
+                {
+                    // a broken model leaves the deterministic summary in place
+                }
+            }
+        }
+        finally
+        {
+            lock (_queueLock)
+            {
+                if (_pending.Count == 0) _worker = null;
+            }
+        }
+    }
+
+    /// <summary>Replace the deterministic summary with the model's (background path).</summary>
+    private RawArtifact? UpdateSummary(string id, string summary)
+    {
+        if (!int.TryParse(id, out var key)) return null;
+
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE raw_artifacts SET summary = $s, summary_kind = 'model' WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$s", summary);
+        cmd.Parameters.AddWithValue("$id", key);
+        if (cmd.ExecuteNonQuery() == 0) return null;
+
+        return Get(id);
     }
 
     public RawArtifact? Get(string id) => int.TryParse(id, out var key) ? Read(Open(), key) : null;

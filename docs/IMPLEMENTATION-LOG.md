@@ -693,3 +693,58 @@ samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --model-check
 
 - 摘要仍是同步调用（记录里的最后一件事）。
 - 硬件加速没有做"探测：这台机器有没有可用 Vulkan/CUDA"——现在用户点了就点了，失败会在模型调用时以错误文本呈现。
+
+---
+
+## 2026-11-25 · LM-S 摘要改为后台队列（记录里的最后一件）
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 接缝 | `IRawStore` 新增 `BackgroundSummaries`（开关）与 `SummaryUpdated`（事件）。 |
+| 快路径 | `BackgroundSummaries = true` 时，`Put` 只写**降级摘要**并入库，然后把它排进队列；调用方不等模型。 |
+| 后台 | 单线程 worker：取队列 → `Task.Run(summarizer)` → 截断到 200 字 → `UPDATE ... SET summary, summary_kind='model'` → 抛 `SummaryUpdated`。队列空则退出，下次入队再起（不常驻线程）。 |
+| 容错 | 摘要器抛异常 / 返回空 → 保留降级摘要，行不丢；重复条目按内容哈希去重，不会重复排队。 |
+| 接线 | `SwitchToBuiltIn` 打开开关并接摘要器；`SwitchToOllama` 关闭并清空。 |
+
+### 2. 实测（内置模型 + Vulkan）
+
+```
+ingest     : 10 ms · fallback · 校历：2026-2027 学年第二学期 ……（降级摘要）
+background : model  · 校历：2026-2027 学年第二学期 2 月 23 日开学，4 月 6 日到 4 月 10 日为考试周。
+```
+
+入库不再被模型拖慢（原来同步时 ingress 要等 0.6 s；GPU 上也要等一次调用）。
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Contracts/Contracts.cs` | 两个新成员 |
+| `src/CogniCustos.Core/RawStore.cs` | 队列、worker、`UpdateSummary` |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | 两个切换点设置开关 |
+| `samples/CogniCustos.Sample/ModelCheck.cs` | 分别打印 ingest 与后台摘要 |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 2 条（73 → 75） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug     # passed=75
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --model-check --gpu
+# 期望：ingest 约 10 ms（fallback）；随后 background: model
+```
+
+断言覆盖：入库 < 500 ms 且摘要种类是 `fallback`；事件到达后库里变成 `model` 且内容来自模型；
+摘要器抛异常时库里仍是可用的降级摘要。
+
+### 5. 以后要改哪里
+
+- **想同步回去**：`Raw.BackgroundSummaries = false`（单条时更直观，批量时别这么干）。
+- **想批量并发**：`DrainSummaries` 目前串行（模型本身也不是并发安全的），要并发得先给每个 worker 自己的 provider 实例。
+- **摘要长度**：截断用 `SummaryChars`（200），模型提示词在 `Runtime.SwitchToBuiltIn` 里（80 字）。
+
+### 6. 已知未做
+
+- 队列没有持久化：进程退出时未完成的摘要会丢（行里留的是降级摘要，可接受）。
+- 没有"重新生成摘要"的入口。

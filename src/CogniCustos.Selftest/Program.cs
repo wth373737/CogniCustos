@@ -910,6 +910,44 @@ internal static class Program
             return verdicts.Count == 1 && verdicts[0].Relevant;
         });
 
+        await Check("raw: a background summary does not block the ingest", async () =>
+        {
+            var store = new SqliteRawStore(Path.Combine(root, "state"));
+            store.BackgroundSummaries = true;
+            store.Summarizer = text => "模型摘要（后台）：" + text[..Math.Min(12, text.Length)];
+
+            var updated = new TaskCompletionSource<RawArtifact>();
+            store.SummaryUpdated += artifact => updated.TrySetResult(artifact);
+
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var artifact = store.Put("note", "background", "后台摘要测试：这段文字会先以降级摘要入库。", "后台摘要");
+            clock.Stop();
+
+            var fast = clock.ElapsedMilliseconds < 500 && artifact.SummaryKind == "fallback";
+
+            var finished = await Task.WhenAny(updated.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+            if (finished != updated.Task) return false;
+
+            var stored = store.Get(artifact.Id)!;
+            return fast
+                   && stored.SummaryKind == "model"
+                   && stored.Summary.StartsWith("模型摘要（后台）")
+                   && updated.Task.Result.Id == artifact.Id;
+        });
+
+        await Check("raw: a failing background summariser keeps the deterministic one", async () =>
+        {
+            var store = new SqliteRawStore(Path.Combine(root, "state"));
+            store.BackgroundSummaries = true;
+            store.Summarizer = _ => throw new InvalidOperationException("model gone");
+
+            var artifact = store.Put("note", "background", "坏模型不能把已入库的摘要弄丢。", "坏模型");
+            await Task.Delay(600);
+
+            var stored = store.Get(artifact.Id)!;
+            return stored.SummaryKind == "fallback" && stored.Summary.Length > 0;
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

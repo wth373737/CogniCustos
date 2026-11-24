@@ -62,6 +62,7 @@ public sealed class CogniCustosRuntime
 
         Judge = provider is null ? new KeywordJudge() : new ModelJudge(() => provider);
 
+        Raw.BackgroundSummaries = provider is not null;
         Raw.Summarizer = provider is null
             ? null
             : text =>
@@ -81,6 +82,7 @@ public sealed class CogniCustosRuntime
         var (ok, message) = LocalModels.UseOllama(model);
         if (!ok) return (ok, message);
 
+        Raw.BackgroundSummaries = false;
         Raw.Summarizer = null;
 
         var provider = Models.All.FirstOrDefault(p => p.Id.StartsWith("ollama:", StringComparison.Ordinal));

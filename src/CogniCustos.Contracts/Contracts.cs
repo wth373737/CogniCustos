@@ -196,6 +196,16 @@ public interface IRawStore
     /// back to its deterministic summary; an ingest must never depend on a model.
     /// </summary>
     Func<string, string?>? Summarizer { get; set; }
+
+    /// <summary>
+    /// When true, <see cref="Put"/> writes the deterministic summary immediately and asks
+    /// the model afterwards, updating the row in place. Ingest stays fast; R1 still ends up
+    /// model-written.
+    /// </summary>
+    bool BackgroundSummaries { get; set; }
+
+    /// <summary>Raised after a background summary replaced the deterministic one.</summary>
+    event Action<RawArtifact>? SummaryUpdated;
 }
 
 public sealed record KnowledgeHit(string Source, string Snippet, double Score);

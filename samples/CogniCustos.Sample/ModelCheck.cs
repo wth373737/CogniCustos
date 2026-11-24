@@ -69,10 +69,27 @@ internal static class ModelCheck
         Console.WriteLine($"reply time : {askClock.Elapsed.TotalSeconds:0.0}s  ({chars} 字, {chars / Math.Max(0.1, askClock.Elapsed.TotalSeconds):0.0} 字/秒)");
         Console.WriteLine($"reply      : {reply.Trim()}");
 
-        var summaryClock = Stopwatch.StartNew();
-        var artifact = rt.Raw.Put("note", "model-check", "校历：2026-2027 学年第二学期 2 月 23 日开学，4 月 6 日到 4 月 10 日为考试周。", "校历摘要测试");
-        summaryClock.Stop();
-        Console.WriteLine($"summary    : {artifact.SummaryKind} · {summaryClock.Elapsed.TotalSeconds:0.0}s · {artifact.Summary}");
+        // ingest must not wait for the model: it returns with the deterministic summary
+        // and the model's version arrives on SummaryUpdated
+        var backgroundDone = new TaskCompletionSource<CogniCustos.Contracts.RawArtifact>();
+        rt.Raw.SummaryUpdated += artifact => backgroundDone.TrySetResult(artifact);
+
+        var putClock = Stopwatch.StartNew();
+        var fresh = rt.Raw.Put("note", "model-check",
+            ("校历：2026-2027 学年第二学期 2 月 23 日开学，4 月 6 日到 4 月 10 日为考试周。" + DateTime.Now.Ticks), "校历摘要测试");
+        putClock.Stop();
+        Console.WriteLine($"ingest     : {putClock.Elapsed.TotalMilliseconds:0} ms · {fresh.SummaryKind} · {fresh.Summary}");
+
+        var arrived = await Task.WhenAny(backgroundDone.Task, Task.Delay(TimeSpan.FromSeconds(30)));
+        if (arrived == backgroundDone.Task)
+        {
+            var stored = backgroundDone.Task.Result;
+            Console.WriteLine($"background : {stored.SummaryKind} · {stored.Summary}");
+        }
+        else
+        {
+            Console.WriteLine("background : (no model summary within 30s)");
+        }
 
         var provider = rt.Models.All.FirstOrDefault(p => p.Role == CogniCustos.Contracts.ModelRole.Reasoning);
         Console.WriteLine($"provider   : {provider?.Id ?? "(none)"} available={provider?.IsAvailable}");
