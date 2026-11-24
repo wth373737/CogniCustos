@@ -170,6 +170,8 @@
   <x:String x:Key="Tip.Language">language</x:String>
   <x:String x:Key="Tip.Sound">sound</x:String>
   <x:String x:Key="Tip.Calendar">calendar</x:String>
+  <x:String x:Key="Tip.ScrollUp">scroll up</x:String>
+  <x:String x:Key="Tip.ScrollDown">scroll down</x:String>
   <x:String x:Key="Tip.Collapse">collapse / expand</x:String>
   <x:String x:Key="Tip.Add">add</x:String>
   <x:String x:Key="Tip.ReasoningRecord">open reasoning record</x:String>

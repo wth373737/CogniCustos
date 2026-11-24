@@ -51,8 +51,8 @@ public static class ShellScenarios
             case "help":
                 vm.ToggleHelpCommand.Execute(null);
                 break;
-            case "collapsed":
-                foreach (var card in vm.Cards) card.ToggleCollapseCommand.Execute(null);
+            case "cards-full":
+                for (var i = 0; i < 12; i++) vm.Cards[2].AddCommand.Execute(null);
                 break;
             case "today-list":
                 vm.Today.ToggleList();

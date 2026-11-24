@@ -1,9 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using CogniCustos.Ui.ViewModels;
 
 namespace CogniCustos.Ui.Views;
@@ -56,6 +58,84 @@ public sealed partial class ShellView : UserControl
     {
         if (DataContext is ShellViewModel vm) vm.CloseOverlays();
         e.Handled = true;
+    }
+
+    // ---------- card paging ----------
+
+    /// <summary>Both chevrons page the card body; they never fold the card away.</summary>
+    private void OnCardScrollUp(object? sender, RoutedEventArgs e) => PageCard(sender, -1);
+
+    private void OnCardScrollDown(object? sender, RoutedEventArgs e) => PageCard(sender, 1);
+
+    private static void PageCard(object? sender, int direction)
+    {
+        var scroll = CardScrollOf(sender);
+        if (scroll is null) return;
+
+        var page = Math.Max(48, scroll.Viewport.Height * 0.85);
+        var limit = Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height);
+        var next = Math.Clamp(scroll.Offset.Y + direction * page, 0, limit);
+        scroll.Offset = new Vector(scroll.Offset.X, next);
+    }
+
+    private void OnCardScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        if (sender is ScrollViewer scroll) UpdateCardArrows(scroll);
+    }
+
+    private void OnCardScrollLoaded(object? sender, RoutedEventArgs e)
+    {
+        if (sender is ScrollViewer scroll) Dispatcher.UIThread.Post(() => UpdateCardArrows(scroll));
+    }
+
+    /// <summary>Rows can be added long after load; the extent (not the offset) changes then.</summary>
+    private void OnCardScrollLayout(object? sender, EventArgs e)
+    {
+        if (sender is ScrollViewer scroll) UpdateCardArrows(scroll);
+    }
+
+    private static ScrollViewer? CardScrollOf(object? sender)
+    {
+        var root = CardRootOf(sender);
+        return root?.GetVisualDescendants().OfType<ScrollViewer>()
+            .FirstOrDefault(scroll => scroll.Name == "CardScrollViewer");
+    }
+
+    private static Control? CardRootOf(object? sender) =>
+        sender is Control control
+            ? control.GetVisualAncestors().OfType<Control>().FirstOrDefault(a => a.Name == "CardRoot")
+            : null;
+
+    /// <summary>An arrow is only live when its direction still has content left.</summary>
+    private static void UpdateCardArrows(ScrollViewer scroll)
+    {
+        var root = CardRootOf(scroll);
+        if (root is null) return;
+
+        var limit = Math.Max(0, scroll.Extent.Height - scroll.Viewport.Height);
+        var canGoUp = scroll.Offset.Y > 0.5;
+        var canGoDown = scroll.Offset.Y < limit - 0.5;
+
+        foreach (var button in root.GetVisualDescendants().OfType<Button>())
+        {
+            switch (button.Name)
+            {
+                case "CardScrollUp":
+                    ShowArrow(button, canGoUp);
+                    break;
+                case "CardScrollDown":
+                    ShowArrow(button, canGoDown);
+                    break;
+            }
+        }
+    }
+
+    private static void ShowArrow(Button button, bool live)
+    {
+        // LayoutUpdated is frequent: only touch the two properties when they change.
+        if (button.IsEnabled != live) button.IsEnabled = live;
+        var opacity = live ? 1d : 0.25d;
+        if (Math.Abs(button.Opacity - opacity) > 0.01) button.Opacity = opacity;
     }
 
     /// <summary>A click outside the record list or the trace closes them.</summary>

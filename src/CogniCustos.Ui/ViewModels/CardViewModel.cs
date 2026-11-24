@@ -16,8 +16,9 @@ public enum CardKind
 
 /// <summary>
 /// One board column. Text comes from a factory so switching language does not
-/// destroy collapse state, and the seed rows are kept separate from the rows the
-/// user added at runtime.
+/// destroy state, and the seed rows are kept separate from the rows the user added
+/// at runtime. The card body scrolls; the two chevrons in the template page it,
+/// they do not collapse the card.
 /// </summary>
 public sealed class CardViewModel : ObservableObject
 {
@@ -26,7 +27,6 @@ public sealed class CardViewModel : ObservableObject
     private readonly Action? _onDateClick;
     private readonly Action<CardItem>? _onItemClick;
     private int _seedCount;
-    private bool _collapsed;
     private string _title = string.Empty;
     private string _emptyText = string.Empty;
 
@@ -43,7 +43,6 @@ public sealed class CardViewModel : ObservableObject
         _source = source;
         _newRowText = newRowText;
 
-        ToggleCollapseCommand = new RelayCommand(ToggleCollapse);
         AddCommand = new RelayCommand(AddRow);
 
         Refresh();
@@ -76,7 +75,6 @@ public sealed class CardViewModel : ObservableObject
 
     public ObservableCollection<CardItem> Items { get; } = [];
 
-    public RelayCommand ToggleCollapseCommand { get; }
     public RelayCommand AddCommand { get; }
 
     /// <summary>Rows are clickable when the card has a handler (incoming → decision,
@@ -99,25 +97,6 @@ public sealed class CardViewModel : ObservableObject
         get => _emptyText;
         private set => Set(ref _emptyText, value);
     }
-
-    public bool IsCollapsed
-    {
-        get => _collapsed;
-        private set
-        {
-            if (!Set(ref _collapsed, value)) return;
-            OnPropertyChanged(nameof(IsExpanded));
-            OnPropertyChanged(nameof(CardHeight));
-            OnPropertyChanged(nameof(CollapseGlyph));
-        }
-    }
-
-    public bool IsExpanded => !_collapsed;
-
-    public double CardHeight => _collapsed ? 78 : 300;
-
-    /// <summary>MDL2 chevron for the header: up while expanded (collapse), down while collapsed.</summary>
-    public string CollapseGlyph => _collapsed ? "\uE70D" : "\uE70E";
 
     public bool IsEmpty => Items.Count == 0;
 
@@ -155,8 +134,6 @@ public sealed class CardViewModel : ObservableObject
 
     /// <summary>Rows were edited in place (the note editor).</summary>
     public void NotifyItemsChanged() => OnPropertyChanged(nameof(IsEmpty));
-
-    private void ToggleCollapse() => IsCollapsed = !_collapsed;
 
     private void AddRow()
     {

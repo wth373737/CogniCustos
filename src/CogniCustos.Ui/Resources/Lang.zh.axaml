@@ -168,6 +168,8 @@
   <x:String x:Key="Tip.Language">语言</x:String>
   <x:String x:Key="Tip.Sound">声音</x:String>
   <x:String x:Key="Tip.Calendar">日历</x:String>
+  <x:String x:Key="Tip.ScrollUp">向上翻页</x:String>
+  <x:String x:Key="Tip.ScrollDown">向下翻页</x:String>
   <x:String x:Key="Tip.Collapse">折叠 / 展开</x:String>
   <x:String x:Key="Tip.Add">添加</x:String>
   <x:String x:Key="Tip.ReasoningRecord">展开推理记录</x:String>

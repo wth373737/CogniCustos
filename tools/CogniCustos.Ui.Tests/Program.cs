@@ -171,15 +171,44 @@ internal static class Program
             Check(!vm.Today.IsListOpen, "clicking outside the drawer did not close it");
         });
 
-        Test("card_collapse_and_expand", (vm, _) =>
+        Test("card_chevrons_page_the_body_instead_of_collapsing", (vm, w) =>
         {
-            var card = vm.Cards[1];
-            card.ToggleCollapseCommand.Execute(null);
+            // the arrows must not be a collapse control at all
+            Check(typeof(CardViewModel).GetProperty("IsCollapsed") is null, "cards can still collapse");
+
+            // make the third card overflow, then page it with the two chevrons
+            var card = vm.Cards[2];
+            for (var i = 0; i < 14; i++) card.AddCommand.Execute(null);
             Pump();
-            Check(card.IsCollapsed && Math.Abs(card.CardHeight - 78) < 0.1, "collapse state wrong");
-            card.ToggleCollapseCommand.Execute(null);
+            for (var i = 0; i < 8; i++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                System.Threading.Thread.Sleep(16);
+            }
+
+            var scroll = w.GetVisualDescendants().OfType<ScrollViewer>()
+                .Last(sv => sv.Name == "CardScrollViewer");
+            Check(scroll.Extent.Height > scroll.Viewport.Height,
+                $"the fixture did not overflow ({scroll.Extent.Height} <= {scroll.Viewport.Height})");
+
+            var root = scroll.GetVisualAncestors().OfType<Control>()
+                .First(control => control.Name == "CardRoot");
+            var buttons = root.GetVisualDescendants().OfType<Button>().ToList();
+            var up = buttons.First(button => button.Name == "CardScrollUp");
+            var down = buttons.First(button => button.Name == "CardScrollDown");
+
+            Check(!up.IsEnabled, "the up arrow must be dead at the top");
+            Check(down.IsEnabled, "the down arrow must be live while there is more below");
+
+            down.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
             Pump();
-            Check(!card.IsCollapsed && Math.Abs(card.CardHeight - 300) < 0.1, "expand state wrong");
+            Check(scroll.Offset.Y > 0, "the down chevron did not scroll the card");
+            Check(up.IsEnabled, "the up arrow did not come alive after scrolling");
+
+            var afterDown = scroll.Offset.Y;
+            up.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Pump();
+            Check(scroll.Offset.Y < afterDown, "the up chevron did not scroll back");
         });
 
         Test("added_rows_use_current_language_and_are_not_retranslated", (vm, _) =>
