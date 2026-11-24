@@ -36,6 +36,13 @@ public sealed class SqliteRawStore : IRawStore
 
     public string Root => Path.Combine(_stateDir, "raw");
 
+    /// <summary>
+    /// Optional model summary. When set (and it answers), the R1 row is written with
+    /// <c>summary_kind = model</c>; when absent or failing, the deterministic fallback is
+    /// used instead — the ingest path must never depend on a model being present.
+    /// </summary>
+    public Func<string, string?>? Summarizer { get; set; }
+
     public RawArtifact Put(string kind, string source, string text, string? title = null)
     {
         if (string.IsNullOrWhiteSpace(text)) throw new ArgumentException("nothing to store", nameof(text));
@@ -52,12 +59,30 @@ public sealed class SqliteRawStore : IRawStore
         File.WriteAllText(absolute, text, Encoding.UTF8);
 
         var fallbackTitle = string.IsNullOrWhiteSpace(title) ? FirstLine(text, source) : title.Trim();
+
         var summary = FallbackSummary(text);
+        var summaryKind = "fallback";
+        if (Summarizer is not null)
+        {
+            try
+            {
+                var model = Summarizer(text)?.Trim();
+                if (!string.IsNullOrWhiteSpace(model))
+                {
+                    summary = model.Length > SummaryChars ? model[..SummaryChars] + "…" : model;
+                    summaryKind = "model";
+                }
+            }
+            catch
+            {
+                // a broken model must not stop an ingest
+            }
+        }
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             INSERT INTO raw_artifacts(hash, kind, source, title, summary, summary_kind, bytes_path, chars, fetched_at, status, visibility)
-            VALUES ($h, $k, $s, $t, $m, 'fallback', $p, $c, $f, 'kept', 'R1');
+            VALUES ($h, $k, $s, $t, $m, $mkind, $p, $c, $f, 'kept', 'R1');
             SELECT last_insert_rowid();
             """;
         cmd.Parameters.AddWithValue("$h", hash);
@@ -65,13 +90,14 @@ public sealed class SqliteRawStore : IRawStore
         cmd.Parameters.AddWithValue("$s", source);
         cmd.Parameters.AddWithValue("$t", fallbackTitle);
         cmd.Parameters.AddWithValue("$m", summary);
+        cmd.Parameters.AddWithValue("$mkind", summaryKind);
         cmd.Parameters.AddWithValue("$p", relative);
         cmd.Parameters.AddWithValue("$c", text.Length);
         cmd.Parameters.AddWithValue("$f", DateTimeOffset.Now.ToString("O"));
 
         var id = Convert.ToInt32(cmd.ExecuteScalar());
         return new RawArtifact(
-            id.ToString(), hash, kind, source, fallbackTitle, summary, "fallback",
+            id.ToString(), hash, kind, source, fallbackTitle, summary, summaryKind,
             relative, text.Length, DateTimeOffset.Now, "kept", Visibility.RawSummary);
     }
 

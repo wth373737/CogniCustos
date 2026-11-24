@@ -274,6 +274,9 @@
      状态落在 `state/settings.json` 的 `LocalModelSource` / `BuiltInInstalled`（已实现，见实施记录 M 节）；
    - 云模型（`deepseek-flash`）是用户在 "Primary Inference Model" 里填 URL / API Key 的**可选项**，不是必需项；
    - 任何依赖模型的环节（R1 概括、判定对话、embedding）都必须有**无模型降级**，否则"开箱即用"不成立（见 §6.9）。
+   - **实现状态**（2026-11-25 实测）：内置 `qwen2.5-0.5b-instruct-q4_k_m.gguf`（468 MB）+ LLamaSharp/llama.cpp，
+     切换 0.01 s、首答约 2.1 s、模型摘要约 0.6 s；模型**懒加载**，所以启动不付代价。详见实施记录 LM 节。
+   - **已知 Windows 限制**：llama.cpp 用窄字符打开 GGUF，数据目录含非 ASCII 字符时需要 8.3 短路径（已自动处理）。
 
 ---
 

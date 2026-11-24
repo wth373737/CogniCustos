@@ -190,6 +190,12 @@ public interface IRawStore
 
     /// <summary>Application-only status change (kept / accepted / expired).</summary>
     bool SetStatus(string id, string status);
+
+    /// <summary>
+    /// Optional model summary for R1. Null (or a failing summarizer) means the store falls
+    /// back to its deterministic summary; an ingest must never depend on a model.
+    /// </summary>
+    Func<string, string?>? Summarizer { get; set; }
 }
 
 public sealed record KnowledgeHit(string Source, string Snippet, double Score);

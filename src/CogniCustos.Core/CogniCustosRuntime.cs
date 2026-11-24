@@ -44,6 +44,39 @@ public sealed class CogniCustosRuntime
 
     /// <summary>Bundled local model ⇄ the user's Ollama; choosing Ollama frees the bundled model.</summary>
     public LocalModelService LocalModels { get; private init; } = null!;
+
+    /// <summary>
+    /// Switch to the bundled model and, when it is actually registered, let the raw store
+    /// use it for R1 summaries (docs/PARTITION-MODEL.md §6.9: fall back when absent).
+    /// </summary>
+    public (bool Ok, string Message) SwitchToBuiltIn()
+    {
+        var (ok, message) = LocalModels.UseBuiltIn();
+        if (!ok) return (ok, message);
+
+        var provider = Models.All.FirstOrDefault(p =>
+            p.Role == ModelRole.Reasoning && p.Id.StartsWith("builtin:", StringComparison.Ordinal));
+
+        Raw.Summarizer = provider is null
+            ? null
+            : text =>
+            {
+                var summary = provider
+                    .CompleteAsync("你是摘要器。用一句话概括下面的材料，不超过 80 字。", text)
+                    .GetAwaiter().GetResult();
+                return string.IsNullOrWhiteSpace(summary) ? null : summary;
+            };
+
+        return (true, message + (provider is null ? "（未接内置运行时）" : "（已接内置运行时）"));
+    }
+
+    /// <summary>Switch to Ollama and stop using a local model for summaries.</summary>
+    public (bool Ok, string Message) SwitchToOllama(string model)
+    {
+        var (ok, message) = LocalModels.UseOllama(model);
+        if (ok) Raw.Summarizer = null;
+        return (ok, message);
+    }
     public IKnowledgeBase Knowledge { get; }
     public IModelRouter Models { get; }
     public ISelfDocs SelfDocs { get; }

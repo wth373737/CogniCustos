@@ -785,7 +785,9 @@ internal static class Program
             // simulate an installed bundled model
             var builtIn = Path.Combine(root, "models", "builtin");
             Directory.CreateDirectory(builtIn);
-            await File.WriteAllBytesAsync(Path.Combine(builtIn, "weights.bin"), new byte[1024 * 512]);
+            // the installer looks for the model file by its released name
+            await File.WriteAllBytesAsync(Path.Combine(builtIn, BuiltInModelInstaller.ModelFileName),
+                new byte[1024 * 512]);
             await File.WriteAllTextAsync(Path.Combine(builtIn, "model.json"), """{"name":"qwen2.5:7b"}""");
 
             var service = new LocalModelService((ModelRouter)rt.Models,
@@ -826,6 +828,35 @@ internal static class Program
 
             var deleted = service.DeleteBuiltIn(out var message);
             return deleted && message.Contains("没有可删除");
+        });
+
+        // ---------- built-in model: file management and model summaries ----------
+
+        await Check("builtin: the installer knows its file and reports it as missing", async () =>
+        {
+            var installer = new BuiltInModelInstaller(Path.Combine(root, "models-none"));
+            return BuiltInModelInstaller.ModelFileName.EndsWith(".gguf")
+                   && BuiltInModelInstaller.DownloadUrl.StartsWith("https://")
+                   && !installer.IsInstalled
+                   && installer.InstalledBytes == 0;
+        });
+
+        await Check("raw: a summary from the model is recorded as summary_kind=model", async () =>
+        {
+            var store = new SqliteRawStore(Path.Combine(root, "state"));
+            store.Summarizer = text => "模型摘要：" + text[..Math.Min(20, text.Length)];
+
+            var artifact = store.Put("note", "test", "这是一段很长的原始材料，用来验证模型摘要会被记录。", "带模型摘要的材料");
+            return artifact.SummaryKind == "model" && artifact.Summary.StartsWith("模型摘要：");
+        });
+
+        await Check("raw: a broken summariser falls back instead of losing the ingest", async () =>
+        {
+            var store = new SqliteRawStore(Path.Combine(root, "state"));
+            store.Summarizer = _ => throw new InvalidOperationException("no model");
+
+            var artifact = store.Put("note", "test", "模型坏了也必须能入库。", "坏的摘要器");
+            return artifact.SummaryKind == "fallback" && artifact.Summary.Length > 0;
         });
 
         Console.WriteLine($"passed={_passed} failed={_failed}");

@@ -465,3 +465,70 @@ dotnet run --project tools/CogniCustos.Ui.Shots -c Debug -- artifacts/ui 1280 72
 - 内置模型的实际下载/校验还没做（`models/builtin` 目前由测试或手工放置）。
 - "Add custom models and services" 仍是占位窗。
 - 切换到 Ollama 后是否真的可用，取决于 `OllamaModelProvider.Probe()`；示例进程里注入的是占位 provider（诚实报告不可用）。
+
+---
+
+## 2026-11-25 · LM 内置本地模型真的跑起来了（llama.cpp）
+
+### 0. 实测数字（本机 Ryzen 9 7900X，CPU 推理）
+
+| 项 | 数值 |
+|---|---|
+| 运行时依赖 | `LLamaSharp 0.30.0` + `LLamaSharp.Backend.Cpu 0.30.0`；单个平台的 natives（llama.dll / ggml*.dll / mtmd.dll）约 **4.8 MB**（all-RID 输出目录 108.7 MB，发布时只带 win-x64 约 5 MB） |
+| 模型 | `qwen2.5-0.5b-instruct-q4_k_m.gguf`，**468.6 MB**（磁盘）；运行时 CPU compute buffer 约 **300 MiB** |
+| 切换耗时 | **0.01 s**（模型是懒加载，切换不加载） |
+| 第一次回答 | **2.1 s**（含加载模型；之后同样问题 1 s 上下） |
+| 模型摘要（R1） | **0.6 s**，落库 `summary_kind = model` |
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 运行时 | `CogniCustos.Adapters.LlamaModelProvider`：Qwen2.5 模板、`MaxTokens=512`、CPU 推理；懒加载，缺文件时 `IsAvailable=false` 让路由退回 standby。 |
+| natives 加载 | `LLamaSharp.Backend.Cpu` 把库放在 `runtimes/<rid>/native`（最佳实现在 `avx2/`），而默认加载器只看 exe 旁边 → 首次使用时把该目录**整套**拷到 exe 同级（llama + ggml-base + ggml-cpu + ggml + mtmd）。 |
+| 非 ASCII 路径 | llama.cpp 在 Windows 用窄字符打开 GGUF，中文目录会 "No such file" → 先取 **8.3 短路径**（`GetShortPathNameW`，`I:\AGENT~1\...`），失败再镜像到 LocalApplicationData（沙箱环境不允许写那里，但正常桌面可用）。 |
+| 下载与校验 | `BuiltInModelInstaller`：下载到 `.downloading` → 校验大小（sha256 记录进 `model.json`）→ 移动到正式名；`InstallBuiltInAsync` 之后自动切到内置。 |
+| 切换 | `rt.SwitchToBuiltIn()`：切模型 + 把该 provider 接到 `Raw.Summarizer`（摘要用模型，失败自动回退）；`rt.SwitchToOllama(model)`：切走并把 summarizer 置空。 |
+| 接线 | 桌面与小样在 `Create` 之后设置 `LocalModels.BuiltInFactory = path => new LlamaModelProvider(path)`（Core 不能引用 Adapters，所以用工厂注入）。 |
+| 自检工具 | `CogniCustos.Sample --model-check`：缺模型就下载（带 % 进度）、切换、问一句、跑一次模型摘要，打印全部耗时。 |
+
+### 2. 为什么（对应条款）
+
+- §8.7「内置运行时第一顺位 + 开箱即用」→ 装好即用、切换 0.01s、首答 2.1s。
+- §6.9「概括必须有离线降级」→ `Raw.Summarizer` 为空或抛异常时仍是 `fallback`，入库不受影响。
+- §2.3「窄面」→ 模型只做两件事：对话、摘要；没有任何工具能把原始字节塞进提示词。
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `Directory.Packages.props` | LLamaSharp 0.30.0 / LLamaSharp.Backend.Cpu 0.30.0 |
+| `src/CogniCustos.Adapters/LlamaModelProvider.cs` | **新增** |
+| `src/CogniCustos.Core/BuiltInModelInstaller.cs` | **新增** |
+| `src/CogniCustos.Core/LocalModelService.cs` | installer、`BuiltInFactory`、`InstallBuiltInAsync`、`UseBuiltIn` 接真 provider |
+| `src/CogniCustos.Core/RawStore.cs` + `Contracts.cs` | `Summarizer` 钩子（接口上） |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | `SwitchToBuiltIn` / `SwitchToOllama` |
+| `samples/CogniCustos.Sample/ModelCheck.cs` + `Program.cs` | `--model-check` |
+| `src/CogniCustos.Desktop/MainWindow.cs`、`samples/.../SampleWindow.axaml.cs` | 注入内置 provider 工厂 |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 3 条（67 → 70） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug          # passed=70
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --model-check
+# 期望：installed 468 MB / switch 0.01s / reply time ~2.1s / summary: model ~0.6s
+```
+
+### 5. 以后要改哪里
+
+- **换模型**：改 `BuiltInModelInstaller.ModelFileName` / `DownloadUrl`（以及 `ExpectedBytes`），再把 `LlamaModelProvider.Wrap` 的对话模板换成该模型的模板；`model.json` 会记录实际 sha256。
+- **换后端（CUDA / Vulkan / Metal）**：把 `LLamaSharp.Backend.Cpu` 换成对应包即可，代码里 `GpuLayerCount=0` 是唯一的 GPU 相关设置。
+- **卸载**：`LocalModelService.DeleteBuiltIn` 删的是 `<root>/models/builtin`；8.3 短路径不复制文件，所以不会残留。
+- **非 ASCII 路径**：正常桌面会走短路径（不占额外磁盘）；只有 8.3 被关掉且目录非 ASCII 时才走镜像，镜像位置在 `%LOCALAPPDATA%\CogniCustos\models`，排查时可删。
+
+### 6. 已知未做
+
+- 模型下载**没有**在 UI 里做成进度条（只有 `--model-check` 与 `InstallBuiltInAsync` 的 `IProgress`）；"Check" 按钮仍只弹占位窗。
+- 摘要走模型后**入库会慢 0.6s**（同步等待），批量抓取时应改成后台队列。
+- 判定器（`IJudge`）仍是关键词实现，没有换成模型版。

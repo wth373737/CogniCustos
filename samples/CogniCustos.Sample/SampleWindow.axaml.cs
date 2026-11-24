@@ -19,6 +19,7 @@ public sealed partial class SampleWindow : Window
         Directory.CreateDirectory(root);
 
         var runtime = CogniCustosRuntime.Create(root);
+        runtime.LocalModels.BuiltInFactory = path => new CogniCustos.Adapters.LlamaModelProvider(path);
         _source = new RuntimeShellDataSource(runtime);
 
         DataContext = new ShellViewModel(_source);

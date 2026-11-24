@@ -60,6 +60,7 @@ public sealed class MainWindow : Window
         TryWireOllama();
         TryWireCloud();
         _rt.AddTool(new PortalSidecarTool(_settings.PortalSidecarUrl, _rt.Raw));
+        _rt.LocalModels.BuiltInFactory = path => new LlamaModelProvider(path);
 
         _reminders = new ReminderService(_rt.Tasks, TimeSpan.FromSeconds(20));
         _reminders.ReminderRaised += text => AppendLine("🔔 " + text);

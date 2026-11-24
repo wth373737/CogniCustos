@@ -41,7 +41,17 @@ public sealed class LocalModelService
 
         Settings = SettingsStore.Load(_settingsPath);
         Source = Parse(Settings.LocalModelSource);
+        Installer = new BuiltInModelInstaller(_modelsRoot);
     }
+
+    /// <summary>Manages the bundled model's file (download / verify / path).</summary>
+    public BuiltInModelInstaller Installer { get; }
+
+    /// <summary>
+    /// Creates the provider for a built-in model file. The desktop app sets this to the
+    /// LLamaSharp provider; Core cannot reference the adapter that owns it.
+    /// </summary>
+    public Func<string, IModelProvider>? BuiltInFactory { get; set; }
 
     public AppSettings Settings { get; private set; }
 
@@ -52,9 +62,9 @@ public sealed class LocalModelService
 
     public string OllamaModel => Settings.OllamaModel;
 
-    public bool BuiltInInstalled => Settings.BuiltInInstalled && Directory.Exists(BuiltInPath);
+    public bool BuiltInInstalled => Settings.BuiltInInstalled && Installer.IsInstalled;
 
-    public string BuiltInPath => Path.Combine(_modelsRoot, "builtin");
+    public string BuiltInPath => Installer.Folder;
 
     /// <summary>The bundled model's name, as the settings page shows it.</summary>
     public string BuiltInModelName => BuiltInInstalled && File.Exists(Path.Combine(BuiltInPath, "model.json"))
@@ -94,16 +104,29 @@ public sealed class LocalModelService
     /// <summary>Go back to the bundled model. Refused when it is not installed (it was removed).</summary>
     public (bool Ok, string Message) UseBuiltIn()
     {
-        if (!BuiltInInstalled)
-            return (false, "内置模型已被移除；可以在设置页重新下载，或继续使用 Ollama。");
+        if (!Installer.IsInstalled)
+            return (false, "内置模型尚未安装；请先在设置页下载，或继续使用 Ollama。");
 
-        Settings = Settings with { LocalModelSource = "builtin" };
+        Settings = Settings with { LocalModelSource = "builtin", BuiltInInstalled = true };
         SettingsStore.Save(_settingsPath, Settings);
         Source = LocalModelSource.BuiltIn;
 
-        // the bundled runtime is wired in the next round; until then the router falls back
-        _router.ReplaceRole(ModelRole.Reasoning, null);
+        _router.ReplaceRole(ModelRole.Reasoning,
+            BuiltInFactory is null ? null : BuiltInFactory(Installer.ModelPath));
+
         return (true, "已切换回内置本地模型");
+    }
+
+    /// <summary>Download the bundled model; then switch to it.</summary>
+    public async Task<(bool Ok, string Message)> InstallBuiltInAsync(IProgress<double>? progress = null,
+        CancellationToken ct = default)
+    {
+        var (ok, message) = await Installer.InstallAsync(progress, ct).ConfigureAwait(false);
+        if (!ok) return (false, message);
+
+        Settings = Settings with { BuiltInInstalled = true };
+        SettingsStore.Save(_settingsPath, Settings);
+        return (true, message);
     }
 
     /// <summary>Remove the bundled model's files. Used by both the switch and the Delete button.</summary>
