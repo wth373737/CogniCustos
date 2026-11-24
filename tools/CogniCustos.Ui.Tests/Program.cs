@@ -695,6 +695,28 @@ internal static class Program
                 "cancel reported a decision to the data source");
         });
 
+        Test("a_refused_confirmation_leaves_the_board_untouched", (_, _) =>
+        {
+            var source = new RefusingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            var planBefore = shell.Cards[0].Items.Count;
+            var lineBefore = shell.Today.Items.Count;
+            var pending = shell.Cards[1].Items[0];
+
+            pending.Command!.Execute(pending);
+            Pump();
+            shell.Dialog.Buttons.First(button => button.Primary).Command.Execute(null);
+            Pump();
+
+            Check(!shell.Dialog.IsOpen, "the dialog stayed open after a refused write");
+            Check(shell.Cards[0].Items.Count == planBefore, "a refused write still created a plan row");
+            Check(shell.Today.Items.Count == lineBefore, "a refused write still added a reminder");
+            Check(shell.Cards[1].Items.Count == 1, "a refused write removed the incoming item");
+            Check(shell.Toast.Contains("refused"), $"the refusal was not surfaced: '{shell.Toast}'");
+        });
+
         // ---- the data-source seam (what the runnable sample plugs into) ----
         Test("shell_actions_reach_the_data_source", (_, _) =>
         {
@@ -1091,11 +1113,44 @@ internal sealed class RecordingSource : IShellDataSource
     public (string Title, string Empty, IReadOnlyList<CardItem> Items) NoteCard() =>
         ("Notes", "", [new CardItem("A note")]);
 
-    public void IncomingConfirmed(CardItem item) => Confirmed.Add(item);
+    public string? IncomingConfirmed(CardItem item)
+    {
+        Confirmed.Add(item);
+        return null;
+    }
 
-    public void IncomingIgnored(CardItem item) => Ignored.Add(item);
+    public string? IncomingIgnored(CardItem item)
+    {
+        Ignored.Add(item);
+        return null;
+    }
 
     public void NoteEdited(CardItem item, string text) => Edited.Add((item, text));
+
+    public Task<string?> AskAsync(string instruction) => Task.FromResult<string?>(null);
+}
+
+/// <summary>Refuses every decision, so the "write failed" path can be asserted.</summary>
+internal sealed class RefusingSource : IShellDataSource
+{
+    public IReadOnlyList<ReminderItem> Today() => [new("ordinary", false)];
+
+    public (string Title, string Empty, IReadOnlyList<CardItem> Items) CalendarCard() =>
+        ("plan", "", [new CardItem("Planned item", "11/27 3pm – 5pm")]);
+
+    public (string Title, string Empty, IReadOnlyList<CardItem> Items) PendingCard() =>
+        ("Incoming", "", [new CardItem("Incoming item", "11/28 3pm – 5pm") { Ref = "p1" }]);
+
+    public (string Title, string Empty, IReadOnlyList<CardItem> Items) NoteCard() =>
+        ("Notes", "", [new CardItem("A note")]);
+
+    public string? IncomingConfirmed(CardItem item) => "refused by the store";
+
+    public string? IncomingIgnored(CardItem item) => "refused by the store";
+
+    public void NoteEdited(CardItem item, string text)
+    {
+    }
 
     public Task<string?> AskAsync(string instruction) => Task.FromResult<string?>(null);
 }

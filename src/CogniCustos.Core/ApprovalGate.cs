@@ -227,6 +227,53 @@ public sealed class ApprovalGate : IApprovalGate
         }
     }
 
+    // ---------- preview ----------
+
+    /// <summary>
+    /// The rough dry run: render every change, then apply the database ones inside a
+    /// transaction that is always rolled back. A change that would fail is reported
+    /// before the user decides (docs/PARTITION-MODEL.md §6.3).
+    /// </summary>
+    public ProposalPreview Preview(string id)
+    {
+        lock (_sync)
+        {
+            var proposal = Get(id);
+            if (proposal is null)
+                return new ProposalPreview(false, [], $"no proposal '{id}'");
+
+            var narratives = proposal.Changes.Select(ChangeRenderer.Describe).ToList();
+            var renderedProblem = narratives.FirstOrDefault(n => !n.Ok)?.Problem;
+            if (renderedProblem is not null)
+                return new ProposalPreview(false, narratives, renderedProblem);
+
+            if (proposal.Changes.Any(c => !_dbAppliers.ContainsKey(c.Target)))
+                return new ProposalPreview(true, narratives, "文件型目标：无法预演（确认时会直接执行）");
+
+            using var conn = Open();
+            using var tx = conn.BeginTransaction();
+            try
+            {
+                foreach (var change in proposal.Changes)
+                {
+                    var result = _dbAppliers[change.Target](conn, tx, change.Payload);
+                    if (!result.Ok)
+                        return new ProposalPreview(false, narratives, $"预演失败：{result.Content}");
+                }
+
+                return new ProposalPreview(true, narratives, null);
+            }
+            catch (Exception ex)
+            {
+                return new ProposalPreview(false, narratives, $"预演异常：{ex.Message}");
+            }
+            finally
+            {
+                try { tx.Rollback(); } catch { /* already gone */ }
+            }
+        }
+    }
+
     // ---------- storage ----------
 
     private SqliteConnection Open()

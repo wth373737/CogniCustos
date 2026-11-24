@@ -39,13 +39,9 @@ public sealed class DemoShellDataSource : IShellDataSource
             new CardItem(Localizer.Get("Demo.Note1")),
         ]);
 
-    public void IncomingConfirmed(CardItem item)
-    {
-    }
+    public string? IncomingConfirmed(CardItem item) => null;
 
-    public void IncomingIgnored(CardItem item)
-    {
-    }
+    public string? IncomingIgnored(CardItem item) => null;
 
     public void NoteEdited(CardItem item, string text)
     {

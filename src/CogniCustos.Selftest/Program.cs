@@ -554,6 +554,75 @@ internal static class Program
             return found is not null && found.Status == ProposalStatus.Pending && rejected;
         });
 
+        // ---------- P1: the card line is what would really be written ----------
+
+        await Check("renderer: every registered target has a human line", async () =>
+        {
+            var schedule = ChangeRenderer.Describe(new Change(PlannerTools.TargetScheduleAdd,
+                """{"date":"2026-12-20","start":"15:00","end":"17:00","title":"组织行为学复习"}"""));
+            var task = ChangeRenderer.Describe(new Change(BuiltinTools.TargetTasksAdd,
+                """{"title":"写终稿","due":"2026-12-27","level":"long"}"""));
+            var plan = ChangeRenderer.Describe(new Change(PlannerTools.TargetPlanAdd,
+                """{"title":"期末周","level":"mid","parentId":3}"""));
+            var complete = ChangeRenderer.Describe(new Change(BuiltinTools.TargetTasksComplete,
+                """{"id":12}"""));
+
+            return schedule.Ok && schedule.Line.Contains("12/20") && schedule.Line.Contains("15:00–17:00")
+                   && schedule.Line.Contains("组织行为学复习")
+                   && task.Ok && task.Line.Contains("写终稿") && task.Line.Contains("2026-12-27") && task.Line.Contains("长期")
+                   && plan.Ok && plan.Line.Contains("中期") && plan.Line.Contains("#3")
+                   && complete.Ok && complete.Line.Contains("#12");
+        });
+
+        await Check("renderer: a malformed payload is reported before the user decides", async () =>
+        {
+            var bad = ChangeRenderer.Describe(new Change(BuiltinTools.TargetTasksAdd, """{"due":"2026-12-01"}"""));
+            var broken = ChangeRenderer.Describe(new Change(BuiltinTools.TargetTasksAdd, "not json"));
+
+            return !bad.Ok && bad.Problem is not null && !broken.Ok && broken.Problem is not null;
+        });
+
+        await Check("preview: a valid set previews without writing and can then be applied", async () =>
+        {
+            var before = rt.Tasks.ListAsync().Result.Count;
+            var set = rt.Gate.ProposeSet("预演用例", "两处落点", new Change[]
+            {
+                new(BuiltinTools.TargetTasksAdd, """{"title":"预演任务","due":"2026-12-22","level":"short"}"""),
+                new(PlannerTools.TargetScheduleAdd, """{"date":"2026-12-22","start":"09:00","end":"10:00","title":"预演日程"}"""),
+            });
+
+            var preview = rt.Gate.Preview(set.Id);
+            var afterPreview = rt.Tasks.ListAsync().Result.Count;
+            var applied = rt.Gate.Approve(set.Id);
+            var afterApply = rt.Tasks.ListAsync().Result.Count;
+
+            return preview.Ok
+                   && preview.Changes.Count == 2
+                   && preview.Text.Contains("预演任务")
+                   && afterPreview == before
+                   && applied.Ok
+                   && afterApply == before + 1;
+        });
+
+        await Check("preview: a set that cannot apply is refused before confirming", async () =>
+        {
+            var before = rt.Tasks.ListAsync().Result.Count;
+            var set = rt.Gate.ProposeSet("预演失败", "第二条不存在", new Change[]
+            {
+                new(BuiltinTools.TargetTasksAdd, """{"title":"预演时不该出现","level":"short"}"""),
+                new(BuiltinTools.TargetTasksComplete, """{"id":888888}"""),
+            });
+
+            var preview = rt.Gate.Preview(set.Id);
+            var after = rt.Tasks.ListAsync().Result;
+
+            return !preview.Ok
+                   && preview.Problem is not null
+                   && preview.Problem.Contains("预演")
+                   && after.Count == before
+                   && rt.Gate.Get(set.Id)!.Status == ProposalStatus.Pending;
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

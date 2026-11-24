@@ -174,3 +174,63 @@ dotnet run --project src/CogniCustos.Selftest -c Debug     # 期望 passed=49 fa
 - **预演（dry-run）还没做**：现在"失败就回滚"，但用户仍要在点确认之后才知道会失败（§6.4 的"不可确认"状态）。
   下一节 P1 先做粗版：确认前跑一次"空事务"预演，任一条失败就把卡片标红。
 - 卡片的**人话渲染**仍只有 `schedule.add`；变更集在多落点时卡片还没显示成多行。
+
+---
+
+## 2026-11-24 · P1 变更集的人话渲染、粗预演、卡片按落点分行
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 渲染器 | 新增 `ChangeRenderer.Describe(Change)` → `ChangeNarrative(Target, Label, Line, Problem)`。每种 target 渲染"即将真正写入的字段"：任务名/截止/级别、日程日期与时段、计划层级与父项、完成任务号、知识库来源与字数。payload 缺字段或不是 JSON → `Problem` 非空（`Ok=false`）。 |
+| 预演（粗版） | `ApprovalGate.Preview(id)` → `ProposalPreview(Ok, Changes, Problem)`：先渲染全部变更，再把数据库类变更放进一个**必定回滚**的事务里真跑一遍。失败就把原因带回卡片；文件型目标（`kb.index`）标注"无法预演"并放行。 |
+| 卡片 | 示例的待处理卡改成**一条提议一行一个落点**：行文本 = 渲染结果，行首显示提议标题，右侧标注变更类型，第一行还带 `✓ 可确认` / `✗ …` 的预演状态。 |
+| 失败可见 | `IShellDataSource.IncomingConfirmed/Ignored` 改为返回 `string?`：null = 成功，非 null = 展示给用户的原因。ViewModel 收到失败时**不新增计划行、不删待处理条目**，只把原因写进状态栏。 |
+| 常量对齐 | 渲染器用 `BuiltinTools.Target*` / `PlannerTools.Target*` 常量做分支，不再写字面量（测试当场抓到 `plans.add` 被写成 `plan.add` 的 bug）。 |
+
+### 2. 为什么（对应条款）
+
+- §6.4「每个变更类型必须有人话渲染，且渲染的是即将真正写入的字段」→ `ChangeRenderer`。
+- §6.3「解析失败不猜」+ 我上一节提的"整批批准要先预演"→ `Preview`（粗版：真跑再回滚，不是静态分析）。
+- "看不懂的卡片等于自动批准" → 行文本直接是字段值，不是摘要。
+- 失败要可见：确认被拒时卡片内容不变、原因写状态栏，而不是静默吞掉。
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/ChangeRenderer.cs` | **新增** |
+| `src/CogniCustos.Core/ApprovalGate.cs` | `Preview(id)` |
+| `src/CogniCustos.Contracts/Contracts.cs` | `ChangeNarrative`、`ProposalPreview`、`IApprovalGate.Preview` |
+| `src/CogniCustos.Ui/ViewModels/IShellDataSource.cs` | `IncomingConfirmed/Ignored` 返回 `string?` |
+| `src/CogniCustos.Ui/ViewModels/DemoShellDataSource.cs` | 返回 null |
+| `src/CogniCustos.Ui/ViewModels/ShellViewModel.cs` | 确认被拒 → 状态栏 + 不动看板 |
+| `samples/CogniCustos.Sample/RuntimeShellDataSource.cs` | 按落点分行 + 预演状态 + 真 Approve/Reject |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 1 条断言（57 → 58） |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 4 条断言（49 → 53） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug          # 期望 passed=53 failed=0
+dotnet run --project tools/CogniCustos.Ui.Tests -c Debug        # 期望 ALL PASS（58）
+dotnet run --project samples/CogniCustos.Sample -- --check      # 期望 OK
+```
+
+新增断言覆盖：四种变更的渲染文案 / 坏 payload 在预演期就被报出 / 有效变更集"预演不写、随后确认仍能写" /
+无效变更集预演失败且不写 / UI 侧"确认被拒时不新增计划行、不删条目、原因进状态栏"。
+
+### 5. 以后要改哪里
+
+- **加一种变更类型**：先在 Tools 里加 `Target*` 常量，再在 `ChangeRenderer` 的 switch 里加一个分支（用常量），
+  最后在 `CogniCustosRuntime` 注册 applier。两处漏一个，测试里的渲染断言会失败。
+- **预演升级为静态分析**（不真跑）：把 `Preview` 里"apply + rollback"换成"解析 payload + 校验引用存在"；
+  接口不变，调用方无感。
+- **卡片要多落点换行更细**：行数据就是 `ChangeNarrative`，`CardItem` 只是承载；要加图标/颜色时改 `RuntimeShellDataSource` 的映射即可。
+
+### 6. 已知未做
+
+- 预演还是"跑一遍再回滚"：对真实副作用（比如将来带网络的 applier）不安全，届时必须先做静态校验。
+- 卡片上仍不显示"变更集共几条"的汇总行；多落点时第一行的状态挂在第一行上。
+- 抓取器仍未接入原始区（`raw_artifacts` 目前只有测试写入）。

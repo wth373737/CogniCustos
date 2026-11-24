@@ -530,7 +530,16 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     private void ConfirmIgnore()
     {
-        if (_dialogItem is { } ignored) _source.IncomingIgnored(ignored);
+        if (_dialogItem is { } ignored)
+        {
+            if (_source.IncomingIgnored(ignored) is { } failure)
+            {
+                SetToast(failure);
+                FinishDialog();
+                return;
+            }
+        }
+
         FinishDialog(removeSource: true);
     }
 
@@ -575,15 +584,20 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
             return;
         }
 
-        Cards[0].Items.Add(new CardItem(title, when));
-        Today.Add(title, urgent: false);
-
         if (_dialogItem is { } confirmed)
         {
             switch (_dialogOrigin)
             {
                 case DialogOrigin.Pending:
-                    _source.IncomingConfirmed(confirmed);
+                    // The write can be refused by the backing store (a change set that does
+                    // not apply). In that case nothing is added and the item stays in place.
+                    if (_source.IncomingConfirmed(confirmed) is { } failure)
+                    {
+                        SetToast(failure);
+                        FinishDialog();
+                        return;
+                    }
+
                     break;
                 case DialogOrigin.Note:
                     _source.NoteEdited(confirmed, title);
@@ -591,6 +605,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
             }
         }
 
+        Cards[0].Items.Add(new CardItem(title, when));
+        Today.Add(title, urgent: false);
         FinishDialog(removeSource: true);
     }
 

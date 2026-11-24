@@ -88,12 +88,27 @@ public sealed record Proposal(
 /// The confirmation handler. The AI can only propose; the application applies.
 /// This is the one rule the whole architecture is built around.
 /// </summary>
+/// <summary>One change rendered for the confirmation card (docs/PARTITION-MODEL.md §6.4).</summary>
+public sealed record ChangeNarrative(string Target, string Label, string Line, string? Problem)
+{
+    public bool Ok => Problem is null;
+}
+
+/// <summary>What confirming this proposal would do, computed without writing anything.</summary>
+public sealed record ProposalPreview(bool Ok, IReadOnlyList<ChangeNarrative> Changes, string? Problem)
+{
+    public string Text => string.Join("\n", Changes.Select(c => c.Line));
+}
+
 public interface IApprovalGate
 {
     Proposal Propose(string title, string summary, string target, string payload);
 
     /// <summary>One card, several landing points, applied together or not at all.</summary>
     Proposal ProposeSet(string title, string summary, IReadOnlyList<Change> changes);
+
+    /// <summary>Dry run: render every change and check it can be applied, writing nothing.</summary>
+    ProposalPreview Preview(string id);
     IReadOnlyList<Proposal> All();
     IReadOnlyList<Proposal> Pending();
     Proposal? Get(string id);

@@ -15,10 +15,14 @@ public interface IShellDataSource
 
     (string Title, string Empty, IReadOnlyList<CardItem> Items) NoteCard();
 
-    /// <summary>The user confirmed an incoming item: it may now be applied for real.</summary>
-    void IncomingConfirmed(CardItem item);
+    /// <summary>
+    /// The user confirmed an incoming item: it may now be applied for real.
+    /// Returns null on success, or a message to show when the write was refused.
+    /// </summary>
+    string? IncomingConfirmed(CardItem item);
 
-    void IncomingIgnored(CardItem item);
+    /// <summary>Returns null on success, or a message to show when the decision was refused.</summary>
+    string? IncomingIgnored(CardItem item);
 
     void NoteEdited(CardItem item, string text);
 

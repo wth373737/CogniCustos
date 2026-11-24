@@ -68,14 +68,33 @@ public sealed class RuntimeShellDataSource : IShellDataSource
 
     // ---------- incoming card ----------
 
+    /// <summary>
+    /// One proposal is one card entry with one row per landing point: the line is what
+    /// would really be written, and the dry run says whether it would go through.
+    /// </summary>
     public (string Title, string Empty, IReadOnlyList<CardItem> Items) PendingCard()
     {
         var items = new List<CardItem>();
+
         foreach (var proposal in _rt.Gate.Pending())
         {
-            var (when, file) = DescribeProposal(proposal);
-            var (source, sourceFile) = SplitSummary(proposal.Summary);
-            items.Add(new CardItem(proposal.Title, when, source, sourceFile ?? file) { Ref = proposal.Id });
+            var preview = _rt.Gate.Preview(proposal.Id);
+
+            for (var i = 0; i < preview.Changes.Count; i++)
+            {
+                var change = preview.Changes[i];
+                var status = i switch
+                {
+                    0 when preview.Problem is not null && !preview.Ok => "✗ " + preview.Problem,
+                    0 => preview.Problem ?? "✓ 可确认",
+                    _ => null,
+                };
+
+                items.Add(new CardItem(change.Line, i == 0 ? proposal.Title : string.Empty, change.Label, status)
+                {
+                    Ref = proposal.Id,
+                });
+            }
         }
 
         return ("Incoming", "Nothing waiting for a decision.", items);
@@ -95,16 +114,20 @@ public sealed class RuntimeShellDataSource : IShellDataSource
 
     // ---------- actions ----------
 
-    public void IncomingConfirmed(CardItem item)
+    public string? IncomingConfirmed(CardItem item)
     {
-        if (string.IsNullOrEmpty(item.Ref)) return;
-        _rt.Gate.Approve(item.Ref);
+        if (string.IsNullOrEmpty(item.Ref)) return "this row has no proposal behind it";
+
+        var result = _rt.Gate.Approve(item.Ref);
+        return result.Ok ? null : result.Content;
     }
 
-    public void IncomingIgnored(CardItem item)
+    public string? IncomingIgnored(CardItem item)
     {
-        if (string.IsNullOrEmpty(item.Ref)) return;
-        _rt.Gate.Reject(item.Ref);
+        if (string.IsNullOrEmpty(item.Ref)) return "this row has no proposal behind it";
+
+        var result = _rt.Gate.Reject(item.Ref);
+        return result.Ok ? null : result.Content;
     }
 
     public void NoteEdited(CardItem item, string text)
@@ -166,24 +189,6 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         var source = parts.Length > 0 && parts[0].Length > 0 ? parts[0] : null;
         var file = parts.Length > 1 && parts[1].Length > 0 ? parts[1] : null;
         return (source, file);
-    }
-
-    private static (string When, string? File) DescribeProposal(Proposal proposal)
-    {
-        if (proposal.Target != PlannerTools.TargetScheduleAdd) return (string.Empty, null);
-
-        try
-        {
-            using var doc = JsonDocument.Parse(proposal.Payload);
-            var date = doc.RootElement.GetProperty("date").GetString() ?? "";
-            var start = doc.RootElement.GetProperty("start").GetString() ?? "";
-            var end = doc.RootElement.GetProperty("end").GetString() ?? "";
-            return (FormatWhen(date, start, end), null);
-        }
-        catch
-        {
-            return (string.Empty, null);
-        }
     }
 
     private void LoadNotes()
