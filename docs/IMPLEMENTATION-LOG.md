@@ -532,3 +532,50 @@ samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --model-check
 - 模型下载**没有**在 UI 里做成进度条（只有 `--model-check` 与 `InstallBuiltInAsync` 的 `IProgress`）；"Check" 按钮仍只弹占位窗。
 - 摘要走模型后**入库会慢 0.6s**（同步等待），批量抓取时应改成后台队列。
 - 判定器（`IJudge`）仍是关键词实现，没有换成模型版。
+
+---
+
+## 2026-11-25 · LM-GPU 用我们的 AMD 显卡跑（Vulkan）
+
+### 0. 实测（同机、同模型、同问题、预热后）
+
+| 后端 | 加载+预热 | 回答 | 速度 |
+|---|---|---|---|
+| CPU（Ryzen 9 7900X，24 线程） | 1.2 s | 0.5 s | **86 字/秒** |
+| **Vulkan（Radeon RX 7900 XTX）** | 0.8 s | **0.2 s** | **374 字/秒** |
+
+约 **4.3 倍**（0.5B 的小模型本来 CPU 就够用；模型越大差距越明显）。
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 后端包 | 只在**示例项目**里加 `LLamaSharp.Backend.Vulkan 0.30.0`（natives：`ggml-vulkan.dll` 48.4 MB + llama/ggml 若干，合计约 52 MB）。产品默认仍是 CPU。 |
+| provider | `LlamaModelProvider(path, contextSize, gpuLayers, preferVulkan)`；`gpuLayers>0 && preferVulkan` 时从 `runtimes/<rid>/native/vulkan` 取 natives，并显式指定 `ModelParams.Devices = ["Vulkan0"]`。 |
+| 切换后端 | 复制 natives 时**必须覆盖**：上一次 CPU 跑留下的 `llama.dll` 会挡住 Vulkan 版（它的日志会安静地只列出 CPU 设备）。 |
+| 测量工具 | `--model-check --gpu`：同一流程换 Vulkan，并先跑一次预热再计时，输出字/秒。 |
+
+### 2. 踩到的两个坑（都已修）
+
+1. **只设 `GpuLayerCount` 不够**：0.30 把设备选择交给 llama.cpp 的 `devices` 参数，不写 `Devices=["Vulkan0"]` 时 Vulkan 后端虽然被加载，但每一层仍然 `assigned to device CPU`（日志能直接看到）。
+2. **旧后端的 natives 会赢**：拷贝时 `overwrite:false` 导致 CPU 的 `llama.dll` 留在 exe 旁，Vulkan 版没生效；改成切换后端时覆盖。
+
+### 3. 怎么验证
+
+```bash
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --model-check --gpu
+# 日志里应出现：load_tensors: layer N assigned to device Vulkan0
+# 以及：reply time 约 0.2s
+```
+
+### 4. 以后要改哪里
+
+- **产品里开 GPU**：把 `LLamaSharp.Backend.Vulkan` 从示例挪到 `CogniCustos.Adapters`，并在 `LocalModelService` 里把 `gpuLayers/preferVulkan` 做成设置项（例如"硬件加速：自动/关闭"）。
+- **NVIDIA**：换成 `LLamaSharp.Backend.Cuda12`，设备名 `CUDA0`，其余不变。
+- **多显卡/核显**：`Devices` 按优先级列出，例如 `["Vulkan1"]` 指定独显；设备名以 llama.cpp 日志里的枚举为准。
+- **显存不足**：`gpuLayers` 从 99 往下调，让尾巴留在 CPU。
+
+### 5. 已知未做
+
+- 设置页还没有"硬件加速"开关（现在只有命令行 `--gpu`）；GPU 用户的显存/驱动探测也没做。
+- Vulkan 包让示例输出目录多 ~52 MB；发布时应按用户环境选择包，而不是全部带上。

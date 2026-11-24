@@ -277,6 +277,8 @@
    - **实现状态**（2026-11-25 实测）：内置 `qwen2.5-0.5b-instruct-q4_k_m.gguf`（468 MB）+ LLamaSharp/llama.cpp，
      切换 0.01 s、首答约 2.1 s、模型摘要约 0.6 s；模型**懒加载**，所以启动不付代价。详见实施记录 LM 节。
    - **已知 Windows 限制**：llama.cpp 用窄字符打开 GGUF，数据目录含非 ASCII 字符时需要 8.3 短路径（已自动处理）。
+   - **GPU**（2026-11-25 实测）：AMD Radeon 走 Vulkan 后端，同模型预热后 0.2 s/374 字每秒，约为 CPU 的 4.3 倍；
+     后端可在不改变上层接口的情况下替换（CPU / Vulkan / CUDA）。
 
 ---
 

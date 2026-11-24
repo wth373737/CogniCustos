@@ -10,13 +10,17 @@ namespace CogniCustos.Sample;
 /// </summary>
 internal static class ModelCheck
 {
-    public static async Task<int> RunAsync()
+    public static async Task<int> RunAsync(bool gpu = false)
     {
         var root = Path.Combine(Environment.CurrentDirectory, "artifacts", "model-check");
         Directory.CreateDirectory(root);
 
         var rt = CogniCustosRuntime.Create(root);
-        rt.LocalModels.BuiltInFactory = path => new LlamaModelProvider(path);
+        rt.LocalModels.BuiltInFactory = path => gpu
+            ? new LlamaModelProvider(path, gpuLayers: 99, preferVulkan: true)
+            : new LlamaModelProvider(path);
+
+        Console.WriteLine($"backend    : {(gpu ? "vulkan (AMD Radeon)" : "cpu")}");
 
         var installer = rt.LocalModels.Installer;
         Console.WriteLine($"model root : {installer.Folder}");
@@ -50,11 +54,19 @@ internal static class ModelCheck
         if (!switched) return 1;
 
         Console.WriteLine("asking the bundled model …");
+
+        // warm-up: the first call pays the model load, the second one measures speed
+        var warm = Stopwatch.StartNew();
+        await rt.ChatAsync("你好。");
+        warm.Stop();
+
         var askClock = Stopwatch.StartNew();
         var reply = await rt.ChatAsync("用一句话说明你能做什么。");
         askClock.Stop();
 
-        Console.WriteLine($"reply time : {askClock.Elapsed.TotalSeconds:0.0}s");
+        var chars = reply.Trim().Length;
+        Console.WriteLine($"load+warm  : {warm.Elapsed.TotalSeconds:0.0}s");
+        Console.WriteLine($"reply time : {askClock.Elapsed.TotalSeconds:0.0}s  ({chars} 字, {chars / Math.Max(0.1, askClock.Elapsed.TotalSeconds):0.0} 字/秒)");
         Console.WriteLine($"reply      : {reply.Trim()}");
 
         var summaryClock = Stopwatch.StartNew();

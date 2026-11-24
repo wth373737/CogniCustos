@@ -9,7 +9,7 @@ internal static class Program
     {
         if (args.Contains("--model-check"))
         {
-            return ModelCheck.RunAsync().GetAwaiter().GetResult();
+            return ModelCheck.RunAsync(args.Contains("--gpu")).GetAwaiter().GetResult();
         }
 
         if (args.Contains("--check"))

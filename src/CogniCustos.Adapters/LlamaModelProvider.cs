@@ -19,16 +19,26 @@ public sealed class LlamaModelProvider : IModelProvider, IDisposable
 {
     private readonly string _modelPath;
     private readonly int _contextSize;
+    private readonly int _gpuLayers;
+    private readonly bool _preferVulkan;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     private LLamaWeights? _weights;
     private StatelessExecutor? _executor;
 
-    public LlamaModelProvider(string modelPath, int contextSize = 2048)
+    /// <param name="gpuLayers">0 = CPU only; a high number offloads every layer to the GPU backend.</param>
+    /// <param name="preferVulkan">Use the Vulkan build (works on AMD Radeon) instead of the CPU one.</param>
+    public LlamaModelProvider(string modelPath, int contextSize = 2048, int gpuLayers = 0,
+        bool preferVulkan = false)
     {
         _modelPath = modelPath;
         _contextSize = contextSize;
+        _gpuLayers = gpuLayers;
+        _preferVulkan = preferVulkan;
     }
+
+    /// <summary>What this instance will actually use, for logs and the settings page.</summary>
+    public string Backend => _preferVulkan && _gpuLayers > 0 ? $"vulkan · {_gpuLayers} 层" : "cpu";
 
     public string Id => "builtin:" + Path.GetFileNameWithoutExtension(_modelPath);
 
@@ -92,27 +102,34 @@ public sealed class LlamaModelProvider : IModelProvider, IDisposable
     /// <c>runtimes/&lt;rid&gt;/native</c>, with the best build in avx2/. The default loader
     /// only probes beside the executable, so copy that whole set there once.
     /// </summary>
-    private static void EnsureNativeBesideApp()
+    private void EnsureNativeBesideApp()
     {
         var native = Path.Combine(AppContext.BaseDirectory, "runtimes",
             RuntimeInformation.RuntimeIdentifier, "native");
         if (!Directory.Exists(native)) return;
 
+        var vulkan = Path.Combine(native, "vulkan");
         var best = Path.Combine(native, "avx2");
-        var source = Directory.Exists(best) ? best : native;
+
+        var source = _preferVulkan && _gpuLayers > 0 && Directory.Exists(vulkan)
+            ? vulkan
+            : Directory.Exists(best) ? best : native;
 
         foreach (var file in Directory.EnumerateFiles(source))
         {
             var target = Path.Combine(AppContext.BaseDirectory, Path.GetFileName(file));
-            if (File.Exists(target)) continue;
+
+            // a set left behind by the other backend would shadow this one (the CPU build
+            // of llama.dll does not know Vulkan), so switching backends overwrites
+            if (File.Exists(target) && !_preferVulkan && _gpuLayers == 0) continue;
 
             try
             {
-                File.Copy(file, target, overwrite: false);
+                File.Copy(file, target, overwrite: true);
             }
             catch (IOException)
             {
-                // another process copied it first; the loader will find it either way
+                // another process is using the file; the loader keeps the previous copy
             }
         }
     }
@@ -173,8 +190,15 @@ public sealed class LlamaModelProvider : IModelProvider, IDisposable
         var parameters = new ModelParams(ResolveLoadPath())
         {
             ContextSize = (uint)_contextSize,
-            GpuLayerCount = 0,
+            GpuLayerCount = _gpuLayers,
         };
+
+        if (_preferVulkan && _gpuLayers > 0)
+        {
+            // 0.30 hands device selection to llama.cpp via these names; without it the
+            // Vulkan build loads but keeps every layer on the CPU
+            parameters.Devices = ["Vulkan0"];
+        }
 
         _weights = LLamaWeights.LoadFromFile(parameters);
         _executor = new StatelessExecutor(_weights, parameters);
