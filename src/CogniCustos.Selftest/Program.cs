@@ -671,6 +671,70 @@ internal static class Program
                    && ((RawArtifact)first.Data!).Id == ((RawArtifact)second.Data!).Id;
         });
 
+        // ---------- P2: the visibility ladder and the isolated judge ----------
+
+        await Check("visibility: raw material is R1, sandbox is S, only K/M may enter the main context", async () =>
+        {
+            var artifact = rt.Raw.Put("calendar", "portal.usm.my", "Visibility test material: exam week 2027-04-06.",
+                "Visibility test");
+            var sandbox = ((SandboxStore)rt.Sandbox).Entries("notes")[0];
+
+            return artifact.Visibility == Visibility.RawSummary
+                   && sandbox.Visibility == Visibility.Sandbox
+                   && !Visibility.AllowsMainContext(Visibility.RawSummary)
+                   && !Visibility.AllowsMainContext(Visibility.Sandbox)
+                   && Visibility.AllowsMainContext(Visibility.Knowledge)
+                   && Visibility.AllowsMainContext(Visibility.Main)
+                   && Visibility.Normalize("nonsense") == Visibility.RawOriginal;
+        });
+
+        await Check("visibility: what reaches the knowledge base is confirmed and citable", async () =>
+        {
+            var indexFile = Path.Combine(root, "state", "knowledge.json");
+            await rt.Knowledge.IndexAsync("confirmed.md", "已确认的资料：考试周是 2027-04-06 到 2027-04-10。");
+
+            var raw = await File.ReadAllTextAsync(indexFile);
+            var hits = await rt.Knowledge.SearchAsync("考试周");
+
+            return raw.Contains("\"K\"")
+                   && hits.Count > 0
+                   && hits[0].Source == "confirmed.md";
+        });
+
+        await Check("judge: answers with a verdict and a handle, never the material", async () =>
+        {
+            var artifact = rt.Raw.Put("calendar", "portal.usm.my",
+                "The bytes mention a hidden detail: 具体教室在 A3-201。",
+                "2027 考试周安排");
+
+            var verdicts = rt.Judge.Find("考试周什么时候开始", rt.Raw.List(20));
+            var hit = verdicts.FirstOrDefault(v => v.ArtifactId == artifact.Id);
+
+            return hit is not null
+                   && hit.Relevant
+                   && hit.Category is "日程" or "课程"
+                   && hit.Title.Contains("考试周")
+                   && !verdicts.Any(v => v.Title.Contains("具体教室"));
+        });
+
+        await Check("judge: only the summary is read - a detail past its end is invisible", async () =>
+        {
+            // the R1 summary is the first 200 characters, so this detail sits beyond it
+            var bytes = new string('x', 400) + " 秘密教室在 A3-201";
+            var artifact = rt.Raw.Put("note", "manual", bytes, "与问题无关的标题");
+
+            var verdicts = rt.Judge.Find("秘密教室在哪个楼", rt.Raw.List(20));
+            var hit = verdicts.FirstOrDefault(v => v.ArtifactId == artifact.Id);
+
+            // …and the same question does match once the detail is inside the summary
+            var inSummary = rt.Raw.Put("note", "manual2", "秘密教室在 A3-201", "与问题无关的标题");
+            var second = rt.Judge.Find("秘密教室在哪个楼", rt.Raw.List(20))
+                .FirstOrDefault(v => v.ArtifactId == inSummary.Id);
+
+            return hit is not null && !hit.Relevant && hit.Score < 0.2
+                   && second is not null && second.Relevant;
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

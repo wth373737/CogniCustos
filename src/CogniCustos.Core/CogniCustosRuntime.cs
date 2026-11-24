@@ -38,6 +38,9 @@ public sealed class CogniCustosRuntime
 
     /// <summary>The information side: what was fetched, byte for byte, append only.</summary>
     public IRawStore Raw { get; }
+
+    /// <summary>The isolated judgement step: verdicts and handles, never material.</summary>
+    public IJudge Judge { get; } = new KeywordJudge();
     public IKnowledgeBase Knowledge { get; }
     public IModelRouter Models { get; }
     public ISelfDocs SelfDocs { get; }

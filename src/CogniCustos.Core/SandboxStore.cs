@@ -112,7 +112,7 @@ public sealed class SandboxStore : ISandbox
         using var conn = Open();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-            SELECT id, section, kind, text, created_at, source_ref, status FROM sandbox_entries
+            SELECT id, section, kind, text, created_at, source_ref, status, visibility FROM sandbox_entries
             WHERE section = $s ORDER BY id DESC LIMIT $n;
             """;
         cmd.Parameters.AddWithValue("$s", section.Trim().ToLowerInvariant());
@@ -129,7 +129,8 @@ public sealed class SandboxStore : ISandbox
                 reader.GetString(3),
                 DateTimeOffset.TryParse(reader.GetString(4), out var at) ? at : DateTimeOffset.MinValue,
                 reader.IsDBNull(5) ? null : reader.GetString(5),
-                reader.GetString(6)));
+                reader.GetString(6),
+                reader.IsDBNull(7) ? Visibility.Sandbox : reader.GetString(7)));
         }
 
         return rows;
@@ -152,8 +153,8 @@ public sealed class SandboxStore : ISandbox
         using var conn = Open();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-            INSERT INTO sandbox_entries(section, kind, text, created_at, source_ref, status)
-            VALUES ($s, $k, $t, $c, $r, 'open');
+            INSERT INTO sandbox_entries(section, kind, text, created_at, source_ref, status, visibility)
+            VALUES ($s, $k, $t, $c, $r, 'open', 'S');
             """;
         cmd.Parameters.AddWithValue("$s", section);
         cmd.Parameters.AddWithValue("$k", kind);

@@ -56,8 +56,8 @@ public sealed class SqliteRawStore : IRawStore
 
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-            INSERT INTO raw_artifacts(hash, kind, source, title, summary, summary_kind, bytes_path, chars, fetched_at, status)
-            VALUES ($h, $k, $s, $t, $m, 'fallback', $p, $c, $f, 'kept');
+            INSERT INTO raw_artifacts(hash, kind, source, title, summary, summary_kind, bytes_path, chars, fetched_at, status, visibility)
+            VALUES ($h, $k, $s, $t, $m, 'fallback', $p, $c, $f, 'kept', 'R1');
             SELECT last_insert_rowid();
             """;
         cmd.Parameters.AddWithValue("$h", hash);
@@ -72,7 +72,7 @@ public sealed class SqliteRawStore : IRawStore
         var id = Convert.ToInt32(cmd.ExecuteScalar());
         return new RawArtifact(
             id.ToString(), hash, kind, source, fallbackTitle, summary, "fallback",
-            relative, text.Length, DateTimeOffset.Now, "kept");
+            relative, text.Length, DateTimeOffset.Now, "kept", Visibility.RawSummary);
     }
 
     public RawArtifact? Get(string id) => int.TryParse(id, out var key) ? Read(Open(), key) : null;
@@ -114,7 +114,7 @@ public sealed class SqliteRawStore : IRawStore
     // ---------- helpers ----------
 
     private const string SelectColumns = """
-        SELECT id, hash, kind, source, title, summary, summary_kind, bytes_path, chars, fetched_at, status
+        SELECT id, hash, kind, source, title, summary, summary_kind, bytes_path, chars, fetched_at, status, visibility
         FROM raw_artifacts
         """;
 
@@ -160,7 +160,8 @@ public sealed class SqliteRawStore : IRawStore
                 reader.IsDBNull(7) ? null : reader.GetString(7),
                 reader.GetInt32(8),
                 DateTimeOffset.TryParse(reader.GetString(9), out var at) ? at : DateTimeOffset.MinValue,
-                reader.GetString(10)));
+                reader.GetString(10),
+                reader.IsDBNull(11) ? Visibility.RawSummary : reader.GetString(11)));
         }
 
         return rows;

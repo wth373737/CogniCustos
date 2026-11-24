@@ -33,7 +33,8 @@ public static class RawTools
             if (items.Count == 0) return Task.FromResult(ToolResult.Ok0("raw store is empty"));
 
             var lines = items.Select(a =>
-                $"#{a.Id} {a.FetchedAt:MM-dd HH:mm} [{a.Kind}] {a.Title} — 来源 {a.Source}（摘要 {a.SummaryKind}，{a.Chars} 字）");
+                $"#{a.Id} {a.FetchedAt:MM-dd HH:mm} [{a.Kind}] {a.Title} — 来源 {a.Source}" +
+                $"（{Visibility.Label(a.Visibility)}，摘要 {a.SummaryKind}，{a.Chars} 字）");
             return Task.FromResult(ToolResult.Ok0(string.Join('\n', lines), items));
         }
     }

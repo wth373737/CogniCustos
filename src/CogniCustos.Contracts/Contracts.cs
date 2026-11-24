@@ -156,7 +156,8 @@ public sealed record SandboxEntry(
     string Text,
     DateTimeOffset CreatedAt,
     string? SourceRef,
-    string Status);
+    string Status,
+    string Visibility = "S");
 
 /// <summary>One fetched artifact in the raw store: low trust, append only, never citable.</summary>
 public sealed record RawArtifact(
@@ -170,7 +171,8 @@ public sealed record RawArtifact(
     string? BytesPath,
     int Chars,
     DateTimeOffset FetchedAt,
-    string Status);
+    string Status,
+    string Visibility = "R1");
 
 /// <summary>
 /// The information side of the partition model. Only the application writes here;

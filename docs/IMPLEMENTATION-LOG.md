@@ -290,3 +290,61 @@ samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --check
 - 邮件抓取、定时抓取、抓取失败的记录都还没做（现在只有"读一次写一次"）。
 - 原始区的保留/清理策略（§8 待定）未实现，`status` 列已预留。
 - 变更集卡片还没有"整批不可确认时置灰"的交互（现在只是把 `✗ 原因` 写在行上，按钮仍可点，点了会被门禁拒绝）。
+
+---
+
+## 2026-11-25 · P2 可见性阶梯与隔离判定
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 阶梯入库 | schema v5：`raw_artifacts.visibility` 默认 `R1`、`sandbox_entries.visibility` 默认 `S`。`RawArtifact` / `SandboxEntry` 带上该字段（有默认值，旧构造点不受影响）。 |
+| 单一闸门 | 新增 `Visibility`：`AllowsMainContext`（只有 `K`/`M` 为真）、`CanBeCited`、`Normalize`（未知值一律降到 `R0`，**绝不静默升格**）、`Label`（给界面用的中文标签）。 |
+| 知识库只收已确认 | `KeywordKnowledgeBase` 的每条记录带 `visibility=K`；`SearchAsync` 在返回前过滤 `CanBeCited`，所以检索结果天然可引用。索引文件里能看到 `"K"`。 |
+| 判定器 | 新增 `IJudge` / `JudgeVerdict` / `KeywordJudge`：输入是问题 + 候选 artifact，**只读标题与 R1 概括**，输出"相关/不相关 + 类别 + 分数 + id"，**不回传正文**。类别桶：日程 / 邮件 / 课程 / 任务 / 其他。运行时暴露 `rt.Judge`。 |
+| 原始工具标注 | `raw.list` / `raw.search` 的输出带上 `R1 · 原始概括` 这类标签，模型看得到"这是未确认材料"。 |
+
+### 2. 为什么（对应条款）
+
+- §3.1 五档可见性 → 落到列上，不再靠约定。
+- §3.2「未确认内容不进入主对话」→ `AllowsMainContext` 是唯一判断点；判定器只回裁决与句柄。
+- §3.3「发现 / 读取 / 确认」三种同意 → 发现走 `raw.search`（R1），确认才进 K/M。
+- §2.3「窄工具面」→ 判定不是工具，是应用侧能力（`rt.Judge`），模型无法自我审查式地"绕过判定"。
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/Visibility.cs` | **新增**：阶梯常量 + 唯一闸门 |
+| `src/CogniCustos.Core/Judge.cs` | **新增**：`IJudge` / `JudgeVerdict` / `KeywordJudge` |
+| `src/CogniCustos.Core/SqliteSchema.cs` | v5：visibility 两列 |
+| `src/CogniCustos.Contracts/Contracts.cs` | 两条记录带 `Visibility`（默认值） |
+| `src/CogniCustos.Core/RawStore.cs` / `SandboxStore.cs` | 读写该列 |
+| `src/CogniCustos.Core/KeywordKnowledgeBase.cs` | 记录带 K、检索过滤可引用者 |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | 暴露 `Judge` |
+| `src/CogniCustos.Core/RawTools.cs` | 输出带可见性标签 |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 4 条断言（56 → 60） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug     # passed=60
+```
+
+断言覆盖：R1/S 不能进主上下文、K/M 可以、未知值降到 R0；知识库只收 K 且检索结果可引用；
+判定器对相关材料给"相关 + 类别 + 标题"且**不含正文**；概括只有前 200 字，**超出部分判定器看不到**
+（同一句话放进概括里就能命中，放在 400 字之后就不命中）。
+
+### 5. 以后要改哪里
+
+- **接真模型做判定**：实现另一个 `IJudge`（输入同样只有标题+概括），在 `CogniCustosRuntime` 里替换 `new KeywordJudge()`；
+  注意返回类型里不要加"摘要/正文"字段，那会让调用方有机会把正文带进主对话。
+- **加一档可见性**：改 `Visibility` 常量与三个函数，并在 schema 加迁移（旧值默认不动）。
+- **让判定结果进主对话**：应该在 `ChatAsync` 里把"相关 + id"渲染成一句询问，**不要**把 material 直接塞进 prompt。
+
+### 6. 已知未做
+
+- 判定器还没接进 `ChatAsync`：现在只有应用侧能调（`rt.Judge`），对话里不会主动提"我发现一份相关材料"。
+- 用户"确认收录"到知识库的入口还没有（现在只有 `kb.index` 建议 + 确认这条路径）。
+- 概要是"前 200 字"的确定性降级，接内置本地模型后会换成真摘要（`summary_kind=model`）。

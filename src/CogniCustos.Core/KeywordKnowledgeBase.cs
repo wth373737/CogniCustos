@@ -10,7 +10,7 @@ namespace CogniCustos.Core;
 /// </summary>
 public sealed class KeywordKnowledgeBase : IKnowledgeBase
 {
-    private sealed record Doc(string Source, string Text, string[] Tokens);
+    private sealed record Doc(string Source, string Text, string Visibility, string[] Tokens);
 
     private readonly List<Doc> _docs = new();
     private readonly string _path;
@@ -26,7 +26,8 @@ public sealed class KeywordKnowledgeBase : IKnowledgeBase
 
     public Task IndexAsync(string source, string text, CancellationToken ct = default)
     {
-        var doc = new Doc(source, text, Tokenize(text));
+        // everything that reaches this store has been confirmed by the user
+        var doc = new Doc(source, text, Visibility.Knowledge, Tokenize(text));
         lock (_sync)
         {
             _docs.RemoveAll(d => d.Source == source);
@@ -42,6 +43,7 @@ public sealed class KeywordKnowledgeBase : IKnowledgeBase
         lock (_sync)
         {
             var hits = _docs
+                .Where(d => Visibility.CanBeCited(d.Visibility))
                 .Select(d => new KnowledgeHit(d.Source, Snippet(d.Text, q), Score(q, d)))
                 .Where(h => h.Score > 0)
                 .OrderByDescending(h => h.Score)
@@ -112,7 +114,7 @@ public sealed class KeywordKnowledgeBase : IKnowledgeBase
 
     private void Save()
     {
-        var payload = _docs.Select(d => new { d.Source, d.Text }).ToList();
+        var payload = _docs.Select(d => new { d.Source, d.Text, d.Visibility }).ToList();
         File.WriteAllText(_path, JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true }));
     }
 
@@ -127,7 +129,10 @@ public sealed class KeywordKnowledgeBase : IKnowledgeBase
             {
                 var src = r.GetProperty("Source").GetString() ?? "";
                 var txt = r.GetProperty("Text").GetString() ?? "";
-                _docs.Add(new Doc(src, txt, Tokenize(txt)));
+                var visibility = r.TryGetProperty("Visibility", out var v) && v.ValueKind == JsonValueKind.String
+                    ? Visibility.Normalize(v.GetString())
+                    : Visibility.Knowledge;
+                _docs.Add(new Doc(src, txt, visibility, Tokenize(txt)));
             }
         }
         catch { /* index is a cache; a corrupt one is simply rebuilt */ }

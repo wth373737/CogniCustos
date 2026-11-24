@@ -14,7 +14,7 @@ namespace CogniCustos.Core;
 public static class SqliteSchema
 {
     /// <summary>Bump this and add a step below; never edit a released step.</summary>
-    public const int Version = 4;
+    public const int Version = 5;
 
     public static void EnsureUpgraded(SqliteConnection conn)
     {
@@ -31,6 +31,7 @@ public static class SqliteSchema
         if (version < 2) Step2Provenance(conn);
         if (version < 3) Step3RawAndSandbox(conn);
         if (version < 4) Step4Proposals(conn);
+        if (version < 5) Step5Visibility(conn);
 
         Exec(conn, $"PRAGMA user_version = {Version};");
         tx.Commit();
@@ -158,6 +159,19 @@ public static class SqliteSchema
             """);
 
         Exec(conn, "CREATE INDEX IF NOT EXISTS idx_changes_proposal ON proposal_changes(proposal_id, ord);");
+    }
+
+    // ---------- v5: the visibility ladder becomes a stored column ----------
+
+    private static void Step5Visibility(SqliteConnection conn)
+    {
+        var raw = Columns(conn, "raw_artifacts");
+        if (!raw.Contains("visibility"))
+            Exec(conn, "ALTER TABLE raw_artifacts ADD COLUMN visibility TEXT NOT NULL DEFAULT 'R1';");
+
+        var sandbox = Columns(conn, "sandbox_entries");
+        if (!sandbox.Contains("visibility"))
+            Exec(conn, "ALTER TABLE sandbox_entries ADD COLUMN visibility TEXT NOT NULL DEFAULT 'S';");
     }
 
     // ---------- helpers ----------
