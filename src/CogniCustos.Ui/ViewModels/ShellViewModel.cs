@@ -330,6 +330,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     public void RefreshText()
     {
         Settings.RefreshTitles();
+        Settings.Model.SetLocalStatus(_source.LocalModelStatus());
         Calendar.RefreshText();
         Dialog.RefreshText(BuildDialogButtons);
         Reasoning.RefreshText();
@@ -403,6 +404,22 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         SetToast(line);
     }
 
+    /// <summary>
+    /// The Ollama window asks the backing store to switch; the mention that switching
+    /// frees the bundled model is part of the window's own note.
+    /// </summary>
+    private void EnableOllama(string model)
+    {
+        if (_source.EnableOllama(model) is { } failure)
+        {
+            SetToast(failure);
+            return;
+        }
+
+        Settings.Model.CompleteOllamaSwitch(true, _source.LocalModelStatus());
+        SetToast(_source.LocalModelStatus());
+    }
+
     /// <summary>The Model Configuration form reports intent through events; the shell answers.</summary>
     private void WireModelSection()
     {
@@ -413,6 +430,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.Model.AddRequested += () =>
             ShowInfoDialog("Settings.Model.AddTitle", "Settings.Model.AddPending");
         Settings.Model.DeleteRequested += AskRemoveLocalModel;
+        Settings.Model.OllamaEnableRequested += EnableOllama;
     }
 
     private void SetToast(string text)

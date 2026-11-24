@@ -140,6 +140,14 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         _rt.Sandbox.WriteSectionAsync("notes", string.Join("\n\n", _notes)).GetAwaiter().GetResult();
     }
 
+    public string LocalModelStatus() => _rt.LocalModels.StatusText();
+
+    public string? EnableOllama(string model)
+    {
+        var (ok, message) = _rt.LocalModels.UseOllama(model);
+        return ok ? null : message;
+    }
+
     public async Task<string?> AskAsync(string instruction)
     {
         var answer = await _rt.ChatAsync(instruction);

@@ -778,6 +778,56 @@ internal static class Program
             return !result.Ok && result.Content.Contains("no raw material");
         });
 
+        // ---------- local model: bundled ⇄ Ollama, with the automatic cleanup ----------
+
+        await Check("local model: choosing Ollama deletes the bundled model and persists", async () =>
+        {
+            // simulate an installed bundled model
+            var builtIn = Path.Combine(root, "models", "builtin");
+            Directory.CreateDirectory(builtIn);
+            await File.WriteAllBytesAsync(Path.Combine(builtIn, "weights.bin"), new byte[1024 * 512]);
+            await File.WriteAllTextAsync(Path.Combine(builtIn, "model.json"), """{"name":"qwen2.5:7b"}""");
+
+            var service = new LocalModelService((ModelRouter)rt.Models,
+                Path.Combine(root, "state", "settings.json"), Path.Combine(root, "models"));
+
+            var installedBefore = service.BuiltInInstalled;
+            var switched = service.UseOllama("qwen2.5:7b");
+
+            var reloaded = SettingsStore.Load(Path.Combine(root, "state", "settings.json"));
+            var provider = rt.Models.All.FirstOrDefault(p => p.Id == "ollama:qwen2.5:7b");
+
+            return installedBefore
+                   && switched.Ok
+                   && switched.Message.Contains("释放")
+                   && !Directory.Exists(builtIn)
+                   && reloaded.LocalModelSource == "ollama"
+                   && !reloaded.BuiltInInstalled
+                   && provider is not null;
+        });
+
+        await Check("local model: the Ollama address is fixed and the model name is required", async () =>
+        {
+            var service = new LocalModelService((ModelRouter)rt.Models,
+                Path.Combine(root, "state", "settings.json"), Path.Combine(root, "models"));
+
+            var empty = service.UseOllama("   ");
+            var back = service.UseBuiltIn();
+
+            return service.OllamaBaseUrl == "http://127.0.0.1:11434"
+                   && !empty.Ok
+                   && !back.Ok; // the bundled model was deleted by the previous switch
+        });
+
+        await Check("local model: deleting an absent bundled model is not an error", async () =>
+        {
+            var service = new LocalModelService((ModelRouter)rt.Models,
+                Path.Combine(root, "state", "settings.json"), Path.Combine(root, "models"));
+
+            var deleted = service.DeleteBuiltIn(out var message);
+            return deleted && message.Contains("没有可删除");
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

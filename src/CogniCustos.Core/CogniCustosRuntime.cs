@@ -41,6 +41,9 @@ public sealed class CogniCustosRuntime
 
     /// <summary>The isolated judgement step: verdicts and handles, never material.</summary>
     public IJudge Judge { get; } = new KeywordJudge();
+
+    /// <summary>Bundled local model ⇄ the user's Ollama; choosing Ollama frees the bundled model.</summary>
+    public LocalModelService LocalModels { get; private init; } = null!;
     public IKnowledgeBase Knowledge { get; }
     public IModelRouter Models { get; }
     public ISelfDocs SelfDocs { get; }
@@ -67,11 +70,15 @@ public sealed class CogniCustosRuntime
         var knowledge = new KeywordKnowledgeBase(Path.Combine(state, "knowledge.json"));
         var registry = new ToolRegistry();
         var models = new ModelRouter();
+        var localModels = new LocalModelService(models, Path.Combine(state, "settings.json"), Path.Combine(root, "models"));
         var selfDocs = new SelfDocs(appRoot ?? CogniCustos.Core.SelfDocs.ResolveAppRoot());
         var checker = new SensitiveContentChecker(models);
         var audit = new OutboundAudit(Path.Combine(state, "outbound-audit.jsonl"));
 
-        var rt = new CogniCustosRuntime(root, sandbox, gate, tasks, schedule, raw, knowledge, registry, models, selfDocs, checker, audit);
+        var rt = new CogniCustosRuntime(root, sandbox, gate, tasks, schedule, raw, knowledge, registry, models, selfDocs, checker, audit)
+        {
+            LocalModels = localModels,
+        };
         if (log is not null) rt.Log += log;
 
         // The confirmation handler owns the only path from a proposal to the real stores.

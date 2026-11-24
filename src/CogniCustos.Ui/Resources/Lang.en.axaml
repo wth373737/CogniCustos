@@ -86,6 +86,12 @@
   <x:String x:Key="Dialog.Ok">OK</x:String>
   <x:String x:Key="Dialog.Delete">Delete</x:String>
 
+  <x:String x:Key="Settings.Model.OllamaTitle">Using Ollama</x:String>
+  <x:String x:Key="Settings.Model.OllamaAddress">Address (fixed)</x:String>
+  <x:String x:Key="Settings.Model.OllamaModelLabel">Model name</x:String>
+  <x:String x:Key="Settings.Model.OllamaWindowNote">The address is fixed because the Ollama path is the advanced option. Enabling it removes the bundled local model to free disk space; to add a model in addition, use “Add custom models and services”.</x:String>
+  <x:String x:Key="Settings.Model.OllamaEnable">Enable Ollama</x:String>
+
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.

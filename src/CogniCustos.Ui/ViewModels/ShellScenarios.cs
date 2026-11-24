@@ -44,6 +44,10 @@ public static class ShellScenarios
             case "settings-model":
                 OpenModelSection(vm);
                 break;
+            case "settings-ollama":
+                OpenModelSection(vm);
+                vm.Settings.Model.OpenOllamaCommand.Execute(null);
+                break;
             case "settings-model-zh":
                 OpenModelSection(vm);
                 vm.SetLanguageCommand.Execute(Localizer.Chinese);

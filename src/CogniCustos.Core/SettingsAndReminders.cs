@@ -6,6 +6,13 @@ namespace CogniCustos.Core;
 /// <summary>Everything the user can change about wiring. Stored next to the state, never in the workspace root.</summary>
 public sealed record AppSettings
 {
+    /// <summary>Which local inference the app should use: the bundled one or the user's Ollama.</summary>
+    public string LocalModelSource { get; init; } = "builtin";
+
+    /// <summary>False after the bundled model has been removed (or before it was ever installed).</summary>
+    public bool BuiltInInstalled { get; init; } = true;
+
+    /// <summary>Fixed by design: the Ollama path is the advanced, pre-filled option.</summary>
     public string OllamaBaseUrl { get; init; } = "http://127.0.0.1:11434";
     public string OllamaModel { get; init; } = "qwen2.5:7b";
     public string? PortalSidecarUrl { get; init; }

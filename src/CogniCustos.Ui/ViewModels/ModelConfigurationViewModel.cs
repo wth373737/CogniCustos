@@ -22,6 +22,13 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         Fields = [ModelName, Url, ApiKey];
 
         _localModelName = Localizer.Get("Settings.Model.LocalModelName");
+        OpenOllamaCommand = new RelayCommand(() =>
+        {
+            OllamaModelText = Localizer.Get("Settings.Model.LocalModelName");
+            IsOllamaWindowOpen = true;
+        });
+        CloseOllamaCommand = new RelayCommand(() => IsOllamaWindowOpen = false);
+        EnableOllamaCommand = new RelayCommand(() => OllamaEnableRequested?.Invoke(OllamaModelText.Trim()));
 
         ToggleAdvancedCommand = new RelayCommand(() =>
         {
@@ -38,6 +45,14 @@ public sealed class ModelConfigurationViewModel : ObservableObject
     public ModelField ApiKey { get; }
 
     public ObservableCollection<ModelField> Fields { get; }
+
+    /// <summary>The "using Ollama" row opens a small window with a fixed address.</summary>
+    public RelayCommand OpenOllamaCommand { get; }
+    public RelayCommand CloseOllamaCommand { get; }
+    public RelayCommand EnableOllamaCommand { get; }
+
+    /// <summary>Raised when the user asks to switch; the shell answers via the data source.</summary>
+    public event Action<string>? OllamaEnableRequested;
 
     public RelayCommand ToggleAdvancedCommand { get; }
     public RelayCommand CheckCommand { get; }
@@ -79,6 +94,52 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         private set => Set(ref _localModelName, value);
     }
 
+    private bool _ollamaOpen;
+    private string _ollamaModelText = string.Empty;
+    private string _localStatus = string.Empty;
+
+    /// <summary>The configuration window for the Ollama path.</summary>
+    public bool IsOllamaWindowOpen
+    {
+        get => _ollamaOpen;
+        private set => Set(ref _ollamaOpen, value);
+    }
+
+    /// <summary>Only the model name is typed; the address is fixed below it.</summary>
+    public string OllamaModelText
+    {
+        get => _ollamaModelText;
+        set => Set(ref _ollamaModelText, value);
+    }
+
+    public string OllamaAddress => "http://127.0.0.1:11434";
+
+    public string OllamaTitleLabel => Localizer.Get("Settings.Model.OllamaTitle");
+    public string OllamaAddressLabel => Localizer.Get("Settings.Model.OllamaAddress");
+    public string OllamaModelLabel => Localizer.Get("Settings.Model.OllamaModelLabel");
+    public string OllamaWindowNote => Localizer.Get("Settings.Model.OllamaWindowNote");
+    public string OllamaEnableLabel => Localizer.Get("Settings.Model.OllamaEnable");
+    public string CancelLabel => Localizer.Get("Dialog.Cancel");
+
+    /// <summary>What the "Small local model" row shows (bundled name, Ollama model, or none).</summary>
+    public string LocalStatus
+    {
+        get => _localStatus;
+        private set => Set(ref _localStatus, value);
+    }
+
+    public void SetLocalStatus(string status) => LocalStatus = status;
+
+    /// <summary>The shell reports back after trying to switch.</summary>
+    public void CompleteOllamaSwitch(bool ok, string status)
+    {
+        if (ok)
+        {
+            IsOllamaWindowOpen = false;
+            LocalStatus = status;
+        }
+    }
+
     public void RemoveLocalModel() => LocalModelName = Localizer.Get("Settings.Model.LocalModelNone");
 
     public void RefreshText()
@@ -96,5 +157,11 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         OnPropertyChanged(nameof(CheckLabel));
         OnPropertyChanged(nameof(DeleteLabel));
         OnPropertyChanged(nameof(AddLabel));
+        OnPropertyChanged(nameof(OllamaTitleLabel));
+        OnPropertyChanged(nameof(OllamaAddressLabel));
+        OnPropertyChanged(nameof(OllamaModelLabel));
+        OnPropertyChanged(nameof(OllamaWindowNote));
+        OnPropertyChanged(nameof(OllamaEnableLabel));
+        OnPropertyChanged(nameof(CancelLabel));
     }
 }

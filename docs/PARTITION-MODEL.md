@@ -270,6 +270,8 @@
    即设置页的 "I have custom local models, using Ollama"（可折叠、默认收起）。
    由此推出三条实现约束：
    - 模型路由里，**内置运行时是第一顺位**；Ollama 仅在用户显式启用且探测到可用时才作为来源；
+   - 切换是**互斥**的：选 Ollama 会删除内置模型（目的就是省盘），并存要走"添加自定义模型与服务"；
+     状态落在 `state/settings.json` 的 `LocalModelSource` / `BuiltInInstalled`（已实现，见实施记录 M 节）；
    - 云模型（`deepseek-flash`）是用户在 "Primary Inference Model" 里填 URL / API Key 的**可选项**，不是必需项；
    - 任何依赖模型的环节（R1 概括、判定对话、embedding）都必须有**无模型降级**，否则"开箱即用"不成立（见 §6.9）。
 

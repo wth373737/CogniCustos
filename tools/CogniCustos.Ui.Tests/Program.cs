@@ -560,6 +560,47 @@ internal static class Program
             Check(vm.Settings.Model.PrimaryHeader.Length > 0, "the section header went blank");
         });
 
+        // ---- settings: the Ollama switch ----
+        Test("ollama_window_carries_the_model_name_to_the_store", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Settings.Model.OpenOllamaCommand.Execute(null);
+            Pump();
+            Check(shell.Settings.Model.IsOllamaWindowOpen, "the Ollama window did not open");
+            Check(shell.Settings.Model.OllamaAddress == "http://127.0.0.1:11434",
+                "the address must be fixed");
+            Check(shell.Settings.Model.OllamaModelText.Length > 0, "the model name box started empty");
+
+            shell.Settings.Model.OllamaModelText = "llama3.1:8b";
+            shell.Settings.Model.EnableOllamaCommand.Execute(null);
+            Pump();
+
+            Check(source.OllamaSwitches.Count == 1 && source.OllamaSwitches[0] == "llama3.1:8b",
+                "the model name did not reach the store");
+            Check(!shell.Settings.Model.IsOllamaWindowOpen, "the window stayed open after switching");
+            Check(shell.Settings.Model.LocalStatus.Contains("qwen2.5:7b"),
+                $"the row does not show the new status: '{shell.Settings.Model.LocalStatus}'");
+        });
+
+        Test("ollama_switch_failure_keeps_the_window_open", (_, _) =>
+        {
+            var source = new RefusingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Settings.Model.OpenOllamaCommand.Execute(null);
+            Pump();
+            shell.Settings.Model.OllamaModelText = "nope";
+            shell.Settings.Model.EnableOllamaCommand.Execute(null);
+            Pump();
+
+            Check(shell.Settings.Model.IsOllamaWindowOpen, "a refused switch closed the window");
+            Check(shell.Toast.Contains("refused"), $"the refusal was not shown: '{shell.Toast}'");
+        });
+
         // ---- reasoning record list and thought trace (two independent entries) ----
         Test("reasoning_row_opens_the_record_list", (vm, _) =>
         {
@@ -1128,6 +1169,16 @@ internal sealed class RecordingSource : IShellDataSource
     public void NoteEdited(CardItem item, string text) => Edited.Add((item, text));
 
     public Task<string?> AskAsync(string instruction) => Task.FromResult<string?>(null);
+
+    public string LocalModelStatus() => "qwen2.5:7b（内置）";
+
+    public List<string> OllamaSwitches { get; } = [];
+
+    public string? EnableOllama(string model)
+    {
+        OllamaSwitches.Add(model);
+        return null;
+    }
 }
 
 /// <summary>Refuses every decision, so the "write failed" path can be asserted.</summary>
@@ -1153,4 +1204,8 @@ internal sealed class RefusingSource : IShellDataSource
     }
 
     public Task<string?> AskAsync(string instruction) => Task.FromResult<string?>(null);
+
+    public string LocalModelStatus() => "未安装本地模型";
+
+    public string? EnableOllama(string model) => "refused by the store";
 }

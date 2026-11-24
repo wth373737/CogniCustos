@@ -28,4 +28,13 @@ public interface IShellDataSource
 
     /// <summary>Free-text instruction from the input box; the answer goes back to the line.</summary>
     Task<string?> AskAsync(string instruction);
+
+    /// <summary>What the settings page shows on the "Small local model" row.</summary>
+    string LocalModelStatus();
+
+    /// <summary>
+    /// Switch to the user's Ollama model. Returns null on success, or the reason it was
+    /// refused. Choosing this path is expected to free the bundled model.
+    /// </summary>
+    string? EnableOllama(string model);
 }

@@ -399,3 +399,69 @@ dotnet run --project src/CogniCustos.Selftest -c Debug     # passed=64
 - 判定仍是关键词/字符重合（`KeywordJudge`），中文短问题容易误命中——这就是"接内置模型"那一轮要替换的东西。
 - 界面上还没有"未确认材料"列表与"确认收录"按钮（数据与 API 已就绪）。
 - 概要是前 200 字降级；`accept` 之后知识库里存的仍是原文，将来接模型后可换成结构化摘要。
+
+---
+
+## 2026-11-25 · M 内置本地模型 ⇄ Ollama 可切换
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 状态持久化 | `AppSettings` 新增 `LocalModelSource`（`builtin` / `ollama` / `none`）与 `BuiltInInstalled`；Ollama 地址**写死** `http://127.0.0.1:11434`。 |
+| 切换服务 | 新增 `LocalModelService`：`UseOllama(model)` / `UseBuiltIn()` / `DeleteBuiltIn()` / `StatusText()`；`ModelRouter.ReplaceRole` 让路由在切换时替换角色，而不是叠加。 |
+| 切到 Ollama 自动清理 | 按设计：`UseOllama` **先删掉内置模型**（`<root>/models/builtin`，返回释放的 MB 数），再写设置、再注册 Ollama provider。失败（模型名为空、删除失败）时不切换。 |
+| 删空也安全 | 内置模型本来就不在时，`DeleteBuiltIn` 返回"没有可删除的内置模型"，仍把 `BuiltInInstalled=false` 落盘，不报错。 |
+| 设置页 | "I have custom local models, using Ollama" 那一行变成可点按钮 → 打开**小窗**：地址只读（固定）、只填模型名、说明里写明"启用会删除自带模型以释放空间；只想额外加模型请用下面的添加按钮"。 |
+| 反馈 | 成功 → 关闭小窗、把 "Small local model" 行的状态改成 `Ollama · <model>` 并提示；失败 → **小窗保持打开**、原因进状态栏。 |
+| 解耦 | UI 通过 `IShellDataSource.LocalModelStatus()` / `EnableOllama(model)` 与后端交互，示例里接到 `rt.LocalModels`；UI 不引用 Core。 |
+
+### 2. 为什么（对应条款与你的说明）
+
+- §8.7「内置运行时第一顺位、Ollama 是进阶手动选项」→ 地址固定、只需模型名。
+- 你补充的语义："用 Ollama 按钮的目的是清理硬盘，不是并存" → 切换即删除；**并存**要走 "Add custom models and services"。
+- §2.3「窄面」→ 删除用的是 `Directory.Delete` 一处，没有给模型层加任何工具。
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/LocalModelService.cs` | **新增** |
+| `src/CogniCustos.Core/SettingsAndReminders.cs` | 两个设置字段 |
+| `src/CogniCustos.Core/ModelRouter.cs` | `ReplaceRole` |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | 暴露 `LocalModels` |
+| `src/CogniCustos.Ui/ViewModels/IShellDataSource.cs` | 两个新成员 |
+| `src/CogniCustos.Ui/ViewModels/ModelConfigurationViewModel.cs` | 小窗状态与事件 |
+| `src/CogniCustos.Ui/ViewModels/ShellViewModel.cs` | `EnableOllama` 编排 + 状态种子 |
+| `src/CogniCustos.Ui/Views/SettingsPage.axaml` | 可点行 + 小窗 + 遮罩 |
+| `samples/CogniCustos.Sample/RuntimeShellDataSource.cs` | 接到 `rt.LocalModels` |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 2 条（58 → 60） |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 3 条（64 → 67） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug       # passed=67
+dotnet run --project tools/CogniCustos.Ui.Tests -c Debug     # ALL PASS（60）
+dotnet run --project tools/CogniCustos.Ui.Shots -c Debug -- artifacts/ui 1280 720
+# 新状态：settings-ollama
+```
+
+断言覆盖：切到 Ollama 会删除内置模型目录、设置落盘为 `ollama`、路由里出现 `ollama:<model>`；
+地址固定且模型名必填；删除不存在的内置模型不报错；界面把小窗里的模型名传到后端，
+成功后关窗并更新行状态，失败时小窗不关、原因进状态栏。
+
+### 5. 以后要改哪里
+
+- **接真 Ollama**：`LocalModelService` 构造时可注入 `Func<url, model, IModelProvider>`；桌面端传
+  `new OllamaModelProvider(url, model)`，测试传假的。默认实现（`StandbyOllamaProvider`）只报告不可用。
+- **内置模型换成真运行时**：`BuiltInPath` 下的 `model.json`（`{"name": "..."}`）与权重文件就是约定好的位置；
+  接 LLamaSharp 时只需在同一目录放权件 + 在 `UseBuiltIn()` 里注册 provider。
+- **加"并存"路径**：不要改 `UseOllama`；那是 "Add custom models and services" 的职责，应当只追加 provider、
+  不删除任何东西。
+
+### 6. 已知未做
+
+- 内置模型的实际下载/校验还没做（`models/builtin` 目前由测试或手工放置）。
+- "Add custom models and services" 仍是占位窗。
+- 切换到 Ollama 后是否真的可用，取决于 `OllamaModelProvider.Probe()`；示例进程里注入的是占位 provider（诚实报告不可用）。

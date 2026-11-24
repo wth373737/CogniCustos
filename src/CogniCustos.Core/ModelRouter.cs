@@ -15,6 +15,13 @@ public sealed class ModelRouter : IModelRouter
 
     public void Add(IModelProvider provider) => _providers.Add(provider);
 
+    /// <summary>Replace every provider of one role (switching local model source).</summary>
+    public void ReplaceRole(ModelRole role, IModelProvider? provider)
+    {
+        _providers.RemoveAll(p => p.Role == role);
+        if (provider is not null) _providers.Add(provider);
+    }
+
     public IModelProvider Resolve(ModelRole role)
     {
         var available = _providers.FirstOrDefault(p => p.Role == role && p.IsAvailable);

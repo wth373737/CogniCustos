@@ -48,4 +48,8 @@ public sealed class DemoShellDataSource : IShellDataSource
     }
 
     public Task<string?> AskAsync(string instruction) => Task.FromResult<string?>(null);
+
+    public string LocalModelStatus() => "qwen2.5:7b（内置）";
+
+    public string? EnableOllama(string model) => null;
 }
