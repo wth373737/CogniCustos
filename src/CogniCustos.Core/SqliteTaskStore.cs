@@ -58,9 +58,20 @@ public sealed class SqliteTaskStore : ITaskStore
 
     public Task<int> AddPlannedAsync(string title, string? due, string level, int? parentId, CancellationToken ct = default)
     {
-        level = NormalizeLevel(level);
         using var conn = Open();
+        return Task.FromResult(AddPlanned(conn, null, title, due, level, parentId));
+    }
+
+    /// <summary>
+    /// The transactional form: pass the change set's connection and transaction so the
+    /// insert joins it and can be rolled back with the rest (docs/PARTITION-MODEL.md §6.2).
+    /// </summary>
+    internal int AddPlanned(SqliteConnection conn, System.Data.Common.DbTransaction? tx,
+        string title, string? due, string level, int? parentId)
+    {
+        level = NormalizeLevel(level);
         using var cmd = conn.CreateCommand();
+        cmd.Transaction = (SqliteTransaction?)tx;
         cmd.CommandText = """
             INSERT INTO tasks(title, due, level, parent_id, created) VALUES ($t, $d, $l, $p, $c);
             SELECT last_insert_rowid();
@@ -70,8 +81,7 @@ public sealed class SqliteTaskStore : ITaskStore
         cmd.Parameters.AddWithValue("$l", level);
         cmd.Parameters.AddWithValue("$p", (object?)parentId ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$c", DateTimeOffset.Now.ToString("O"));
-        var id = Convert.ToInt32(cmd.ExecuteScalar());
-        return Task.FromResult(id);
+        return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
     /// <summary>
@@ -135,11 +145,20 @@ public sealed class SqliteTaskStore : ITaskStore
     public Task<bool> CompleteAsync(int id, CancellationToken ct = default)
     {
         using var conn = Open();
+        return Task.FromResult(Complete(conn, null, id));
+    }
+
+    internal bool Complete(SqliteConnection conn, System.Data.Common.DbTransaction? tx, int id)
+    {
         using var cmd = conn.CreateCommand();
+        cmd.Transaction = (SqliteTransaction?)tx;
         cmd.CommandText = "UPDATE tasks SET done = 1 WHERE id = $id;";
         cmd.Parameters.AddWithValue("$id", id);
-        return Task.FromResult(cmd.ExecuteNonQuery() > 0);
+        return cmd.ExecuteNonQuery() > 0;
     }
+
+    /// <summary>Opens the same database the gate uses, for a change set transaction.</summary>
+    internal SqliteConnection OpenForTransaction() => Open();
 }
 
 /// <summary>Schedule blocks live in the same SQLite file as tasks, under their own table.</summary>
@@ -169,7 +188,15 @@ public sealed class SqliteScheduleStore : IScheduleStore
     public Task<int> AddAsync(string date, string start, string end, string title, int? taskId, CancellationToken ct = default)
     {
         using var conn = Open();
+        return Task.FromResult(Add(conn, null, date, start, end, title, taskId));
+    }
+
+    /// <summary>Transactional form: joins the change set's transaction when one is given.</summary>
+    internal int Add(Microsoft.Data.Sqlite.SqliteConnection conn, System.Data.Common.DbTransaction? tx,
+        string date, string start, string end, string title, int? taskId)
+    {
         using var cmd = conn.CreateCommand();
+        cmd.Transaction = (Microsoft.Data.Sqlite.SqliteTransaction?)tx;
         cmd.CommandText = """
             INSERT INTO schedule_blocks(date, start, end, title, task_id) VALUES ($d, $s, $e, $t, $id);
             SELECT last_insert_rowid();
@@ -179,7 +206,7 @@ public sealed class SqliteScheduleStore : IScheduleStore
         cmd.Parameters.AddWithValue("$e", end);
         cmd.Parameters.AddWithValue("$t", title);
         cmd.Parameters.AddWithValue("$id", (object?)taskId ?? DBNull.Value);
-        return Task.FromResult(Convert.ToInt32(cmd.ExecuteScalar()));
+        return Convert.ToInt32(cmd.ExecuteScalar());
     }
 
     public Task<IReadOnlyList<ScheduleBlock>> ListDayAsync(string date, CancellationToken ct = default)

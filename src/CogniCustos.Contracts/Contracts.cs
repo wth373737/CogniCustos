@@ -59,15 +59,30 @@ public interface IModelRouter
 
 public enum ProposalStatus { Pending, Approved, Rejected }
 
-/// <summary>A change the AI wants to make. It lives in the sandbox until a human approves it.</summary>
+/// <summary>One landing point of a proposal: a target plus the payload its applier understands.</summary>
+public sealed record Change(string Target, string Payload);
+
+/// <summary>
+/// A change the AI wants to make. It lives in the sandbox until a human approves it.
+/// One proposal = one change set = one card, one decision, one transaction
+/// (docs/PARTITION-MODEL.md §1.4, §6.2).
+/// </summary>
 public sealed record Proposal(
     string Id,
     string Title,
     string Summary,
-    string Target,
-    string Payload,
+    IReadOnlyList<Change> Changes,
     ProposalStatus Status,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt)
+{
+    /// <summary>Convenience for the single-change case (the card shows one line).</summary>
+    public string Target => Changes.Count > 0 ? Changes[0].Target : string.Empty;
+
+    public string Payload => Changes.Count > 0 ? Changes[0].Payload : string.Empty;
+
+    /// <summary>True when confirming this proposal writes to more than one place.</summary>
+    public bool IsChangeSet => Changes.Count > 1;
+}
 
 /// <summary>
 /// The confirmation handler. The AI can only propose; the application applies.
@@ -76,6 +91,9 @@ public sealed record Proposal(
 public interface IApprovalGate
 {
     Proposal Propose(string title, string summary, string target, string payload);
+
+    /// <summary>One card, several landing points, applied together or not at all.</summary>
+    Proposal ProposeSet(string title, string summary, IReadOnlyList<Change> changes);
     IReadOnlyList<Proposal> All();
     IReadOnlyList<Proposal> Pending();
     Proposal? Get(string id);

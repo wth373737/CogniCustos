@@ -56,7 +56,8 @@ public sealed class CogniCustosRuntime
 
         // itemised storage lives in the same database as the main tables
         var sandbox = new SandboxStore(Path.Combine(root, "sandbox"), Path.Combine(state, "cognicustos.db"));
-        var gate = new ApprovalGate(Path.Combine(state, "proposals.json"));
+        // proposals live in the database; proposals.json is only its export
+        var gate = new ApprovalGate(Path.Combine(state, "cognicustos.db"));
         var tasks = new SqliteTaskStore(Path.Combine(state, "cognicustos.db"));
         var schedule = new SqliteScheduleStore(tasks.DbPath);
         var raw = new SqliteRawStore(state);
@@ -71,7 +72,9 @@ public sealed class CogniCustosRuntime
         if (log is not null) rt.Log += log;
 
         // The confirmation handler owns the only path from a proposal to the real stores.
-        gate.RegisterApplier(BuiltinTools.TargetTasksAdd, payload =>
+        // Database targets register the transactional form: they run inside the change
+        // set's transaction, so a set lands completely or not at all.
+        gate.RegisterTransactionalApplier(BuiltinTools.TargetTasksAdd, (conn, tx, payload) =>
         {
             using var doc = JsonDocument.Parse(payload);
             var title = doc.RootElement.GetProperty("title").GetString() ?? "";
@@ -79,30 +82,22 @@ public sealed class CogniCustosRuntime
             var level = doc.RootElement.TryGetProperty("level", out var l) ? l.GetString() : "short";
             if (!SqliteTaskStore.TryNormalizeLevel(level, out var normalized))
                 return ToolResult.Fail($"unknown level '{level}' (expected long | mid | short)");
-            var id = tasks.AddPlannedAsync(title, string.IsNullOrWhiteSpace(due) ? null : due, normalized, null)
-                .GetAwaiter().GetResult();
+
+            var id = tasks.AddPlanned(conn, tx, title, string.IsNullOrWhiteSpace(due) ? null : due, normalized, null);
             return ToolResult.Ok0($"task #{id} added: {title}");
         });
 
-        gate.RegisterApplier(BuiltinTools.TargetTasksComplete, payload =>
+        gate.RegisterTransactionalApplier(BuiltinTools.TargetTasksComplete, (conn, tx, payload) =>
         {
             using var doc = JsonDocument.Parse(payload);
             var id = doc.RootElement.GetProperty("id").GetInt32();
-            var ok = tasks.CompleteAsync(id).GetAwaiter().GetResult();
-            return ok ? ToolResult.Ok0($"task #{id} marked done") : ToolResult.Fail($"no task #{id}");
-        });
-
-        gate.RegisterApplier(BuiltinTools.TargetKbIndex, payload =>
-        {
-            using var doc = JsonDocument.Parse(payload);
-            var source = doc.RootElement.GetProperty("source").GetString() ?? "";
-            var text = doc.RootElement.GetProperty("text").GetString() ?? "";
-            knowledge.IndexAsync(source, text).GetAwaiter().GetResult();
-            return ToolResult.Ok0($"indexed '{source}' ({text.Length} chars)");
+            return tasks.Complete(conn, tx, id)
+                ? ToolResult.Ok0($"task #{id} marked done")
+                : ToolResult.Fail($"no task #{id}");
         });
 
         // Planning horizon: a plan item is just a task with a level and an optional parent.
-        gate.RegisterApplier(PlannerTools.TargetPlanAdd, payload =>
+        gate.RegisterTransactionalApplier(PlannerTools.TargetPlanAdd, (conn, tx, payload) =>
         {
             using var doc = JsonDocument.Parse(payload);
             var title = doc.RootElement.GetProperty("title").GetString() ?? "";
@@ -112,22 +107,34 @@ public sealed class CogniCustosRuntime
                 ? p.GetInt32() : null;
             if (!SqliteTaskStore.TryNormalizeLevel(level, out var normalized))
                 return ToolResult.Fail($"unknown level '{level}' (expected long | mid | short)");
-            var id = tasks.AddPlannedAsync(title, string.IsNullOrWhiteSpace(due) ? null : due,
-                normalized, parent).GetAwaiter().GetResult();
-            return ToolResult.Ok0($"plan item #{id} added ({level}): {title}");
+
+            var id = tasks.AddPlanned(conn, tx, title, string.IsNullOrWhiteSpace(due) ? null : due, normalized, parent);
+            return ToolResult.Ok0($"plan item #{id} added ({normalized}): {title}");
         });
 
-        gate.RegisterApplier(PlannerTools.TargetScheduleAdd, payload =>
+        gate.RegisterTransactionalApplier(PlannerTools.TargetScheduleAdd, (conn, tx, payload) =>
         {
             using var doc = JsonDocument.Parse(payload);
             var date = doc.RootElement.GetProperty("date").GetString() ?? "";
-            var start = doc.RootElement.GetProperty("start").GetString() ?? "";
-            var end = doc.RootElement.GetProperty("end").GetString() ?? "";
+            var startTime = doc.RootElement.GetProperty("start").GetString() ?? "";
+            var endTime = doc.RootElement.GetProperty("end").GetString() ?? "";
             var title = doc.RootElement.GetProperty("title").GetString() ?? "";
             int? taskId = doc.RootElement.TryGetProperty("taskId", out var t) && t.ValueKind == JsonValueKind.Number
                 ? t.GetInt32() : null;
-            var id = schedule.AddAsync(date, start, end, title, taskId).GetAwaiter().GetResult();
-            return ToolResult.Ok0($"block #{id} added: {date} {start}-{end} {title}");
+
+            var id = schedule.Add(conn, tx, date, startTime, endTime, title, taskId);
+            return ToolResult.Ok0($"block #{id} added: {date} {startTime}-{endTime} {title}");
+        });
+
+        // The knowledge base is file-backed: it cannot join the SQL transaction, so it is
+        // registered in the non-transactional form and may only be proposed alone.
+        gate.RegisterApplier(BuiltinTools.TargetKbIndex, payload =>
+        {
+            using var doc = JsonDocument.Parse(payload);
+            var source = doc.RootElement.GetProperty("source").GetString() ?? "";
+            var text = doc.RootElement.GetProperty("text").GetString() ?? "";
+            knowledge.IndexAsync(source, text).GetAwaiter().GetResult();
+            return ToolResult.Ok0($"indexed '{source}' ({text.Length} chars)");
         });
 
         foreach (var tool in BuiltinTools.Create(sandbox, gate, tasks, knowledge, gate.Pending, () => models.All))

@@ -117,3 +117,60 @@ dotnet run --project src/CogniCustos.Selftest -c Debug     # 期望 passed=45 fa
 
 - 用户干预（用户改沙箱）还没有单独标记入口 —— 计划在 P1 里给 `AppendEntryAsync` 传 `kind='intervention'`。
 - 提议（`proposals.json`）仍未进数据库：变更集与原子应用是下一步（P0-3）。
+
+---
+
+## 2026-11-24 · P0-3 提议 = 变更集，确认 = 一个事务
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 变更集 | `Proposal` 从"一个 target + 一个 payload"变成 **`Changes: IReadOnlyList<Change>`**；`Target` / `Payload` 保留为"第一条"的便捷属性，旧的单目标调用点不用改。新增 `ProposeSet(title, summary, changes)`。 |
+| 提议入库 | `proposals` + `proposal_changes` 两张表（schema v4）。内存里的 List 没了，**重启不丢**；`proposals.json` 改成导出视图，不再被读回。 |
+| 原子确认 | `Approve(id)`：开一个事务 → 依次执行每条变更 → 任何一条失败（返回 `Ok=false` 或抛异常）就**整体回滚**、提议保持 Pending、返回"nothing was written" → 全部成功才提交并把状态改为 Approved。 |
+| 事务型 applier | 门禁新增 `RegisterTransactionalApplier(target, (conn, tx, payload) => ...)`；`tasks.add` / `tasks.complete` / `plan.add` / `schedule.add` 四条都改成事务型，直接复用 store 新增的 internal 方法（`AddPlanned(conn,tx,...)`、`Complete(conn,tx,id)`、`schedule.Add(conn,tx,...)`）。 |
+| 文件型目标的边界 | `kb.index` 仍是文件型（不能回滚），因此**只允许单条提议**；变更集里混入文件型目标会被拒绝并说明原因。 |
+| 持久化细节 | 提议记录写库后立即导出 JSON；导出失败不影响决策（`Export()` 吞异常）。 |
+
+### 2. 为什么（对应条款）
+
+- §1.4「一条提议 = 一个变更集」→ `Changes` 列表。
+- §6.2「一张卡、一次确认、一个事务（整批批准或整批驳回）」→ 单事务 + 全有或全无。
+- §6.3「解析失败不猜」→ 坏 payload / 未知 target 在**确认时**整批回滚并报错，而不是写一半。
+- §2.1「结构性关闭」→ 事务型 applier 只注册在门禁上；工具无法直接调用它们。
+- §10 里"`Approve` 非原子"这条现在成立了。
+
+### 3. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Contracts/Contracts.cs` | `Change`；`Proposal.Changes` + 便捷属性；`IApprovalGate.ProposeSet` |
+| `src/CogniCustos.Core/ApprovalGate.cs` | 重写：SQLite 存储 + 事务应用 + JSON 导出 |
+| `src/CogniCustos.Core/SqliteSchema.cs` | v4：`proposals` / `proposal_changes` |
+| `src/CogniCustos.Core/SqliteTaskStore.cs` | 事务型 `AddPlanned` / `Complete` / `schedule.Add` |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | 门禁挂库；四条事务型 applier；`kb.index` 保持文件型 |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 4 条断言（45 → 49） |
+
+### 4. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug     # 期望 passed=49 failed=0
+```
+
+新增断言：两个数据库落点一起成功；第二条失败时第一条也不留、提议仍 Pending；含文件型目标的变更集被拒；
+换一个 runtime 打开同一目录仍能看到同一条提议并驳回成功。
+
+### 5. 以后要改哪里
+
+- **新增一种变更类型**：写一个 applier（数据库型走 `RegisterTransactionalApplier`），在 `CogniCustosRuntime.Create` 里注册，
+  工具的 `Target*` 常量放在对应 Tools 类里。渲染文案（卡片上那一行）**下一步**才做，见 P1。
+- **加一种文件型目标**：只能用 `RegisterApplier`，并且它不能和别的变更同批（门禁会拒）。
+- **改事务边界**：`ApprovalGate.Approve` 是唯一入口；不要把存储操作散到 applier 之外。
+- **加"部分批准"**：现在刻意不支持；要做的话在 `Approve` 里按 ord 逐条提交，并给提议加 `approved_ord` 记录。
+
+### 6. 已知未做
+
+- **预演（dry-run）还没做**：现在"失败就回滚"，但用户仍要在点确认之后才知道会失败（§6.4 的"不可确认"状态）。
+  下一节 P1 先做粗版：确认前跑一次"空事务"预演，任一条失败就把卡片标红。
+- 卡片的**人话渲染**仍只有 `schedule.add`；变更集在多落点时卡片还没显示成多行。

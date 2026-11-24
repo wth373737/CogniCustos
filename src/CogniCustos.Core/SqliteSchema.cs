@@ -14,7 +14,7 @@ namespace CogniCustos.Core;
 public static class SqliteSchema
 {
     /// <summary>Bump this and add a step below; never edit a released step.</summary>
-    public const int Version = 3;
+    public const int Version = 4;
 
     public static void EnsureUpgraded(SqliteConnection conn)
     {
@@ -30,6 +30,7 @@ public static class SqliteSchema
         if (version < 1) Step1Baseline(conn);
         if (version < 2) Step2Provenance(conn);
         if (version < 3) Step3RawAndSandbox(conn);
+        if (version < 4) Step4Proposals(conn);
 
         Exec(conn, $"PRAGMA user_version = {Version};");
         tx.Commit();
@@ -127,6 +128,36 @@ public static class SqliteSchema
             """);
 
         Exec(conn, "CREATE INDEX IF NOT EXISTS idx_sandbox_section ON sandbox_entries(section, id);");
+    }
+
+    // ---------- v4: proposals are change sets ----------
+
+    private static void Step4Proposals(SqliteConnection conn)
+    {
+        Exec(conn, """
+            CREATE TABLE IF NOT EXISTS proposals (
+                id         TEXT PRIMARY KEY,
+                title      TEXT NOT NULL,
+                summary    TEXT NOT NULL,
+                status     TEXT NOT NULL DEFAULT 'Pending',
+                created_at TEXT NOT NULL,
+                decided_at TEXT NULL
+            );
+            """);
+
+        Exec(conn, "CREATE INDEX IF NOT EXISTS idx_proposals_status ON proposals(status, created_at);");
+
+        Exec(conn, """
+            CREATE TABLE IF NOT EXISTS proposal_changes (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                proposal_id TEXT NOT NULL,
+                ord         INTEGER NOT NULL,
+                target      TEXT NOT NULL,
+                payload     TEXT NOT NULL
+            );
+            """);
+
+        Exec(conn, "CREATE INDEX IF NOT EXISTS idx_changes_proposal ON proposal_changes(proposal_id, ord);");
     }
 
     // ---------- helpers ----------

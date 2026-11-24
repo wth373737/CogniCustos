@@ -477,6 +477,83 @@ internal static class Program
             return thoughts.Count >= 1 && thoughts[0].Kind == "thought";
         });
 
+        // ---------- P0-3: one proposal = one change set = one transaction ----------
+
+        await Check("change set: two database targets land together", async () =>
+        {
+            var before = rt.Tasks.ListAsync().Result.Count;
+            var summary = rt.Gate.ProposeSet("考试安排", "一条提议，两个落点", new Change[]
+            {
+                new(BuiltinTools.TargetTasksAdd, """{"title":"复习组织行为学","due":"2026-12-20","level":"mid"}"""),
+                new(PlannerTools.TargetScheduleAdd, """{"date":"2026-12-20","start":"15:00","end":"17:00","title":"组织行为学复习"}"""),
+            });
+
+            var result = rt.Gate.Approve(summary.Id);
+            var after = rt.Tasks.ListAsync().Result;
+            var blocks = rt.Schedule
+                .ListRangeAsync("2026-12-20", "2026-12-20").Result;
+
+            return result.Ok
+                   && rt.Gate.Get(summary.Id)!.Status == ProposalStatus.Approved
+                   && after.Count == before + 1
+                   && after.Any(t => t.Title == "复习组织行为学" && t.Level == "mid")
+                   && blocks.Any(b => b.Title == "组织行为学复习");
+        });
+
+        await Check("change set: one failing change rolls the whole set back", async () =>
+        {
+            var beforeTasks = rt.Tasks.ListAsync().Result.Count;
+            var set = rt.Gate.ProposeSet("半对半错", "第二条必然失败", new Change[]
+            {
+                new(BuiltinTools.TargetTasksAdd, """{"title":"不该留下来的任务","due":"2026-12-21","level":"short"}"""),
+                new(BuiltinTools.TargetTasksComplete, """{"id":999999}"""),
+            });
+
+            var result = rt.Gate.Approve(set.Id);
+            var afterTasks = rt.Tasks.ListAsync().Result;
+            var stillPending = rt.Gate.Get(set.Id)!.Status == ProposalStatus.Pending;
+
+            return !result.Ok
+                   && result.Content.Contains("nothing was written")
+                   && afterTasks.Count == beforeTasks
+                   && afterTasks.All(t => t.Title != "不该留下来的任务")
+                   && stillPending;
+        });
+
+        await Check("change set: a file-backed target may not join a set", async () =>
+        {
+            var before = rt.Tasks.ListAsync().Result.Count;
+            var set = rt.Gate.ProposeSet("混合落点", "文件型目标不能进事务", new Change[]
+            {
+                new(BuiltinTools.TargetTasksAdd, """{"title":"混合提议里的任务","level":"short"}"""),
+                new(BuiltinTools.TargetKbIndex, """{"source":"mixed.md","text":"内容"}"""),
+            });
+
+            var result = rt.Gate.Approve(set.Id);
+            var after = rt.Tasks.ListAsync().Result;
+
+            return !result.Ok
+                   && result.Content.Contains("atomically")
+                   && after.Count == before
+                   && rt.Gate.Get(set.Id)!.Status == ProposalStatus.Pending;
+        });
+
+        await Check("proposals: a new runtime over the same root sees the same decisions", async () =>
+        {
+            var set = rt.Gate.ProposeSet("跨重启", "重启后仍可查", new Change[]
+            {
+                new(BuiltinTools.TargetTasksAdd, """{"title":"重启后还在的提议","level":"short"}"""),
+            });
+
+            var restarted = CogniCustosRuntime.Create(root);
+            var found = restarted.Gate.Get(set.Id);
+
+            restarted.Gate.Reject(set.Id);
+            var rejected = rt.Gate.Get(set.Id)!.Status == ProposalStatus.Rejected;
+
+            return found is not null && found.Status == ProposalStatus.Pending && rejected;
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;
