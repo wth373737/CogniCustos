@@ -41,7 +41,14 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Reasoning = new ReasoningViewModel();
         Dialog = new DialogViewModel();
         Reader = new ReaderViewModel(() => _source.CreateReader());
-        Advanced = new AdvancedViewModel();
+        Advanced = new AdvancedViewModel(
+            save: (row, text) =>
+            {
+                var result = _source.SavePromptOverride(row.PromptKey, row.SegmentId, text);
+                return result;
+            },
+            reset: row => _source.ResetPromptOverride(row.PromptKey, row.SegmentId),
+            tryRun: async item => item.ShowTry(await _source.TryPromptAsync(item.PromptKey).ConfigureAwait(true)));
 
         // the chevron in the model section tracks "the panel was opened from here"
         Advanced.PropertyChanged += (_, e) =>

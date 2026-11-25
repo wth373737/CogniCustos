@@ -34,6 +34,12 @@ internal static class Program
             return ReaderCheck.Run(target);
         }
 
+        var askIndex = Array.IndexOf(args, "--reader-ask");
+        if (askIndex >= 0)
+        {
+            return ReaderAsk.Run(args.Skip(askIndex).ToArray());
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return 0;
     }

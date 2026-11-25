@@ -1399,6 +1399,55 @@ internal static class Program
             Check(vm.Settings.Model.AdvancedChevron == "\uE70D", "the chevron stayed open");
         });
 
+        Test("advanced_panel_edits_a_segment_and_restores_the_default", (_, _) =>
+        {
+            // the demo source owns a small in-memory store, so the edit flow is real
+            var source = new DemoShellDataSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Settings.Model.ToggleAdvancedCommand.Execute(null);
+            Pump();
+
+            var item = shell.Advanced.Items.First(i => i.Title == "Point read: persona");
+            var row = item.Rows.First();
+            Check(row.Editable, "the persona segment must be editable");
+            Check(!row.Overridden, "a fresh build must not report an override");
+
+            row.EditText = "你是一位耐心的助教，回答问题前先复述对方的疑问。";
+            row.SaveCommand.Execute(null);
+            Pump();
+
+            Check(row.Status.Length > 0, "saving reported nothing");
+            Check(row.Text.Contains("耐心的助教"), "the text in force did not change");
+            Check(row.Overridden, "the row does not show that it was edited");
+
+            row.ResetCommand.Execute(null);
+            Pump();
+
+            Check(!row.Overridden, "reset did not clear the override badge");
+            Check(!row.Text.Contains("耐心的助教"), "reset did not bring the default back");
+        });
+
+        Test("advanced_panel_refuses_editing_a_locked_segment", (_, _) =>
+        {
+            var source = new DemoShellDataSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Settings.Model.ToggleAdvancedCommand.Execute(null);
+            Pump();
+
+            var chat = shell.Advanced.Items.First(i => i.Title == "Main chat system prompt");
+            var protocol = chat.Rows.First(r => r.Locked);
+
+            Check(!protocol.Editable, "a locked segment must not offer an edit box");
+
+            // even if a caller asks anyway, the store refuses and says why
+            var result = source.SavePromptOverride(protocol.PromptKey, protocol.SegmentId, "改一下");
+            Check(result.Failure is not null, "the store accepted an edit to a locked segment");
+        });
+
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }
@@ -1673,6 +1722,14 @@ internal sealed class RecordingSource : IShellDataSource
 
     public IReaderService CreateReader() => Reader;
 
+    public PromptEditResult SavePromptOverride(string promptKey, string segmentId, string text) =>
+        new(null, text, true);
+
+    public PromptEditResult ResetPromptOverride(string promptKey, string segmentId) =>
+        new(null, "default text", false);
+
+    public Task<PromptTryResult> TryPromptAsync(string promptKey) =>
+        Task.FromResult(new PromptTryResult(true, "prompt text", "reply text", 5, string.Empty));
     public AdvancedSnapshot AdvancedSnapshot() => new(
     [
         new AdvancedItemData("prompt", "Prompt.Chat.Title", "Prompt.Chat.Purpose", "test",
@@ -1771,6 +1828,14 @@ internal sealed class RefusingSource : IShellDataSource
 
     public IReaderService CreateReader() => new StubReader();
 
+    public PromptEditResult SavePromptOverride(string promptKey, string segmentId, string text) =>
+        new(null, text, true);
+
+    public PromptEditResult ResetPromptOverride(string promptKey, string segmentId) =>
+        new(null, "default text", false);
+
+    public Task<PromptTryResult> TryPromptAsync(string promptKey) =>
+        Task.FromResult(new PromptTryResult(true, "prompt text", "reply text", 5, string.Empty));
     public AdvancedSnapshot AdvancedSnapshot() => new(
     [
         new AdvancedItemData("prompt", "Prompt.Chat.Title", "Prompt.Chat.Purpose", "test",

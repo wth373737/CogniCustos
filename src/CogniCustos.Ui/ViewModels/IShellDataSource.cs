@@ -121,4 +121,16 @@ public interface IShellDataSource
     /// P0 renders it read-only; the values must be the ones the call sites really use.
     /// </summary>
     AdvancedSnapshot AdvancedSnapshot();
+
+    /// <summary>
+    /// Store an edited prompt segment (P1). Returns the text now in force, or the reason the
+    /// edit was refused (locked segment, changed placeholders, disk error).
+    /// </summary>
+    PromptEditResult SavePromptOverride(string promptKey, string segmentId, string text);
+
+    /// <summary>Drop an override and go back to the shipped default.</summary>
+    PromptEditResult ResetPromptOverride(string promptKey, string segmentId);
+
+    /// <summary>Send one real request with the prompt as it stands, so an edit can be judged.</summary>
+    Task<PromptTryResult> TryPromptAsync(string promptKey);
 }

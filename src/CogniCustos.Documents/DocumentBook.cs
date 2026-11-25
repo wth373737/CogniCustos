@@ -1,3 +1,4 @@
+using System.Text;
 using Docnet.Core;
 using Docnet.Core.Models;
 using Docnet.Core.Readers;
@@ -190,14 +191,51 @@ public sealed class DocumentBook : IDisposable
         return bgra;
     }
 
-    /// <summary>The text layer of one page, joined into paragraphs by the engine.</summary>
+    /// <summary>
+    /// The text layer of one page, grouped into lines.
+    ///
+    /// PDFium/PdfPig hand back words; joining them with newlines (the first version did) turns a
+    /// 20-word sentence into 20 "lines", which wastes prompt budget and reads like a list to the
+    /// model. Words stay on a line while their baseline hardly moves, and a real line break is
+    /// inserted when it does.
+    /// </summary>
     public string Text(int page1)
     {
         if (_pig is null || page1 < 1 || page1 > _pig.NumberOfPages) return string.Empty;
         try
         {
             var page = _pig.GetPage(page1);
-            return string.Join("\n", page.GetWords().Select(w => w.Text));
+            if (page.Width <= 0) return string.Empty;
+
+            var words = page.GetWords()
+                .Where(w => !string.IsNullOrWhiteSpace(w.Text))
+                .OrderByDescending(w => w.BoundingBox.Bottom)
+                .ThenBy(w => w.BoundingBox.Left)
+                .ToList();
+
+            if (words.Count == 0) return string.Empty;
+
+            var text = new StringBuilder();
+            var baseline = words[0].BoundingBox.Bottom;
+            var lineHeight = Math.Max(4, words[0].BoundingBox.Height);
+
+            foreach (var word in words)
+            {
+                // a new visual line when the baseline jumps by more than ~60% of a line
+                if (Math.Abs(word.BoundingBox.Bottom - baseline) > lineHeight * 0.6)
+                {
+                    text.Append('\n');
+                    baseline = word.BoundingBox.Bottom;
+                }
+                else if (text.Length > 0 && text[^1] != '\n')
+                {
+                    text.Append(' ');
+                }
+
+                text.Append(word.Text);
+            }
+
+            return text.ToString();
         }
         catch
         {

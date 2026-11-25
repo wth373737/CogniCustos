@@ -134,7 +134,7 @@
                 <ItemsControl ItemsSource="{Binding Rows}">
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:AdvancedRowViewModel">
-                      <StackPanel Spacing="3" Margin="0,0,0,10">
+                      <StackPanel Spacing="3" Margin="0,0,0,12">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                           <TextBlock Text="{Binding Label}" FontSize="11.5" FontWeight="SemiBold"
                                      Foreground="#FF3C4A47" TextWrapping="Wrap" />
@@ -143,17 +143,67 @@
                             <TextBlock Text="{DynamicResource Advanced.Locked}" FontSize="9.5"
                                        Foreground="#FF8A5A1E" />
                           </Border>
+                          <Border IsVisible="{Binding ShowOverrideBadge}" Background="#FFDDEBE6"
+                                  CornerRadius="4" Padding="5,0">
+                            <TextBlock Text="{DynamicResource Advanced.Overridden}" FontSize="9.5"
+                                       Foreground="#FF2E6B5A" />
+                          </Border>
                         </StackPanel>
-                        <Border Background="White" CornerRadius="4" Padding="8,6"
-                                BorderBrush="#FFE3EAE8" BorderThickness="1">
+
+                        <!-- locked: the text the parser depends on, shown but not editable -->
+                        <Border IsVisible="{Binding ShowLockedBadge}" Background="White" CornerRadius="4"
+                                Padding="8,6" BorderBrush="#FFE3EAE8" BorderThickness="1">
                           <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap"
                                                FontFamily="Consolas, Menlo, monospace" FontSize="11.5"
                                                Foreground="#FF2B2B32" />
                         </Border>
+
+                        <!-- editable: the segment the user owns from P1 on -->
+                        <StackPanel Spacing="5" IsVisible="{Binding Editable}">
+                          <TextBox Text="{Binding EditText, Mode=TwoWay}" AcceptsReturn="True"
+                                   TextWrapping="Wrap" MinHeight="62" MaxHeight="150"
+                                   FontFamily="Consolas, Menlo, monospace" FontSize="11.5"
+                                   Background="White" BorderBrush="#FFCFDAD7" BorderThickness="1"
+                                   Padding="8,6" VerticalContentAlignment="Top" />
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="dialog primary" Content="{DynamicResource Advanced.Save}"
+                                    Command="{Binding SaveCommand}" />
+                            <Button Classes="dialog" Content="{DynamicResource Advanced.ResetDefault}"
+                                    Command="{Binding ResetCommand}" IsVisible="{Binding Overridden}" />
+                            <TextBlock Text="{Binding Status}" IsVisible="{Binding HasStatus}"
+                                       FontSize="11" Foreground="#FF8E1B1B" VerticalAlignment="Center"
+                                       TextWrapping="Wrap" />
+                          </StackPanel>
+                        </StackPanel>
                       </StackPanel>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
+
+                <!-- 试跑：用当前文本真发一次请求，把原文、耗时、回复一起摆出来 -->
+                <StackPanel Spacing="6" IsVisible="{Binding CanTry}" Margin="0,2,0,0">
+                  <Border Height="1" Background="#FFE3EAE8" />
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="dialog" Content="{Binding TryLabel}" Command="{Binding TryCommand}" />
+                    <TextBlock Text="{DynamicResource Advanced.TryHint}" FontSize="11"
+                               Foreground="#FF93A29F" VerticalAlignment="Center" TextWrapping="Wrap" />
+                  </StackPanel>
+                  <Border IsVisible="{Binding HasTryPrompt}" Background="#FFF3F6F5" CornerRadius="4"
+                          Padding="8,6">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="{DynamicResource Advanced.TryPrompt}" FontSize="10"
+                                 Foreground="#FF93A29F" />
+                      <SelectableTextBlock Text="{Binding TryPrompt}" TextWrapping="Wrap"
+                                           FontFamily="Consolas, Menlo, monospace" FontSize="10.5"
+                                           Foreground="#FF6D7C79" MaxHeight="80" />
+                    </StackPanel>
+                  </Border>
+                  <Border IsVisible="{Binding HasTryOutput}" Background="White" CornerRadius="4"
+                          Padding="8,6" BorderBrush="#FFE3EAE8" BorderThickness="1">
+                    <SelectableTextBlock Text="{Binding TryOutput}" TextWrapping="Wrap"
+                                         FontSize="11.5" Foreground="#FF2B2B32" />
+                  </Border>
+                </StackPanel>
               </StackPanel>
             </ScrollViewer>
           </Border>

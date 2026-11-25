@@ -84,18 +84,33 @@ public sealed class RuntimeReaderService : IReaderService
 
         var regionText = _book.TextIn(page, x0, y0, x1, y1);
 
-        // No words under the box means it is a picture (a chart, a scanned slide). Render the
+        // A box smaller than this is a stray click, not a question about a picture. Sending a
+        // one-pixel crop to the vision model used to produce a confident answer about nothing.
+        var area = Math.Abs(x1 - x0) * Math.Abs(y1 - y0);
+        var hasBox = area >= 0.0025;   // a quarter of a percent of the page
+
+        // No words under a real box means it is a picture (a chart, a scanned slide). Render the
         // page once at reading resolution and hand the cropped pixels to the vision model.
         byte[]? regionPng = null;
-        if (string.IsNullOrWhiteSpace(regionText) && _vision is { IsAvailable: true })
+        if (hasBox && string.IsNullOrWhiteSpace(regionText) && _vision is { IsAvailable: true })
         {
             var full = _book.Render(page, 1600);
             regionPng = full.Crop(x0, y0, x1, y1).ToPng();
         }
 
-        var ask = new DocQuestion(_title, page, _book.Text(page), regionText, question);
+        LastAskTrace = new AskTrace(page, regionText.Length, hasBox, regionPng?.Length ?? 0);
+
+        var ask = new DocQuestion(_title, page, _book.Text(page), regionText, question, hasBox);
         return await _lecture.AskAsync(ask, regionPng, ct).ConfigureAwait(false);
     }
+
+    /// <summary>What the last question looked like, for the diagnostics and the test-run sheet.</summary>
+    public AskTrace LastAskTrace { get; private set; } = new(0, 0, false, 0);
+
+    public sealed record AskTrace(int Page, int RegionChars, bool HadBox, int RegionPngBytes);
+
+    /// <summary>See the exact prompt a question sends (system, user).</summary>
+    public void TracePrompts(Action<string, string> trace) => _lecture.PromptTrace = trace;
 
     public void Close()
     {

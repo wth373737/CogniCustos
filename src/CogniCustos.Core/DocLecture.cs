@@ -16,7 +16,9 @@ public sealed record DocQuestion(
     int Page,
     string PageText,
     string RegionText,
-    string Question);
+    string Question,
+    /// <summary>True when the user actually dragged a box (an empty region is not a box).</summary>
+    bool HadBox = false);
 
 /// <summary>
 /// The "博学热心的学长学姐" voice over the open document.
@@ -35,6 +37,12 @@ public sealed class DocLecture
     private readonly IModelRouter _models;
     private readonly IVisionModel? _vision;
     private readonly Action<string>? _log;
+
+    /// <summary>
+    /// Called with (system, user) right before every model call. The reader's diagnostics and
+    /// the advanced panel's "try it" button both need the exact prompt, not a reconstruction.
+    /// </summary>
+    public Action<string, string>? PromptTrace { get; set; }
 
     public DocLecture(IModelRouter models, IVisionModel? vision = null, Action<string>? log = null)
     {
@@ -82,6 +90,7 @@ public sealed class DocLecture
         string raw;
         try
         {
+            PromptTrace?.Invoke(Persona, user.ToString());
             raw = await provider.CompleteAsync(Persona, user.ToString(), ct).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -119,9 +128,15 @@ public sealed class DocLecture
 
         if (provider is null || provider is StandbyModelProvider)
         {
-            var what = hasText ? $"选中内容：{Clip(question.RegionText, 600)}" : seen is null
-                ? "（没有可用的推理模型，也没有识别出这块区域里的文字。）"
-                : $"这块区域看起来是：{Clip(seen, 600)}";
+            // Never pretend this is an answer. Without a model the reader can still show the
+            // user the words they boxed, and say plainly that nothing else is available.
+            var head = "（当前没有可用的推理模型，所以只能把你选中的原文给你看；" +
+                       "在设置页配置模型后我才能讲评。）\n\n";
+            var what = hasText
+                ? head + $"选中内容：{Clip(question.RegionText, 600)}"
+                : seen is null
+                    ? head + "（也没有识别出这块区域里的文字。）"
+                    : head + $"这块区域看起来是：{Clip(seen, 600)}";
             return what;
         }
 
@@ -138,11 +153,17 @@ public sealed class DocLecture
                 .AppendLine(Clip(question.RegionText, 1500))
                 .AppendLine();
         }
-        else if (seen is not null)
+        else if (question.HadBox && seen is not null)
         {
             user.AppendLine("学弟/学妹用方框选中的区域，视觉识别结果是：")
                 .AppendLine(Clip(seen, 1500))
                 .AppendLine("（以上是识别结果，可能有误差；拿不准就说明。）");
+        }
+        else if (!question.HadBox)
+        {
+            user.AppendLine("学弟/学妹这一问没有框选，是想让你按整页内容回答。");
+            user.AppendLine("能定位到具体段落就说明在第几句/哪个位置；需要聚焦某处时可以请对方先框一下。");
+            user.AppendLine();
         }
         else
         {
@@ -156,6 +177,7 @@ public sealed class DocLecture
 
         try
         {
+            PromptTrace?.Invoke(Persona, user.ToString());
             return (await provider.CompleteAsync(Persona, user.ToString(), ct).ConfigureAwait(false)).Trim();
         }
         catch (Exception ex)

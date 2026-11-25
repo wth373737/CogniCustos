@@ -269,8 +269,8 @@
 先看它在定义，不是在论证——所以第一遍只要把它当成给后面内容做铺垫的名词解释。紧接着那个例子才是要记住的：考试通常让你用这条规则去套一个类似的情形，而不是复述定义。建议在这条规则下面划线、旁边抄下那个例子，因为评分标准给分的就是这两件事连在一起。</x:String>
   <!-- 高级设置：提示词与推理参数（P0 只读） -->
   <x:String x:Key="Advanced.Title">高级设置</x:String>
-  <x:String x:Key="Advanced.Note">这里列出应用真正在发的每一条提示词，以及配套的推理参数。当前只读——这是给你调试用的观察窗，编辑在下一版。</x:String>
-  <x:String x:Key="Advanced.Footer">这些值现在写死在代码里（Core/Prompts.cs 与各适配器）。下一版在这里改、把覆盖存进 settings.json、默认值留作回退。</x:String>
+  <x:String x:Key="Advanced.Note">Every prompt this app sends and the parameters it sends them with. Segments marked "fixed by code" are what the parsers depend on; the rest can be edited, and the shipped text always stays available as Restore default.</x:String>
+  <x:String x:Key="Advanced.Footer">Edits are stored in state/prompts.json as overrides; the defaults stay in the code. Restarting the app keeps your edits, and Restore default brings the original back.</x:String>
   <x:String x:Key="Advanced.Close">关闭</x:String>
   <x:String x:Key="Advanced.CallSite">调用点</x:String>
   <x:String x:Key="Advanced.Locked">代码固定</x:String>
@@ -319,4 +319,15 @@
   <x:String x:Key="Advanced.Cloud.Purpose">用户自己填的任意 OpenAI 兼容端点。</x:String>
   <x:String x:Key="Advanced.Constants.Title">调参常量</x:String>
   <x:String x:Key="Advanced.Constants.Purpose">截断预算与步数上限——它们对效果的影响不比提示词本身小。</x:String>
+  <x:String x:Key="Advanced.Overridden">已修改</x:String>
+  <x:String x:Key="Advanced.Save">保存</x:String>
+  <x:String x:Key="Advanced.ResetDefault">恢复默认</x:String>
+  <x:String x:Key="Advanced.Saved">已保存，下一次调用就会用这段文字。</x:String>
+  <x:String x:Key="Advanced.Reset">已恢复成随软件发布的默认文本。</x:String>
+  <x:String x:Key="Advanced.Try">试跑</x:String>
+  <x:String x:Key="Advanced.Trying">发送中…</x:String>
+  <x:String x:Key="Advanced.TryHint">用当前这段文字真发一次请求，改了有没有用可以当场判断，不用猜。</x:String>
+  <x:String x:Key="Advanced.TryPrompt">实际发送的内容</x:String>
+  <x:String x:Key="Advanced.TryOk">回复</x:String>
+  <x:String x:Key="Advanced.NoStore">这个构建没有接提示词存储。</x:String>
 </ResourceDictionary>

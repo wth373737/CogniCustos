@@ -216,9 +216,85 @@ public static class PromptCatalog
 
     public static IReadOnlyList<PromptSpec> All => Specs;
 
+    /// <summary>
+    /// User overrides, if the application configured any. Static on purpose: the call sites must
+    /// not have to thread a prompt store through their signatures, and <see cref="Render"/> is the
+    /// single place every prompt passes, so this is the one switch that cannot be bypassed.
+    /// </summary>
+    private static PromptOverrides? _overrides;
+
+    public static void Configure(PromptOverrides? overrides) => _overrides = overrides;
+
+    public static PromptOverrides? Overrides => _overrides;
+
     public static PromptSpec Get(string key) =>
         Specs.FirstOrDefault(s => s.Key == key)
         ?? throw new KeyNotFoundException($"no prompt named '{key}'");
+
+    public static bool IsOverridden(string key, string segmentId) =>
+        _overrides?.Has(key, segmentId) == true;
+
+    /// <summary>The text in force for one segment: the user's override, else the shipped default.</summary>
+    public static string SegmentText(string key, string segmentId)
+    {
+        if (_overrides is not null && _overrides.TryGet(key, segmentId, out var text)) return text;
+        return Get(key).Segments.FirstOrDefault(s => s.Id == segmentId)?.Text
+               ?? throw new KeyNotFoundException($"prompt '{key}' has no segment '{segmentId}'");
+    }
+
+    /// <summary>
+    /// Why an edit is not acceptable, or null when it is. Locked segments cannot be edited, the
+    /// text cannot be blank, and the placeholder set must not change: dropping <c>{{tools}}</c>
+    /// (or inventing one) is how a prompt silently stops carrying what the code expects.
+    /// </summary>
+    public static string? Validate(string key, string segmentId, string text)
+    {
+        var spec = Get(key);
+        var segment = spec.Segments.FirstOrDefault(s => s.Id == segmentId);
+        if (segment is null) return $"no segment '{segmentId}' in '{key}'";
+        if (segment.Kind == PromptSegmentKind.Locked) return "这一段的格式由代码固定，不能编辑。";
+        if (string.IsNullOrWhiteSpace(text)) return "内容不能为空；想恢复原文请点「恢复默认」。";
+
+        return CheckPlaceholders(segment.Text, text);
+    }
+
+    /// <summary>
+    /// The placeholder rule on its own: the edited text must carry exactly the placeholders the
+    /// default carries. Kept separate from <see cref="Validate"/> so the rule can be tested
+    /// without a segment that happens to be both editable and templated (none is, today).
+    /// </summary>
+    public static string? CheckPlaceholders(string defaultText, string editedText)
+    {
+        var intended = CogniCustos.Contracts.Template.Placeholders(defaultText);
+        var actual = CogniCustos.Contracts.Template.Placeholders(editedText);
+        var missing = intended.Except(actual).ToList();
+        var extra = actual.Except(intended).ToList();
+
+        if (missing.Count > 0) return "缺少占位符：" + string.Join("、", missing.Select(p => "{{" + p + "}}"));
+        if (extra.Count > 0) return "多出未知占位符：" + string.Join("、", extra.Select(p => "{{" + p + "}}"));
+        return null;
+    }
+
+    /// <summary>Store one edit (validated) and persist. Null on success, else the reason.</summary>
+    public static string? SaveOverride(string key, string segmentId, string text)
+    {
+        if (_overrides is null) return "当前没有可写的提示词存储。";
+        if (Validate(key, segmentId, text) is { } invalid) return invalid;
+
+        _overrides.Set(key, segmentId, text.Trim());
+        _overrides.Save(out var writeError);
+        return writeError is null ? null : "已生效，但没能写入磁盘：" + writeError;
+    }
+
+    /// <summary>Drop one override, going back to the shipped default.</summary>
+    public static string? ResetOverride(string key, string segmentId)
+    {
+        if (_overrides is null) return "当前没有提示词存储。";
+
+        _overrides.Clear(key, segmentId);
+        _overrides.Save(out var writeError);
+        return writeError is null ? null : "已生效，但没能写入磁盘：" + writeError;
+    }
 
     /// <summary>
     /// The prompt as sent: every segment joined by a blank line, placeholders filled.
@@ -226,15 +302,11 @@ public static class PromptCatalog
     /// unreplaced placeholder is a bug, not a degraded answer.
     /// </summary>
     public static string Render(string key, IReadOnlyDictionary<string, string>? variables = null)
-        => string.Join("\n\n", Get(key).Segments.Select(s => Fill(s.Text, variables)));
+        => string.Join("\n\n", Get(key).Segments.Select(s => Fill(SegmentText(key, s.Id), variables)));
 
     /// <summary>One segment, for prompts that are sent as separate messages.</summary>
     public static string Segment(string key, string segmentId, IReadOnlyDictionary<string, string>? variables = null)
-    {
-        var segment = Get(key).Segments.FirstOrDefault(s => s.Id == segmentId)
-                      ?? throw new KeyNotFoundException($"prompt '{key}' has no segment '{segmentId}'");
-        return Fill(segment.Text, variables);
-    }
+        => Fill(SegmentText(key, segmentId), variables);
 
     /// <summary>Every <c>{{name}}</c> left anywhere in the catalog — used by the selfcheck.</summary>
     public static IReadOnlyList<string> PlaceholdersIn(string text) =>

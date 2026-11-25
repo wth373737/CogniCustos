@@ -121,21 +121,46 @@ public sealed class DemoShellDataSource : IShellDataSource
 
     public IReaderService CreateReader() => new DemoReaderService();
 
+    // ---------- advanced panel (demo store) ----------
+    //
+    // The demo keeps a tiny in-memory store with the same shape as the real one, so the panel's
+    // edit / save / reset / refuse paths can be exercised without Core or a settings file.
+
+    private static readonly Dictionary<string, string> PromptDefaults = new(StringComparer.Ordinal)
+    {
+        ["lecture.persona/persona"] =
+            "你是一位博学、热心的学长/学姐，正在陪学弟/学妹看一份课程材料。你讲得具体、口语、不端架子。",
+        ["summary.one-line/instruction"] = "你是摘要器。用一句话概括下面的材料，不超过 80 字。",
+        ["chat.system/protocol"] = "输出格式：只输出一个 JSON 对象，不要代码块、不要解释。",
+    };
+
+    private readonly Dictionary<string, string> _promptStore = new(PromptDefaults, StringComparer.Ordinal);
+
     /// <summary>Two prompt entries and one parameter group: enough for the panel, shots and tests.</summary>
     public AdvancedSnapshot AdvancedSnapshot() => new(
     [
         new AdvancedItemData("prompt", "Prompt.Chat.Title", "Prompt.Chat.Purpose",
             "CogniCustosRuntime.ChatAsync（演示数据）",
             [
-                new AdvancedRowData("Prompt.Chat.Persona", "", "你是 CogniCustos 的助手，运行在学生的本地电脑上。…", false),
-                new AdvancedRowData("Prompt.Chat.Protocol", "", "输出格式：只输出一个 JSON 对象 …", true),
+                new AdvancedRowData("Prompt.Chat.Persona", "", "你是 CogniCustos 的助手，运行在学生的本地电脑上。…",
+                    false, "chat.system", "persona"),
+                new AdvancedRowData("Prompt.Chat.Protocol", "", Prompt("chat.system/protocol"), true,
+                    "chat.system", "protocol"),
             ]),
         new AdvancedItemData("prompt", "Prompt.LecturePersona.Title", "Prompt.LecturePersona.Purpose",
             "DocLecture.OutlineAsync / AskAsync（演示数据）",
             [
-                new AdvancedRowData("Prompt.LecturePersona.Persona", "",
-                    "你是一位博学、热心的学长/学姐，正在陪学弟/学妹看一份课程材料。…", false),
-            ]),
+                new AdvancedRowData("Prompt.LecturePersona.Persona", "", Prompt("lecture.persona/persona"),
+                    false, "lecture.persona", "persona", IsOverridden("lecture.persona/persona")),
+            ],
+            CanTry: true),
+        new AdvancedItemData("prompt", "Prompt.Summary.Title", "Prompt.Summary.Purpose",
+            "RawStore.Summarizer（演示数据）",
+            [
+                new AdvancedRowData("Prompt.Summary.Instruction", "", Prompt("summary.one-line/instruction"),
+                    false, "summary.one-line", "instruction", IsOverridden("summary.one-line/instruction")),
+            ],
+            CanTry: true),
         new AdvancedItemData("parameter", "Advanced.Llama.Title", "Advanced.Llama.Purpose",
             "LlamaModelProvider（演示数据）",
             [
@@ -143,4 +168,42 @@ public sealed class DemoShellDataSource : IShellDataSource
                 new AdvancedRowData(null, "maxTokens", "512", false),
             ]),
     ]);
+
+    public PromptEditResult SavePromptOverride(string promptKey, string segmentId, string text)
+    {
+        var id = promptKey + "/" + segmentId;
+        if (!PromptDefaults.ContainsKey(id))
+            return new PromptEditResult("演示数据里没有这一段。", string.Empty, false);
+        if (id == "chat.system/protocol")
+            return new PromptEditResult("这一段的格式由代码固定，不能编辑。", string.Empty, false);
+        if (string.IsNullOrWhiteSpace(text))
+            return new PromptEditResult("内容不能为空；想恢复原文请点「恢复默认」。", string.Empty, false);
+
+        _promptStore[id] = text.Trim();
+        return new PromptEditResult(null, _promptStore[id], IsOverridden(id));
+    }
+
+    public PromptEditResult ResetPromptOverride(string promptKey, string segmentId)
+    {
+        var id = promptKey + "/" + segmentId;
+        if (!PromptDefaults.TryGetValue(id, out var text))
+            return new PromptEditResult("演示数据里没有这一段。", string.Empty, false);
+        if (id == "chat.system/protocol")
+            return new PromptEditResult("这一段的格式由代码固定，不能编辑。", string.Empty, false);
+
+        _promptStore[id] = text;
+        return new PromptEditResult(null, text, false);
+    }
+
+    public Task<PromptTryResult> TryPromptAsync(string promptKey) =>
+        Task.FromResult(new PromptTryResult(true,
+            "演示：这段提示词会作为 system 消息发送。",
+            "（演示回答）这条提示词看起来没问题。",
+            12, string.Empty));
+
+    private string Prompt(string id) => _promptStore.TryGetValue(id, out var text) ? text : string.Empty;
+
+    private bool IsOverridden(string id) =>
+        _promptStore.TryGetValue(id, out var text) && PromptDefaults.TryGetValue(id, out var original)
+        && text != original;
 }

@@ -270,8 +270,8 @@
 First, the sentence is defining the term before using it, so read it as a definition rather than an argument. Second, the example right after it is the one to remember: the exam usually asks you to apply the rule to a case like that, not to repeat the definition. I would underline the rule and jot the example beside it, because those two together are what the marking scheme rewards.</x:String>
   <!-- advanced settings: prompts and inference parameters (P0 read-only) -->
   <x:String x:Key="Advanced.Title">Advanced settings</x:String>
-  <x:String x:Key="Advanced.Note">Every prompt this app sends, and the parameters it sends them with. Read-only for now — this is the debugging view; editing comes next.</x:String>
-  <x:String x:Key="Advanced.Footer">Values live in code today (Core/Prompts.cs and the adapters). Next version edits here, saves the override, and keeps the default as the fallback.</x:String>
+  <x:String x:Key="Advanced.Note">Every prompt this app sends and the parameters it sends them with. Segments marked "fixed by code" are what the parsers depend on; the rest can be edited, and the shipped text always stays available as Restore default.</x:String>
+  <x:String x:Key="Advanced.Footer">Edits are stored in state/prompts.json as overrides; the defaults stay in the code. Restarting the app keeps your edits, and Restore default brings the original back.</x:String>
   <x:String x:Key="Advanced.Close">Close</x:String>
   <x:String x:Key="Advanced.CallSite">used by</x:String>
   <x:String x:Key="Advanced.Locked">fixed by code</x:String>
@@ -320,4 +320,15 @@ First, the sentence is defining the term before using it, so read it as a defini
   <x:String x:Key="Advanced.Cloud.Purpose">Any OpenAI-compatible endpoint the user configures.</x:String>
   <x:String x:Key="Advanced.Constants.Title">Tuning constants</x:String>
   <x:String x:Key="Advanced.Constants.Purpose">Truncation budgets and step limits that shape prompts as much as the text does.</x:String>
+  <x:String x:Key="Advanced.Overridden">edited</x:String>
+  <x:String x:Key="Advanced.Save">Save</x:String>
+  <x:String x:Key="Advanced.ResetDefault">Restore default</x:String>
+  <x:String x:Key="Advanced.Saved">Saved. The next call uses this text.</x:String>
+  <x:String x:Key="Advanced.Reset">Back to the shipped default.</x:String>
+  <x:String x:Key="Advanced.Try">Try it</x:String>
+  <x:String x:Key="Advanced.Trying">Sending…</x:String>
+  <x:String x:Key="Advanced.TryHint">Sends one real request with this text, so you can judge the edit instead of guessing.</x:String>
+  <x:String x:Key="Advanced.TryPrompt">what was sent</x:String>
+  <x:String x:Key="Advanced.TryOk">reply</x:String>
+  <x:String x:Key="Advanced.NoStore">This build has no prompt store attached.</x:String>
 </ResourceDictionary>

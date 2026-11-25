@@ -389,9 +389,16 @@ public sealed class RuntimeShellDataSource : IShellDataSource
             items.Add(new AdvancedItemData(
                 spec.GroupKey, spec.TitleKey, spec.PurposeKey, spec.CallSite,
                 spec.Segments
-                    .Select(segment => new AdvancedRowData(segment.LabelKey, string.Empty, segment.Text,
-                        segment.Kind == PromptSegmentKind.Locked))
-                    .ToList()));
+                    .Select(segment => new AdvancedRowData(
+                        segment.LabelKey,
+                        string.Empty,
+                        PromptCatalog.SegmentText(spec.Key, segment.Id),   // what is in force now
+                        segment.Kind == PromptSegmentKind.Locked,
+                        spec.Key,
+                        segment.Id,
+                        PromptCatalog.IsOverridden(spec.Key, segment.Id)))
+                    .ToList(),
+                CanTry: spec.Key != PromptKeys.ProviderChatTemplate));
         }
 
         var llama = _rt.Models.All.OfType<CogniCustos.Adapters.LlamaModelProvider>().FirstOrDefault();
@@ -452,4 +459,64 @@ public sealed class RuntimeShellDataSource : IShellDataSource
 
     private static AdvancedRowData Row(string name, string value, string source) =>
         new(null, name, value + "（" + source + "）", false);
+
+    // ---------- advanced settings: editing (P1) ----------
+
+    public PromptEditResult SavePromptOverride(string promptKey, string segmentId, string text)
+    {
+        var failure = PromptCatalog.SaveOverride(promptKey, segmentId, text);
+        return new PromptEditResult(failure,
+            PromptCatalog.SegmentText(promptKey, segmentId),
+            PromptCatalog.IsOverridden(promptKey, segmentId));
+    }
+
+    public PromptEditResult ResetPromptOverride(string promptKey, string segmentId)
+    {
+        var failure = PromptCatalog.ResetOverride(promptKey, segmentId);
+        return new PromptEditResult(failure,
+            PromptCatalog.SegmentText(promptKey, segmentId),
+            PromptCatalog.IsOverridden(promptKey, segmentId));
+    }
+
+    /// <summary>
+    /// Send one real request with the prompt as it stands. This is the only way to answer "did my
+    /// edit help?" without guessing: it shows the exact text sent and the exact reply, timed.
+    /// </summary>
+    public async Task<PromptTryResult> TryPromptAsync(string promptKey)
+    {
+        var variables = new Dictionary<string, string>
+        {
+            ["tools"] = _rt.Tools.DescribeForPrompt(),
+            ["system"] = "(system)",
+            ["user"] = "(user)",
+        };
+
+        string prompt;
+        try
+        {
+            prompt = PromptCatalog.Render(promptKey, variables);
+        }
+        catch (Exception ex)
+        {
+            return new PromptTryResult(false, string.Empty, string.Empty, 0, ex.Message);
+        }
+
+        var provider = _rt.Models.Resolve(CogniCustos.Contracts.ModelRole.Reasoning);
+        if (provider is StandbyModelProvider)
+            return new PromptTryResult(false, prompt, string.Empty, 0,
+                "当前没有可用的推理模型；先在设置页配置一个模型再试跑。");
+
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var reply = await provider
+                .CompleteAsync(prompt, "试跑：请只回复一句话，说明你已经理解这条提示词。")
+                .ConfigureAwait(false);
+            return new PromptTryResult(true, prompt, reply.Trim(), clock.ElapsedMilliseconds, string.Empty);
+        }
+        catch (Exception ex)
+        {
+            return new PromptTryResult(false, prompt, string.Empty, clock.ElapsedMilliseconds, ex.Message);
+        }
+    }
 }

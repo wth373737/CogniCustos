@@ -1474,6 +1474,75 @@ internal static class Program
                             && DocLecture.Persona == PromptCatalog.Render(PromptKeys.LecturePersona)
                             && DocLecture.Persona.Contains("学长")));
 
+        // ---------- prompts: editing (P1) ----------
+
+        await Check("prompts: an edit changes what the call site sends, and reset brings the default back", () =>
+        {
+            var original = PromptCatalog.SegmentText(PromptKeys.SummaryOneLine, "instruction");
+            var failure = PromptCatalog.SaveOverride(PromptKeys.SummaryOneLine, "instruction",
+                "你是摘要器。用不超过 40 字概括下面这段材料。");
+
+            var afterEdit = PromptCatalog.SegmentText(PromptKeys.SummaryOneLine, "instruction");
+            var overridden = PromptCatalog.IsOverridden(PromptKeys.SummaryOneLine, "instruction");
+
+            var resetFailure = PromptCatalog.ResetOverride(PromptKeys.SummaryOneLine, "instruction");
+            var afterReset = PromptCatalog.SegmentText(PromptKeys.SummaryOneLine, "instruction");
+
+            return Task.FromResult(failure is null && resetFailure is null
+                                   && afterEdit.StartsWith("你是摘要器。用不超过 40 字")
+                                   && overridden
+                                   && !PromptCatalog.IsOverridden(PromptKeys.SummaryOneLine, "instruction")
+                                   && afterReset == original);
+        });
+
+        await Check("prompts: a locked segment cannot be edited", () =>
+        {
+            var failure = PromptCatalog.SaveOverride(PromptKeys.GuardPrivacy, "system", "随便你怎么判断。");
+            return Task.FromResult(failure is not null
+                                   && PromptCatalog.SegmentText(PromptKeys.GuardPrivacy, "system")
+                                       .StartsWith("你是本地隐私检查器"));
+        });
+
+        await Check("prompts: an edit that drops or invents a placeholder is refused", () =>
+        {
+            var withTools = "可用工具：\n{{tools}}";
+
+            var dropped = PromptCatalog.CheckPlaceholders(withTools, "可用工具：（略）");
+            var invented = PromptCatalog.CheckPlaceholders(withTools, "可用工具：{{tools}}\n{{extra}}");
+            var fine = PromptCatalog.CheckPlaceholders(withTools, "工具清单如下：\n{{tools}}");
+
+            // and the same rule is applied by the store: the live segment still carries {{tools}}
+            var stored = PromptCatalog.SaveOverride(PromptKeys.ChatSystem, "tools", "可用工具：（略）");
+            var stillHasPlaceholder = PromptCatalog.SegmentText(PromptKeys.ChatSystem, "tools").Contains("{{tools}}");
+
+            return Task.FromResult(dropped is not null && dropped!.Contains("tools")
+                                   && invented is not null && invented!.Contains("extra")
+                                   && fine is null
+                                   && stored is not null && stillHasPlaceholder);
+        });
+
+        await Check("prompts: blank text is refused with a reason", () =>
+        {
+            var failure = PromptCatalog.SaveOverride(PromptKeys.SummaryOneLine, "instruction", "   ");
+            return Task.FromResult(failure is not null
+                                   && PromptCatalog.SegmentText(PromptKeys.SummaryOneLine, "instruction").Length > 0);
+        });
+
+        await Check("prompts: overrides round-trip through the settings file", () =>
+        {
+            var path = Path.Combine(root, "state", "prompts-roundtrip.json");
+            var store = PromptOverrides.Load(path);
+            store.Set(PromptKeys.LecturePersona, "persona", "你是助教，说话简短。");
+            var saved = store.Save(out var error);
+
+            var reloaded = PromptOverrides.Load(path);
+            var found = reloaded.TryGet(PromptKeys.LecturePersona, "persona", out var text);
+
+            try { File.Delete(path); } catch { }
+            return Task.FromResult(saved && error is null
+                                   && found && text == "你是助教，说话简短。");
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

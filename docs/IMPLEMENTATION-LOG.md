@@ -1434,3 +1434,78 @@ dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720   # adv
 可编辑 + 保存到 `settings.json`（默认值留在代码里做回退）+ 恢复默认 + 变量校验；
 先只放开 `summary` / `lecture.persona` / `lecture.vision-describe` 这类弱耦合段，
 `chat.protocol`、`judge.format`、`guard.*` 保持只读。
+
+---
+
+## 2026-11-25 · PROMPT-P1 可编辑（覆盖存储 + 校验 + 恢复默认 + 试跑）
+
+P0 是"看得见"，P1 是"改得动"，并且**改的地方就是代码真正读的那一处**。
+
+### 1. 三个决定（沿用上一轮拍板）
+
+1. 只有 **Editable 段**能改；`chat.protocol`、`judge.format`、`lecture.outline/format`、`guard.*` 仍是 Locked，界面上没有输入框；
+2. 默认文本永远留在 `Core/Prompts.cs`，用户改动只作为**覆盖**存进 `state/prompts.json`；
+3. 保存时校验：非空、占位符集合必须与默认一致。
+
+### 2. 覆盖是怎么生效的
+
+```
+PromptCatalog.Render(key)            ← 所有调用点唯一的入口
+   └─ SegmentText(key, segmentId)    ← 覆盖优先，否则默认
+        └─ PromptOverrides.TryGet()  ← state/prompts.json
+```
+
+`CogniCustosRuntime.Create` 启动时 `PromptCatalog.Configure(PromptOverrides.Load(...))`。
+所以改一句提示词 = 写一个 JSON 键，不需要重启代码路径、也不需要重新接线。
+
+**"恢复默认"就是删除那个键**——这也是为什么默认值必须留在代码里，而不是被覆盖文件接管。
+
+### 3. "试跑"：把"改了有没有用"变成可观察的
+
+每个可试跑的条目下面有一个 `试跑` 按钮：用**当前文本**真发一次请求，显示
+"实际发送的内容 / 耗时 / 回复 / 失败原因"。这同时是排查阅读器问题的工具——
+`--reader-ask` 用的就是同一条 `DocLecture.PromptTrace`。
+
+### 4. 顺手修掉的阅读器问题（用户反馈"PDF 不能有效回答"）
+
+| 现象 | 原因 | 处理 |
+|---|---|---|
+| 没框选就提问，回答像在胡说 | 选区是 (0,0,0,0)，代码把页面裁出 **1×1 像素**交给视觉模型 | 选区面积 < 0.25% 视为"没框"，不再调视觉模型；提示词里改成"这一问没有框选，按整页回答" |
+| 整页文字被喂成"一词一行" | `DocumentBook.Text` 用 `\n` 拼接每个词 | 按基线聚合成行（同 baseline 用空格，跨行才换行） |
+| 没有模型时像坏掉 | 只回一句"没有可用的推理模型" | 明确写成"当前没有可用的推理模型，只能把你选中的原文给你看；配置模型后才能讲评" |
+
+复验（真实 58 页课程 PDF）：有框选 → 6.4 s、回答正确；无框选 → `hadBox=False / regionPngBytes=0`，1.7 s 回答按整页展开。
+
+### 5. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `Core/PromptOverrides.cs`（新） | `state/prompts.json` 的读写；坏文件退化为空 |
+| `Core/Prompts.cs` | `Configure` / `SegmentText` / `IsOverridden` / `Validate` / `CheckPlaceholders` / `SaveOverride` / `ResetOverride` |
+| `Core/CogniCustosRuntime.cs` | 启动时装载覆盖 |
+| `Core/DocLecture.cs` | `PromptTrace`（试跑与 `--reader-ask` 共用）；无模型文案；无框选分支 |
+| `Documents/DocumentBook.cs` | 整页文字按行聚合 |
+| `Sample/RuntimeReaderService.cs` | 框选面积门槛、`LastAskTrace`、`TracePrompts` |
+| `Sample/ReaderAsk.cs`（新） | `--reader-ask <file> [page] [x0 y0 x1 y1] [question]`，打印真实提示词与回复 |
+| `Ui/ViewModels/AdvancedViewModel.cs` | 行内编辑、保存/恢复、覆盖徽标、试跑面板 |
+| `Ui/Views/SettingsPage.axaml` | 输入框 + 保存/恢复按钮 + 试跑区 |
+| `IShellDataSource` / `ShellViewModel` / `DemoShellDataSource` / 小样 | 三个新接缝：保存、恢复、试跑 |
+| `Lang.*` | 新增 11 个键（两侧 289） |
+
+### 6. 怎么验证
+
+```bash
+dotnet build CogniCustos.slnx -c Debug          # 0 errors
+dotnet run --project src/CogniCustos.Selftest   # passed=111
+dotnet run --project tools/CogniCustos.Ui.Tests # ALL PASS（79）
+dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720
+```
+
+自检盯住：改动立即生效、恢复默认回到原文、Locked 段拒绝、占位符增删被拒、空文本被拒、
+覆盖文件能往返读写。界面测试盯住：编辑 → 保存 → 徽标出现 → 恢复 → 回到默认，以及 Locked 段没有输入框。
+
+### 7. 还没做（P2/P3）
+
+- 按用途分档的温度与能力声明（`InferenceProfile` + `Capabilities`），以及让 `num_ctx` 与点读预算联动；
+- 连接测试（对某个 profile 发 ping，显示首 token/总耗时）；
+- 结构化调用日志（现在错误要么进 Toast、要么被 catch 吞掉）。

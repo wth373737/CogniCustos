@@ -224,6 +224,9 @@ public sealed class CogniCustosRuntime
         var state = Path.Combine(root, "state");
         Directory.CreateDirectory(state);
 
+        // prompt edits live beside the other settings; the defaults stay in PromptCatalog
+        PromptCatalog.Configure(PromptOverrides.Load(Path.Combine(state, PromptOverrides.FileName)));
+
         // itemised storage lives in the same database as the main tables
         var sandbox = new SandboxStore(Path.Combine(root, "sandbox"), Path.Combine(state, "cognicustos.db"));
         // proposals live in the database; proposals.json is only its export
