@@ -1343,3 +1343,94 @@ samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --reader-chec
 `left edge mapped to 0.343, expected 0.250`——正是用户看到的左移量。修复后 075 → 076 条断言。
 
 顺带确认：截图 `docs/ui-reader.png` 里那个框，修复前是探出页面左边界的，现在落在页内。
+
+---
+
+## 2026-11-25 · PROMPT-P0 提示词与推理参数的唯一事实源 + 只读高级设置
+
+第一步（P0）只做两件事：把所有写死的提示词**搬到一处**，再把这些值**显示出来**。
+编辑、校验、按用途分档的温度留到 P1/P2。
+
+### 1. 为什么要"搬"而不是"复制"
+
+提示词原来散在 8 个地方（运行时、判定器、隐私检查、点读、内置模型适配器）。
+如果设置页再维护一份副本，面板迟早会跟真正发出去的那份漂移——**一个会说谎的面板比没有面板更糟**。
+所以 P0 让调用点直接读目录：`PromptCatalog.Render(key)`，面板渲染的也是这个目录。
+
+| 键 | 位置 | 谁在发 |
+|---|---|---|
+| `chat.system` | `Core/Prompts.cs` | `CogniCustosRuntime.ChatAsync`（含 `{{tools}}`） |
+| `summary.one-line` | 同上 | 原始区摘要（`RawStore.Summarizer`） |
+| `judge.system` / `judge.format` | 同上 | `ModelJudge.Ask` |
+| `guard.privacy-check` | 同上 | `SensitiveContentChecker.CheckAsync` |
+| `lecture.persona` / `lecture.outline` / `lecture.vision-describe` | 同上 | `DocLecture` |
+| `provider.chat-template` | `Contracts/ChatTemplates.cs` | `LlamaModelProvider.Wrap`（**适配器与目录读同一常量**） |
+
+### 2. 分段模型：声音 vs 契约
+
+每条提示词按"能不能改"切成段，每段带 `PromptSegmentKind`：
+
+- **Editable**：人设、语气、规则——P1 起开放编辑；
+- **Locked**：JSON 协议、段落形状、隐私闸门——解析器依赖它们，永远不会开放。
+
+界面上 Locked 段带「代码固定」标记，用户能立刻看出"为什么这段改不了"。
+隐私检查整条锁死（四个决定里的第 2 条）。
+
+### 3. 占位符与"响亮失败"
+
+`{{tools}}` / `{{system}}` / `{{user}}` 由 `Contracts/Template.Fill` 单次扫描替换。
+**缺参数直接抛异常**，不允许把 `{{tools}}` 原样发给模型——那是一个 bug，不是"降级的回答"。
+
+### 4. 参数与常量也进面板（仍然是只读）
+
+- 四个适配器的采样参数从请求体里的字面量提成只读属性：
+  `OllamaModelProvider.Temperature/NumPredict`、`OllamaVisionModel.Temperature/NumPredict`、
+  `OpenAiCompatibleProvider.Temperature`、`LlamaModelProvider.ContextSize/MaxTokens/ChatTemplate`；
+- 影响效果不亚于提示词的常量也暴露出来：`ModelJudge.MaxCandidates/MaxSummaryChars`、
+  `DocLecture.OutlineCharsPerPage/OutlineTotalBudget/AskCharsPerPage`、`SqliteRawStore.SummaryChars`、
+  `SensitiveContentChecker.MaxCheckedChars`、`CogniCustosRuntime.MaxToolSteps`。
+
+面板里参数一律带来源（"当前实例" / "工厂默认，本会话未加载" / "常量"），
+因为"这个 2048 是现在的还是默认的"直接决定你调试时该信哪个数。
+
+### 5. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/Prompts.cs`（新） | 目录、键、分段、`Render`/`Segment` |
+| `src/CogniCustos.Contracts/ChatTemplates.cs`（新） | `Template.Fill` + `ChatTemplates.QwenInstruct`（适配器与目录共用） |
+| `CogniCustosRuntime` / `Judge` / `SensitiveContentChecker` / `DocLecture` | 改读目录；`DocLecture.Persona` 变成目录渲染结果 |
+| 四个适配器 | 采样参数提成属性，行为不变（默认值即原字面量） |
+| `src/CogniCustos.Ui/ViewModels/AdvancedViewModel.cs`（新） | 面板状态；`AdvancedRowViewModel`/`AdvancedItemViewModel` |
+| `SettingsPage.axaml` | 高级设置窗口（900×566，ZIndex 41）：左列表 + 右分段只读文本框 |
+| `IShellDataSource.AdvancedSnapshot()` | 新接缝；小样从目录 + 真实 provider 组装，演示源给样例 |
+| `ShellViewModel` | `Advanced` 属性、`OpenAdvanced`、Esc 关闭、箭头复位 |
+| `Lang.en/zh.axaml` | 新增 51 个键（两侧 278，仍一致） |
+
+### 6. 怎么验证
+
+```bash
+dotnet build CogniCustos.slnx -c Debug          # 0 errors
+dotnet run --project src/CogniCustos.Selftest   # passed=106（+7 条提示词不变量）
+dotnet run --project tools/CogniCustos.Ui.Tests # ALL PASS（77）
+dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720   # advanced 状态
+```
+
+自检盯住的不变量（这些是"改提示词不能改坏"的底线）：
+
+- 每条提示词都能用声明的变量渲染出来，且渲染后不含 `{{…}}`；
+- 缺变量时抛异常（不会静默发出占位符）；
+- `chat.system` 仍然含 `{"action":"tool"}` / `{"action":"answer"}` 与 `task.add`；
+- `judge.format` / `lecture.outline` 仍然含解析器要的字段（id/relevant/category、summary/sections/page）；
+- 隐私检查整条 Locked、chat 协议 Locked、人设 Editable；
+- 适配器的对话模板与目录里那条**逐字节相等**（这条专门防"两份模板"）；
+- `DocLecture.Persona` 就是目录渲染结果。
+
+界面侧两条：面板能开、条目/分段/锁定标记都在、显示的是数据源给的真实文本；
+关闭后返回箭头复位。
+
+### 7. 下一步（P1，按约定顺序）
+
+可编辑 + 保存到 `settings.json`（默认值留在代码里做回退）+ 恢复默认 + 变量校验；
+先只放开 `summary` / `lecture.persona` / `lecture.vision-describe` 这类弱耦合段，
+`chat.protocol`、`judge.format`、`guard.*` 保持只读。

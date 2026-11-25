@@ -532,10 +532,12 @@ internal static class Program
 
         Test("model_actions_open_dialogs", (vm, _) =>
         {
+            // "Advanced settings" now opens a real panel instead of a placeholder dialog.
             vm.Settings.Model.ToggleAdvancedCommand.Execute(null);
             Pump();
-            Check(vm.Dialog.IsOpen && vm.Dialog.Kind == DialogKind.Info, "advanced settings did not open a dialog");
-            vm.Dialog.CancelCommand.Execute(null);
+            Check(vm.Advanced.IsOpen, "advanced settings did not open the panel");
+            Check(!vm.Dialog.IsOpen, "advanced settings must not open a dialog any more");
+            vm.Advanced.CloseCommand.Execute(null);
             Pump();
 
             vm.Settings.Model.DeleteCommand.Execute(null);
@@ -1358,6 +1360,45 @@ internal static class Program
                 $"the box was drawn at x={drawnLeft:F1}, expected {expectedLeft:F1}");
         });
 
+        // ---- advanced settings: prompts and parameters, read-only in P0 ----
+        Test("advanced_panel_lists_prompts_and_marks_the_locked_parts", (_, _) =>
+        {
+            // the panel renders whatever the backing store reports, so drive it with the stub
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            Check(!shell.Advanced.IsOpen, "the panel must start closed");
+
+            shell.Settings.Model.ToggleAdvancedCommand.Execute(null);
+            Pump();
+
+            Check(shell.Advanced.IsOpen, "the advanced panel did not open");
+            Check(shell.Advanced.Items.Count >= 3, $"only {shell.Advanced.Items.Count} entries");
+            Check(shell.Advanced.Selected is not null, "nothing selected after opening");
+
+            var chat = shell.Advanced.Items.First(i => i.Title == "Main chat system prompt");
+            Check(chat.Rows.Count >= 2, "the chat prompt lost its segments");
+            Check(chat.Rows.Any(r => r.Locked), "the protocol segment must be marked locked");
+            Check(chat.Rows.Any(r => !r.Locked), "the persona segment must stay tunable");
+            Check(chat.CallSite.Length > 0, "the call site is not shown");
+            Check(chat.Rows.Any(r => r.Text.Contains("{\"action\":\"tool\"")),
+                "the panel is not showing the text the source reports");
+        });
+
+        Test("advanced_panel_closes_and_puts_the_chevron_back", (vm, _) =>
+        {
+            vm.Settings.Model.ToggleAdvancedCommand.Execute(null);
+            Pump();
+            Check(vm.Advanced.IsOpen, "the advanced panel did not open");
+
+            vm.Advanced.CloseCommand.Execute(null);
+            Pump();
+
+            Check(!vm.Advanced.IsOpen, "the panel did not close");
+            Check(vm.Settings.Model.AdvancedChevron == "\uE70D", "the chevron stayed open");
+        });
+
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }
@@ -1632,6 +1673,19 @@ internal sealed class RecordingSource : IShellDataSource
 
     public IReaderService CreateReader() => Reader;
 
+    public AdvancedSnapshot AdvancedSnapshot() => new(
+    [
+        new AdvancedItemData("prompt", "Prompt.Chat.Title", "Prompt.Chat.Purpose", "test",
+            [
+                new AdvancedRowData("Prompt.Chat.Persona", "", "persona text", false),
+                new AdvancedRowData("Prompt.Chat.Protocol", "", "{\"action\":\"tool\"}", true),
+            ]),
+        new AdvancedItemData("parameter", "Advanced.Llama.Title", "Advanced.Llama.Purpose", "test",
+            [new AdvancedRowData(null, "contextSize", "2048", false)]),
+        new AdvancedItemData("prompt", "Prompt.LecturePersona.Title", "Prompt.LecturePersona.Purpose", "test",
+            [new AdvancedRowData("Prompt.LecturePersona.Persona", "", "senior voice", false)]),
+    ]);
+
     /// <summary>The stub the reader tests drive; the shell keeps the same instance.</summary>
     public StubReader Reader { get; } = new();
 }
@@ -1716,6 +1770,19 @@ internal sealed class RefusingSource : IShellDataSource
     public bool RemoveWebSource(string url) => false;
 
     public IReaderService CreateReader() => new StubReader();
+
+    public AdvancedSnapshot AdvancedSnapshot() => new(
+    [
+        new AdvancedItemData("prompt", "Prompt.Chat.Title", "Prompt.Chat.Purpose", "test",
+            [
+                new AdvancedRowData("Prompt.Chat.Persona", "", "persona text", false),
+                new AdvancedRowData("Prompt.Chat.Protocol", "", "{\"action\":\"tool\"}", true),
+            ]),
+        new AdvancedItemData("parameter", "Advanced.Llama.Title", "Advanced.Llama.Purpose", "test",
+            [new AdvancedRowData(null, "contextSize", "2048", false)]),
+        new AdvancedItemData("prompt", "Prompt.LecturePersona.Title", "Prompt.LecturePersona.Purpose", "test",
+            [new AdvancedRowData("Prompt.LecturePersona.Persona", "", "senior voice", false)]),
+    ]);
 }
 
 /// <summary>

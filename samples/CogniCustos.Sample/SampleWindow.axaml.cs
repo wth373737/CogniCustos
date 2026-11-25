@@ -93,6 +93,7 @@ public sealed partial class SampleWindow : Window
             if (vm.Dialog.IsOpen) vm.Dialog.CancelCommand.Execute(null);
             else if (vm.Calendar.IsVisible) vm.Calendar.Close();
             else if (vm.Reader.IsOpen) vm.Reader.Close();
+            else if (vm.Advanced.IsOpen) vm.Advanced.Close();
             else vm.CloseOverlays();
 
             e.Handled = true;

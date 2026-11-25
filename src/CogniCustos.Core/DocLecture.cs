@@ -43,16 +43,15 @@ public sealed class DocLecture
         _log = log;
     }
 
-    /// <summary>Who the model is being asked to be. Kept as data so a test can assert it.</summary>
-    public const string Persona =
-        "你是一位博学、热心的学长/学姐，正在陪学弟/学妹看一份课程材料。你讲得具体、口语、不端架子；" +
-        "先给结论再给理由，用材料里的原话作证据，指出在哪一页。" +
-        "看不清或材料里没有写的，就直接说不确定，不要编造。" +
-        "回答用提问者使用的语言。";
+    /// <summary>
+    /// Who the model is being asked to be. The text lives in <see cref="PromptCatalog"/>; this
+    /// property is the resolved persona, so tests can assert what is actually sent.
+    /// </summary>
+    public static string Persona => PromptCatalog.Render(PromptKeys.LecturePersona);
 
-    private const int OutlineCharsPerPage = 320;
-    private const int OutlineTotalBudget = 7000;
-    private const int AskCharsPerPage = 4000;
+    public const int OutlineCharsPerPage = 320;
+    public const int OutlineTotalBudget = 7000;
+    public const int AskCharsPerPage = 4000;
 
     /// <summary>
     /// Read the whole text layer once and produce summary + page index. With no model
@@ -78,10 +77,7 @@ public sealed class DocLecture
             .AppendLine($"共 {pageTexts.Count} 页。下面是每一页的开头（不是全文）：")
             .AppendLine(corpus)
             .AppendLine()
-            .AppendLine("请输出严格的 JSON，不要代码块、不要多余的话：")
-            .AppendLine("{\"summary\":\"3-5 句话：这份材料在讲什么、结构如何、学之前要先会什么\"," )
-            .AppendLine(" \"sections\":[{\"page\":1,\"title\":\"这一页/这一章的一句话小标题\"}]}")
-            .Append("sections 只给有实际内容的页，最多 40 条。");
+            .Append(PromptCatalog.Render(PromptKeys.LectureOutline));
 
         string raw;
         try
@@ -112,8 +108,7 @@ public sealed class DocLecture
             try
             {
                 seen = await _vision.DescribeAsync(
-                    "这是课件或文档中被选中的一块区域。请把其中的文字、公式、图表内容如实描述出来，" +
-                    "文字照抄，图表说清坐标轴和趋势。不要评价，只描述你看到的东西。",
+                    PromptCatalog.Render(PromptKeys.LectureVision),
                     regionPng, ct).ConfigureAwait(false);
             }
             catch (Exception ex)

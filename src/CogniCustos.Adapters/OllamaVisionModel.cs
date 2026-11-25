@@ -18,14 +18,19 @@ public sealed class OllamaVisionModel : IVisionModel
     private readonly string _model;
     private bool? _available;
 
-    public OllamaVisionModel(string baseUrl, string model = "qwen3-vl:4b")
+    public OllamaVisionModel(string baseUrl, string model = "qwen3-vl:4b",
+        double temperature = 0.1, int numPredict = 500)
     {
         BaseUrl = baseUrl.TrimEnd('/');
         _model = model;
+        Temperature = temperature;
+        NumPredict = numPredict;
         _http = new HttpClient { BaseAddress = new Uri(BaseUrl + "/"), Timeout = TimeSpan.FromMinutes(3) };
     }
 
     public string BaseUrl { get; }
+    public double Temperature { get; }
+    public int NumPredict { get; }
     public string Id => $"ollama-vision:{_model}";
     public string Model => _model;
 
@@ -75,7 +80,7 @@ public sealed class OllamaVisionModel : IVisionModel
             prompt,
             stream = false,
             images = new[] { Convert.ToBase64String(png) },
-            options = new { temperature = 0.1, num_predict = 500 }
+            options = new { temperature = Temperature, num_predict = NumPredict }
         };
 
         using var resp = await _http.PostAsJsonAsync("api/generate", body, ct).ConfigureAwait(false);

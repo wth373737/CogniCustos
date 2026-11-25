@@ -115,4 +115,10 @@ public interface IShellDataSource
     /// returns PDFium plus the models. The UI itself never sees either.
     /// </summary>
     IReaderService CreateReader();
+
+    /// <summary>
+    /// What the advanced panel shows: every prompt the app sends plus the inference parameters.
+    /// P0 renders it read-only; the values must be the ones the call sites really use.
+    /// </summary>
+    AdvancedSnapshot AdvancedSnapshot();
 }

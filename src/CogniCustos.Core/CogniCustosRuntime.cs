@@ -10,6 +10,9 @@ namespace CogniCustos.Core;
 /// </summary>
 public sealed class CogniCustosRuntime
 {
+    /// <summary>How many tool calls one assistant turn may make before it must answer.</summary>
+    public const int MaxToolSteps = 4;
+
     private readonly ToolRegistry _registry;
 
     private CogniCustosRuntime(string root, SandboxStore sandbox, ApprovalGate gate, SqliteTaskStore tasks,
@@ -182,7 +185,7 @@ public sealed class CogniCustosRuntime
             : text =>
             {
                 var summary = provider
-                    .CompleteAsync("你是摘要器。用一句话概括下面的材料，不超过 80 字。", text)
+                    .CompleteAsync(PromptCatalog.Render(PromptKeys.SummaryOneLine), text)
                     .GetAwaiter().GetResult();
                 return string.IsNullOrWhiteSpace(summary) ? null : summary;
             };
@@ -425,7 +428,7 @@ public sealed class CogniCustosRuntime
         if (provider is StandbyModelProvider)
             return await provider.CompleteAsync("", userMessage, ct).ConfigureAwait(false);
 
-        const int maxSteps = 4;
+        var maxSteps = MaxToolSteps;
         var transcript = new StringBuilder();
         var workingUser = userMessage;
 
@@ -434,7 +437,7 @@ public sealed class CogniCustosRuntime
             string raw;
             try
             {
-                raw = await provider.CompleteAsync(SystemPrompt(), workingUser, ct).ConfigureAwait(false);
+                raw = await provider.CompleteAsync(ChatSystemPrompt(), workingUser, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -539,26 +542,13 @@ public sealed class CogniCustosRuntime
         }
     }
 
-    private string SystemPrompt() => $$"""
-        你是 CogniCustos 的助手，运行在学生的本地电脑上。
-
-        规则（不可违背）：
-        1. 你不能直接写主数据库或精选知识库。task.add / task.complete / kb.index 只会生成"提议"，由学生确认后才生效。
-        2. 你可以自由写自己的沙箱（sandbox.write），沙箱只存文本，不能执行。
-        3. 需要事实时就调用工具，不要凭空编造任务列表或检索结果。
-
-        可用工具：
-        {{Tools.DescribeForPrompt()}}
-
-        输出格式：只输出一个 JSON 对象，不要代码块、不要解释。
-        - 调用工具：{"action":"tool","tool":"<名字>","args":{"<参数>":"<值>"} }
-        - 最终回答：{"action":"answer","text":"<给学生看的回答>"}
-
-        参数写法（照抄格式，不要自创）：
-        - task.add  / plan.add : {"title":"写终稿","level":"long","due":"2026-12-27"}
-          level 只能是 long / mid / short 这三个英文词。
-        - schedule.add : {"date":"2026-12-27","start":"09:00","end":"11:00","title":"写草稿"}
-          date 是 yyyy-MM-dd，start/end 是 HH:mm，不要写成完整日期时间。
-        - 一次只调用一个工具；拿到结果后再决定下一步或回答。
-        """;
+    /// <summary>
+    /// The chat system prompt, with the tool catalogue injected. The text itself lives in
+    /// <see cref="PromptCatalog"/> so the advanced-settings panel shows exactly what is sent.
+    /// </summary>
+    private string ChatSystemPrompt() =>
+        PromptCatalog.Render(PromptKeys.ChatSystem, new Dictionary<string, string>
+        {
+            ["tools"] = Tools.DescribeForPrompt(),
+        });
 }

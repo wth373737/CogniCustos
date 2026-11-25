@@ -15,11 +15,12 @@ AI 只能提出变更，用户确认后才落库；本地小模型（Qwen2.5-0.5
 | 示例应用 | `dotnet run --project samples/CogniCustos.Sample` | 同一个外壳 + 真后端；可交互点击 |
 | **模型自检** | `CogniCustos.Sample.exe --model-check [--gpu]` | 下载内置模型（带 %）→ 切换 → 提问 → 模型摘要 → 判定器验证，打印全部耗时 |
 | **无界面自检** | `…/CogniCustos.Sample.exe --check` | 端到端：写入提议 → 卡片两落点 → 确认 → 审批门落库 |
-| **单元自检** | `dotnet run --project src/CogniCustos.Selftest` | **99** 条断言（含 PDF 页数/像素/文字层/框选/PNG） |
-| 界面自检 | `dotnet run --project tools/CogniCustos.Ui.Tests` | **75** 条断言（视图模型 + 交互路径，Headless） |
+| **单元自检** | `dotnet run --project src/CogniCustos.Selftest` | **106** 条断言（含 PDF 页数/像素/文字层/框选/PNG、提示词不变量） |
+| 界面自检 | `dotnet run --project tools/CogniCustos.Ui.Tests` | **77** 条断言（视图模型 + 交互路径，Headless） |
 | 界面截图 | `dotnet run --project tools/CogniCustos.Ui.Shots -- <out> 1280 720` | 所有页面状态渲染成 PNG（`ALL OK`） |
 | **点读** | 抽屉最下面一行「点读文件」 | 打开 PDF → 通读概要 + 页码目录 → 页面上拖框选中 → 「询问 AI 教导」（旁边可写更具体的问题） |
 | **点读自检** | `…CogniCustos.Sample.exe --reader-check <文件>` | 打开/渲染/文字层/目录/框选提问全链路，打印每步耗时 |
+| **高级设置（只读）** | 设置页 → Model Configuration → 高级设置 | 9 条提示词（分段、锁定标记、调用点）+ 4 组推理参数 + 8 个调参常量，显示的是调用点真正在用的值 |
 | **抓取自检** | `…CogniCustos.Sample.exe --fetch-now` | 按 `state/settings.json` 的来源抓一次，打印待确认提议 |
 
 ## 3. 四区模型：已实现的部分
@@ -83,14 +84,19 @@ models/builtin/             内置模型（model.json 记 sha256）
 7. **知识库检索**仍是关键词（FTS5/向量检索在计划里）。
 8. **界面上还没有"未确认材料列表 + 确认收录按钮"**（数据与 API `rt.AcceptRawAsync` 已就绪）。
 9. **点读的选区只取词中心在框内的词**，多栏排版会漏；扫描件靠 4B vision 模型，质量有限；讲评不落库。
+10. **提示词与参数只读**：P0 只做到"看得见"（高级设置面板）。编辑、保存覆盖、恢复默认是 P1；按用途分档的温度与能力声明是 P2；连接测试与调用日志是 P3。
 
 ## 7. 常见改动去哪儿
 
 | 想改什么 | 改哪里 |
 |---|---|
-| 换模型 / 换对话模板 | `BuiltInModelInstaller`（文件名、URL、期望大小）+ `LlamaModelProvider.Wrap`（模板） |
+| **任何提示词** | `src/CogniCustos.Core/Prompts.cs`（唯一事实源；面板显示的就是它） |
+| 对话模板（随模型走） | `src/CogniCustos.Contracts/ChatTemplates.cs`（适配器与目录共用这一个常量） |
+| 采样参数（温度/输出上限/上下文） | 各适配器构造参数：`OllamaModelProvider` / `OllamaVisionModel` / `OpenAiCompatibleProvider` / `LlamaModelProvider` |
+| 换模型 / 换对话模板 | `BuiltInModelInstaller`（文件名、URL、期望大小）+ `ChatTemplates` |
 | 换 GPU 后端（CUDA/AMD-Metal） | 包换成 `LLamaSharp.Backend.Cuda12`；`ModelParams.Devices` 写 `CUDA0` |
-| 判定器提示词/阈值 | `ModelJudge.Ask`；`MaxSummaryChars` 控制给模型看多少概括 |
+| 判定器给模型看多少 | `ModelJudge.MaxSummaryChars` / `MaxCandidates` |
+| 点读喂多少上下文 | `DocLecture.OutlineCharsPerPage` / `OutlineTotalBudget` / `AskCharsPerPage` |
 | 摘要改同步/改后台 | `IRawStore.BackgroundSummaries` |
 | Ollama 那套语义 | `LocalModelService.UseOllama`（切换即删内置模型） |
 | 四区规则本身 | `docs/PARTITION-MODEL.md`；代码分别是 `Visibility`/`ApprovalGate`/`RawStore`/`SandboxStore` |
@@ -100,9 +106,9 @@ models/builtin/             内置模型（model.json 记 sha256）
 
 ```
 dotnet build CogniCustos.slnx -c Debug   → 0 errors
-Selftest                                   → passed=99
-Ui.Tests                                   → ALL PASS（75）
+Selftest                                   → passed=106
+Ui.Tests                                   → ALL PASS（77）
 Sample --check                             → OK（两落点卡片 + 审批门落库）
-Ui.Shots                                   → ALL OK（含 reader / reader-ask 两个状态）
+Ui.Shots                                   → ALL OK（含 reader / reader-ask / advanced）
 Sample --reader-check <pdf>                → OK（打开 114 ms / 渲染 89 ms / 概要 1.7 s / 提问 1.3 s）
 ```

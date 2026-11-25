@@ -16,7 +16,7 @@ namespace CogniCustos.Core;
 /// </summary>
 public sealed class SqliteRawStore : IRawStore
 {
-    private const int SummaryChars = 200;
+    public const int SummaryChars = 200;
 
     private readonly string _stateDir;
     private readonly string _connectionString;

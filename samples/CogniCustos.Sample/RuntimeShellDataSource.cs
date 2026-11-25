@@ -372,4 +372,84 @@ public sealed class RuntimeShellDataSource : IShellDataSource
                 payload);
         }
     }
+
+    // ---------- advanced settings: what the app really sends ----------
+
+    /// <summary>
+    /// The advanced panel's data: every prompt from the catalogue (the same objects the call
+    /// sites render, so the panel cannot drift from what runs), then the parameters that are
+    /// actually in play in this session. P0 reports them; it does not edit them.
+    /// </summary>
+    public AdvancedSnapshot AdvancedSnapshot()
+    {
+        var items = new List<AdvancedItemData>();
+
+        foreach (var spec in PromptCatalog.All)
+        {
+            items.Add(new AdvancedItemData(
+                spec.GroupKey, spec.TitleKey, spec.PurposeKey, spec.CallSite,
+                spec.Segments
+                    .Select(segment => new AdvancedRowData(segment.LabelKey, string.Empty, segment.Text,
+                        segment.Kind == PromptSegmentKind.Locked))
+                    .ToList()));
+        }
+
+        var llama = _rt.Models.All.OfType<CogniCustos.Adapters.LlamaModelProvider>().FirstOrDefault();
+        var ollama = _rt.Models.All.OfType<CogniCustos.Adapters.OllamaModelProvider>().FirstOrDefault();
+        var cloud = _rt.Models.All.OfType<CogniCustos.Adapters.OpenAiCompatibleProvider>().FirstOrDefault();
+        var vision = _vision as CogniCustos.Adapters.OllamaVisionModel;
+
+        items.Add(new AdvancedItemData("parameter", "Advanced.Llama.Title", "Advanced.Llama.Purpose",
+            "CogniCustos.Adapters.LlamaModelProvider",
+            [
+                Row("contextSize", llama?.ContextSize.ToString() ?? "2048",
+                    llama is null ? "工厂默认，本会话未加载" : "当前实例"),
+                Row("maxTokens", CogniCustos.Adapters.LlamaModelProvider.MaxTokens.ToString(), "常量"),
+                Row("backend", llama?.Backend ?? "cpu", llama is null ? "未加载" : "当前实例"),
+            ]));
+
+        items.Add(new AdvancedItemData("parameter", "Advanced.Ollama.Title", "Advanced.Ollama.Purpose",
+            "CogniCustos.Adapters.OllamaModelProvider",
+            [
+                Row("model", ollama is null ? _rt.LocalModels.OllamaModel : ollama.Id.Replace("ollama:", ""),
+                    ollama is null ? "设置页默认" : "当前实例"),
+                Row("temperature", (ollama?.Temperature ?? 0.2).ToString("0.0#"), "当前实例"),
+                Row("num_predict", (ollama?.NumPredict ?? 700).ToString(), "当前实例"),
+            ]));
+
+        items.Add(new AdvancedItemData("parameter", "Advanced.Vision.Title", "Advanced.Vision.Purpose",
+            "CogniCustos.Adapters.OllamaVisionModel",
+            [
+                Row("model", vision?.Model ?? "qwen3-vl:4b", vision is null ? "默认" : "当前实例"),
+                Row("temperature", (vision?.Temperature ?? 0.1).ToString("0.0#"), "当前实例"),
+                Row("num_predict", (vision?.NumPredict ?? 500).ToString(), "当前实例"),
+            ]));
+
+        items.Add(new AdvancedItemData("parameter", "Advanced.Cloud.Title", "Advanced.Cloud.Purpose",
+            "CogniCustos.Adapters.OpenAiCompatibleProvider",
+            [
+                Row("model", cloud is null ? "未配置" : cloud.Id.Replace("cloud:", ""),
+                    cloud is null ? "设置页未填" : "当前实例"),
+                Row("temperature", (cloud?.Temperature ?? 0.2).ToString("0.0#"), "当前实例"),
+                Row("max_tokens", "未发送", "由服务端决定"),
+            ]));
+
+        items.Add(new AdvancedItemData("constant", "Advanced.Constants.Title", "Advanced.Constants.Purpose",
+            "Judge / DocLecture / RawStore / SensitiveContentChecker / CogniCustosRuntime",
+            [
+                Row("Judge.MaxCandidates", ModelJudge.MaxCandidates.ToString(), "常量"),
+                Row("Judge.MaxSummaryChars", ModelJudge.MaxSummaryChars.ToString(), "常量"),
+                Row("DocLecture.OutlineCharsPerPage", DocLecture.OutlineCharsPerPage.ToString(), "常量"),
+                Row("DocLecture.OutlineTotalBudget", DocLecture.OutlineTotalBudget.ToString(), "常量"),
+                Row("DocLecture.AskCharsPerPage", DocLecture.AskCharsPerPage.ToString(), "常量"),
+                Row("RawStore.SummaryChars", SqliteRawStore.SummaryChars.ToString(), "常量"),
+                Row("SensitiveContentChecker.MaxCheckedChars", SensitiveContentChecker.MaxCheckedChars.ToString(), "常量"),
+                Row("CogniCustosRuntime.MaxToolSteps", CogniCustosRuntime.MaxToolSteps.ToString(), "常量"),
+            ]));
+
+        return new AdvancedSnapshot(items);
+    }
+
+    private static AdvancedRowData Row(string name, string value, string source) =>
+        new(null, name, value + "（" + source + "）", false);
 }

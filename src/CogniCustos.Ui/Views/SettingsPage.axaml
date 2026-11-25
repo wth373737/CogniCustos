@@ -78,6 +78,96 @@
     </Border>
 
 
+    <!-- 高级设置：提示词与推理参数（P0 只读）。渲染的是调用点真正使用的那份目录，
+         不是副本；锁定标记表示那段文字由代码解析，P1 里也不会开放编辑。 -->
+    <Border Grid.RowSpan="3" Width="900" Height="566" Padding="22,18" Background="{StaticResource Surface}"
+            CornerRadius="14" BoxShadow="0 18 44 0 #33000000"
+            HorizontalAlignment="Center" VerticalAlignment="Center" ZIndex="41"
+            IsVisible="{Binding Advanced.IsOpen}">
+      <Grid RowDefinitions="Auto,*,Auto">
+
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+          <StackPanel Spacing="3">
+            <TextBlock Text="{Binding Advanced.Title}" FontSize="19" FontWeight="SemiBold"
+                       Foreground="{StaticResource Ink}" />
+            <TextBlock Text="{Binding Advanced.Note}" FontSize="11.5" TextWrapping="Wrap"
+                       Foreground="#FF6D7C79" />
+          </StackPanel>
+          <Button Grid.Column="1" Classes="roundClose" Width="28" Height="28" VerticalAlignment="Top"
+                  Command="{Binding Advanced.CloseCommand}">
+            <TextBlock Classes="glyph" Text="{StaticResource GlyphClose}" FontSize="12"
+                       Foreground="{StaticResource Ink}" />
+          </Button>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnDefinitions="236,*" Margin="0,12,0,0">
+
+          <ListBox Grid.Column="0" Classes="settings" Margin="0,0,14,0"
+                   ItemsSource="{Binding Advanced.Items}"
+                   SelectedItem="{Binding Advanced.Selected, Mode=TwoWay}">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:AdvancedItemViewModel">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="{Binding Group}" FontSize="10" Foreground="#FF93A29F" />
+                  <TextBlock Text="{Binding Title}" FontSize="12.5" TextWrapping="Wrap"
+                             Foreground="#FF2B2B32" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+
+          <Border Grid.Column="1" Background="#FFF7F9F8" CornerRadius="8" Padding="14,12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel Spacing="8" DataContext="{Binding Advanced.Selected}"
+                          x:DataType="vm:AdvancedItemViewModel">
+                <TextBlock Text="{Binding Title}" FontSize="15.5" FontWeight="SemiBold"
+                           Foreground="#FF2B2B32" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Purpose}" FontSize="12" Foreground="#FF6D7C79"
+                           TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBlock Text="{DynamicResource Advanced.CallSite}" FontSize="11"
+                             Foreground="#FF93A29F" />
+                  <TextBlock Text="{Binding CallSite}" FontSize="11" Foreground="#FF93A29F"
+                             TextWrapping="Wrap" />
+                </StackPanel>
+                <Border Height="1" Background="#FFE3EAE8" Margin="0,4,0,2" />
+                <ItemsControl ItemsSource="{Binding Rows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AdvancedRowViewModel">
+                      <StackPanel Spacing="3" Margin="0,0,0,10">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <TextBlock Text="{Binding Label}" FontSize="11.5" FontWeight="SemiBold"
+                                     Foreground="#FF3C4A47" TextWrapping="Wrap" />
+                          <Border IsVisible="{Binding ShowLockedBadge}" Background="#FFF4E7D6"
+                                  CornerRadius="4" Padding="5,0">
+                            <TextBlock Text="{DynamicResource Advanced.Locked}" FontSize="9.5"
+                                       Foreground="#FF8A5A1E" />
+                          </Border>
+                        </StackPanel>
+                        <Border Background="White" CornerRadius="4" Padding="8,6"
+                                BorderBrush="#FFE3EAE8" BorderThickness="1">
+                          <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                                               FontFamily="Consolas, Menlo, monospace" FontSize="11.5"
+                                               Foreground="#FF2B2B32" />
+                        </Border>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </ScrollViewer>
+          </Border>
+        </Grid>
+
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+          <TextBlock Text="{Binding Advanced.Footer}" FontSize="11" TextWrapping="Wrap"
+                     Foreground="#FF93A29F" VerticalAlignment="Center" Margin="0,0,12,0" />
+          <Button Grid.Column="1" Classes="dialog" Content="{Binding Advanced.CloseLabel}"
+                  Command="{Binding Advanced.CloseCommand}" />
+        </Grid>
+      </Grid>
+    </Border>
+
     <!-- header -->
     <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto" Margin="30,0,22,0">
       <TextBlock Grid.Column="0" Classes="glyph" Text="{StaticResource GlyphSettings}" FontSize="26"

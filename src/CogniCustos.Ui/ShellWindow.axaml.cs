@@ -29,10 +29,11 @@ public sealed partial class ShellWindow : LocalizedWindow
     {
         if (e.Key == Key.Escape && DataContext is ShellViewModel vm)
         {
-            // Top-most first: dialog, then the calendar, then the reader, then shell overlays.
+            // Top-most first: dialog, calendar, reader, advanced panel, shell overlays.
             if (vm.Dialog.IsOpen) vm.Dialog.CancelCommand.Execute(null);
             else if (vm.Calendar.IsVisible) vm.Calendar.Close();
             else if (vm.Reader.IsOpen) vm.Reader.Close();
+            else if (vm.Advanced.IsOpen) vm.Advanced.Close();
             else if (vm.Reasoning.IsAnyOpen) vm.Reasoning.Close();
             else vm.CloseOverlays();
 

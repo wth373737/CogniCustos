@@ -41,6 +41,14 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Reasoning = new ReasoningViewModel();
         Dialog = new DialogViewModel();
         Reader = new ReaderViewModel(() => _source.CreateReader());
+        Advanced = new AdvancedViewModel();
+
+        // the chevron in the model section tracks "the panel was opened from here"
+        Advanced.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AdvancedViewModel.IsOpen) && !Advanced.IsOpen)
+                Settings.Model.ResetAdvancedChevron();
+        };
         Dialog.RequestClose += () => FinishDialog();
 
         ToggleDrawerCommand = new RelayCommand(ToggleMenu);
@@ -105,6 +113,9 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     /// <summary>The point-read window: a document on screen, a box, and an answer.</summary>
     public ReaderViewModel Reader { get; }
+
+    /// <summary>The advanced-settings window: prompts and inference parameters (read-only in P0).</summary>
+    public AdvancedViewModel Advanced { get; }
 
     /// <summary>One dialog surface for the incoming decision, ignore confirmation,
     /// composer and note flows.</summary>
@@ -359,6 +370,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Dialog.RefreshText(BuildDialogButtons);
         Reasoning.RefreshText();
         Reader.RefreshText();
+        Advanced.RefreshText();
         foreach (var card in Cards) card.Refresh();
         Today.ResetSeeds(BuildTodaySeeds());
         RebuildLanguageMenu();
@@ -632,8 +644,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     /// <summary>The Model Configuration form reports intent through events; the shell answers.</summary>
     private void WireModelSection()
     {
-        Settings.Model.AdvancedRequested += () =>
-            ShowInfoDialog("Settings.Model.AdvancedTitle", "Settings.Model.AdvancedPending");
+        Settings.Model.AdvancedRequested += OpenAdvanced;
         Settings.Model.CheckRequested += () => _ = CheckLocalModelAsync();
         Settings.Model.AddRequested += () =>
             ShowInfoDialog("Settings.Model.AddTitle", "Settings.Model.AddPending");
@@ -653,6 +664,23 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.EmailRetrieval.OnlyMailboxRequested += OnlyMailbox;
         Settings.WebBrowsing.AddRequested += AddWebSource;
         Settings.WebBrowsing.RemoveRequested += RemoveWebSource;
+    }
+
+    /// <summary>
+    /// Open the advanced panel on whatever the backing store currently reports. P0 shows the
+    /// prompts and parameters read-only; the panel is a window over the settings page, so the
+    /// page stays where it was when it closes.
+    /// </summary>
+    private void OpenAdvanced()
+    {
+        try
+        {
+            Advanced.Open(_source.AdvancedSnapshot());
+        }
+        catch (Exception ex)
+        {
+            SetToast(ex.Message);
+        }
     }
 
     private void SetToast(string text)
@@ -675,6 +703,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     public void ClosePanels()
     {
         Reasoning.Close();
+        Advanced.Close();
+        Settings.Model.ResetAdvancedChevron();
         MenuOpen = false;
         SettingsOpen = false;
         HelpOpen = false;

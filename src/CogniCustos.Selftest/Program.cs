@@ -1382,6 +1382,98 @@ internal static class Program
             return answer.Contains("选中的这一句") || answer.Contains("没有可用");
         });
 
+        // ---------- prompts: the catalogue is the single source ----------
+
+        await Check("prompts: every catalogue entry renders with its declared variables", () =>
+        {
+            var variables = new Dictionary<string, string> { ["tools"] = "TOOL-LIST", ["system"] = "S", ["user"] = "U" };
+            foreach (var spec in PromptCatalog.All)
+            {
+                foreach (var segment in spec.Segments)
+                {
+                    var text = CogniCustos.Contracts.Template.Fill(segment.Text, variables);
+                    if (string.IsNullOrWhiteSpace(text)) return Task.FromResult(false);
+                }
+
+                var whole = PromptCatalog.Render(spec.Key, variables);
+                if (whole.Length == 0) return Task.FromResult(false);
+            }
+
+            return Task.FromResult(true);
+        });
+
+        await Check("prompts: a missing variable fails loudly instead of shipping {{name}}", () =>
+        {
+            try
+            {
+                _ = PromptCatalog.Render(PromptKeys.ChatSystem);   // needs {{tools}}
+                return Task.FromResult(false);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Task.FromResult(ex.Message.Contains("tools"));
+            }
+        });
+
+        await Check("prompts: the chat protocol still carries the parser's action contract", () =>
+        {
+            var text = PromptCatalog.Render(PromptKeys.ChatSystem,
+                new Dictionary<string, string> { ["tools"] = "(tools)" });
+
+            // AgentProtocol parses exactly these two shapes.
+            return Task.FromResult(text.Contains("\"action\":\"tool\"")
+                                   && text.Contains("\"action\":\"answer\"")
+                                   && text.Contains("(tools)")
+                                   && text.Contains("task.add"));
+        });
+
+        await Check("prompts: the judge and outline formats keep their JSON shape", () =>
+        {
+            var judge = PromptCatalog.Render(PromptKeys.JudgeFormat);
+            var outline = PromptCatalog.Render(PromptKeys.LectureOutline);
+
+            return Task.FromResult(judge.Contains("{\"id\"")
+                                   && judge.Contains("relevant")
+                                   && judge.Contains("category")
+                                   && outline.Contains("\"summary\"")
+                                   && outline.Contains("\"sections\"")
+                                   && outline.Contains("\"page\""));
+        });
+
+        await Check("prompts: parse contracts are marked locked, voice is not", () =>
+        {
+            static bool AllLocked(string key) =>
+                PromptCatalog.Get(key).Segments.All(s => s.Kind == PromptSegmentKind.Locked);
+
+            var privacy = AllLocked(PromptKeys.GuardPrivacy);          // the outbound gate stays put
+            var chatProtocol = PromptCatalog.Get(PromptKeys.ChatSystem)
+                .Segments.First(s => s.Id == "protocol").Kind == PromptSegmentKind.Locked;
+            var chatPersona = PromptCatalog.Get(PromptKeys.ChatSystem)
+                .Segments.First(s => s.Id == "persona").Kind == PromptSegmentKind.Editable;
+            var persona = AllLocked(PromptKeys.LecturePersona);
+
+            return Task.FromResult(privacy && chatProtocol && chatPersona && !persona);
+        });
+
+        await Check("prompts: the local chat template and the adapter agree", () =>
+        {
+            var rendered = PromptCatalog.Render(PromptKeys.ProviderChatTemplate,
+                new Dictionary<string, string> { ["system"] = "SYS", ["user"] = "USR" });
+
+            var byAdapter = CogniCustos.Contracts.Template.Fill(
+                CogniCustos.Adapters.LlamaModelProvider.ChatTemplate,
+                new Dictionary<string, string> { ["system"] = "SYS", ["user"] = "USR" });
+
+            return Task.FromResult(rendered == byAdapter
+                                   && rendered.Contains("<|im_start|>system")
+                                   && rendered.Contains("USR"));
+        });
+
+        await Check("prompts: the reader persona comes from the catalogue", () =>
+            Task.FromResult(DocLecture.Persona.Length > 20
+                            && DocLecture.Persona == PromptCatalog.Render(PromptKeys.LecturePersona)
+                            && DocLecture.Persona.Contains("学长")));
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

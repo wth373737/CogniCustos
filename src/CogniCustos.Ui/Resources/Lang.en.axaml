@@ -65,7 +65,7 @@
   <x:String x:Key="Settings.Model.Api">API</x:String>
   <x:String x:Key="Settings.Model.DocsNote">Please refer to the official documentation for the information above.</x:String>
   <x:String x:Key="Settings.Model.Advanced">Advanced settings</x:String>
-  <x:String x:Key="Settings.Model.AdvancedNote">Open the advanced settings window to configure parameters such as the AI model's prompts, temperature, and maximum context length. It is not recommended for users without sufficient understanding to make adjustments here.</x:String>
+  <x:String x:Key="Settings.Model.AdvancedNote">Open advanced settings to see every prompt this app sends and the parameters it sends them with. Read-only for now; editing comes next.</x:String>
   <x:String x:Key="Settings.Model.AdvancedTitle">Advanced settings</x:String>
   <x:String x:Key="Settings.Model.AdvancedPending">The parameter window is not implemented yet.</x:String>
   <x:String x:Key="Settings.Model.LocalModel">Small local model</x:String>
@@ -268,5 +268,56 @@
   <x:String x:Key="Demo.Reader.Answer">Sure — here is how I would read that part:
 
 First, the sentence is defining the term before using it, so read it as a definition rather than an argument. Second, the example right after it is the one to remember: the exam usually asks you to apply the rule to a case like that, not to repeat the definition. I would underline the rule and jot the example beside it, because those two together are what the marking scheme rewards.</x:String>
-
+  <!-- advanced settings: prompts and inference parameters (P0 read-only) -->
+  <x:String x:Key="Advanced.Title">Advanced settings</x:String>
+  <x:String x:Key="Advanced.Note">Every prompt this app sends, and the parameters it sends them with. Read-only for now — this is the debugging view; editing comes next.</x:String>
+  <x:String x:Key="Advanced.Footer">Values live in code today (Core/Prompts.cs and the adapters). Next version edits here, saves the override, and keeps the default as the fallback.</x:String>
+  <x:String x:Key="Advanced.Close">Close</x:String>
+  <x:String x:Key="Advanced.CallSite">used by</x:String>
+  <x:String x:Key="Advanced.Locked">fixed by code</x:String>
+  <x:String x:Key="Advanced.Group.prompt">Prompt</x:String>
+  <x:String x:Key="Advanced.Group.parameter">Parameter</x:String>
+  <x:String x:Key="Advanced.Group.constant">Tuning constant</x:String>
+  <x:String x:Key="Prompt.Chat.Title">Main chat system prompt</x:String>
+  <x:String x:Key="Prompt.Chat.Purpose">Sent as the system message on every assistant turn; carries the tool catalogue and the JSON protocol.</x:String>
+  <x:String x:Key="Prompt.Chat.Persona">Persona and rules</x:String>
+  <x:String x:Key="Prompt.Chat.Tools">Tool catalogue</x:String>
+  <x:String x:Key="Prompt.Chat.Protocol">Output protocol</x:String>
+  <x:String x:Key="Prompt.Summary.Title">One-line summary</x:String>
+  <x:String x:Key="Prompt.Summary.Purpose">Summarises a fetched item into the raw zone (R1) when a model is available.</x:String>
+  <x:String x:Key="Prompt.Summary.Instruction">Instruction</x:String>
+  <x:String x:Key="Prompt.Judge.Title">Relevance judge</x:String>
+  <x:String x:Key="Prompt.Judge.Purpose">Decides whether unconfirmed material relates to the question; returns a verdict and a handle, never the text.</x:String>
+  <x:String x:Key="Prompt.Judge.Rule">Rule</x:String>
+  <x:String x:Key="Prompt.Judge.Format">Output rule</x:String>
+  <x:String x:Key="Prompt.JudgeFormat.Title">Judge reply format</x:String>
+  <x:String x:Key="Prompt.JudgeFormat.Purpose">Appended to the judge's user message — this is the JSON array the parser reads.</x:String>
+  <x:String x:Key="Prompt.JudgeFormat.Instruction">Format</x:String>
+  <x:String x:Key="Prompt.Privacy.Title">Privacy check (outbound gate)</x:String>
+  <x:String x:Key="Prompt.Privacy.Purpose">Runs before anything leaves the machine. Locked: weakening it would weaken the gate itself.</x:String>
+  <x:String x:Key="Prompt.Privacy.System">System instruction</x:String>
+  <x:String x:Key="Prompt.Privacy.Question">Question plus the text</x:String>
+  <x:String x:Key="Prompt.LecturePersona.Title">Point read: persona</x:String>
+  <x:String x:Key="Prompt.LecturePersona.Purpose">The senior-student voice for the outline pass and every question in the reader.</x:String>
+  <x:String x:Key="Prompt.LecturePersona.Persona">Persona</x:String>
+  <x:String x:Key="Prompt.LectureOutline.Title">Point read: outline instruction</x:String>
+  <x:String x:Key="Prompt.LectureOutline.Purpose">Appended to the whole-file corpus; asks for a summary and a page index.</x:String>
+  <x:String x:Key="Prompt.LectureOutline.Instruction">Instruction</x:String>
+  <x:String x:Key="Prompt.LectureOutline.Format">Output contract</x:String>
+  <x:String x:Key="Prompt.LectureVision.Title">Point read: describe a region</x:String>
+  <x:String x:Key="Prompt.LectureVision.Purpose">Only when the selected box has no text layer (scanned page, chart, photo).</x:String>
+  <x:String x:Key="Prompt.LectureVision.Instruction">Instruction</x:String>
+  <x:String x:Key="Prompt.ChatTemplate.Title">Local chat template</x:String>
+  <x:String x:Key="Prompt.ChatTemplate.Purpose">How the bundled GGUF expects the conversation to be wrapped. Tied to the model family.</x:String>
+  <x:String x:Key="Prompt.ChatTemplate.Template">Template</x:String>
+  <x:String x:Key="Advanced.Llama.Title">Bundled local model</x:String>
+  <x:String x:Key="Advanced.Llama.Purpose">llama.cpp runtime: context window, output cap and backend.</x:String>
+  <x:String x:Key="Advanced.Ollama.Title">Ollama (local)</x:String>
+  <x:String x:Key="Advanced.Ollama.Purpose">The user's own Ollama server: which model, and the sampling it is called with.</x:String>
+  <x:String x:Key="Advanced.Vision.Title">Vision model</x:String>
+  <x:String x:Key="Advanced.Vision.Purpose">Describes a selected region that has no text layer.</x:String>
+  <x:String x:Key="Advanced.Cloud.Title">Primary model (cloud)</x:String>
+  <x:String x:Key="Advanced.Cloud.Purpose">Any OpenAI-compatible endpoint the user configures.</x:String>
+  <x:String x:Key="Advanced.Constants.Title">Tuning constants</x:String>
+  <x:String x:Key="Advanced.Constants.Purpose">Truncation budgets and step limits that shape prompts as much as the text does.</x:String>
 </ResourceDictionary>

@@ -44,6 +44,10 @@ public static class ShellScenarios
             case "settings-model":
                 OpenModelSection(vm);
                 break;
+            case "advanced":
+                OpenModelSection(vm);
+                vm.Settings.Model.ToggleAdvancedCommand.Execute(null);
+                break;
             case "settings-email":
                 OpenSettingsAt(vm, "Section.EmailRetrieval");
                 break;

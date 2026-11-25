@@ -40,15 +40,28 @@ public sealed class LlamaModelProvider : IModelProvider, IDisposable
     /// <summary>What this instance will actually use, for logs and the settings page.</summary>
     public string Backend => _preferVulkan && _gpuLayers > 0 ? $"vulkan · {_gpuLayers} 层" : "cpu";
 
+    /// <summary>The context window this instance was built with; the advanced panel shows it.</summary>
+    public int ContextSize => _contextSize;
+
+    /// <summary>Hard output cap per answer (was a literal inside the inference call).</summary>
+    public const int MaxTokens = 512;
+
+    /// <summary>How the conversation is wrapped for this model family.</summary>
+    public static string ChatTemplate => ChatTemplates.QwenInstruct;
+
     public string Id => "builtin:" + Path.GetFileNameWithoutExtension(_modelPath);
 
     public ModelRole Role => ModelRole.Reasoning;
 
     public bool IsAvailable => File.Exists(_modelPath);
 
-    /// <summary>Qwen2.5 / Qwen2 template; a single place to change if the bundled model changes.</summary>
+    /// <summary>Qwen2.5 / Qwen2 template, from the shared contract so the panel cannot drift.</summary>
     private static string Wrap(string system, string user) =>
-        $"<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n";
+        Template.Fill(ChatTemplates.QwenInstruct, new Dictionary<string, string>
+        {
+            ["system"] = system,
+            ["user"] = user,
+        });
 
     public async Task<string> CompleteAsync(string system, string user, CancellationToken ct = default)
     {
@@ -60,7 +73,7 @@ public sealed class LlamaModelProvider : IModelProvider, IDisposable
             var executor = EnsureExecutor();
             var parameters = new InferenceParams
             {
-                MaxTokens = 512,
+                MaxTokens = LlamaModelProvider.MaxTokens,
                 AntiPrompts = ["<|im_end|>", "<|endoftext|>"],
             };
 

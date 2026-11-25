@@ -19,11 +19,12 @@ public sealed class OpenAiCompatibleProvider : ICloudModelProvider
     private readonly string _model;
     private bool? _available;
 
-    public OpenAiCompatibleProvider(string baseUrl, string model, string? apiKey)
+    public OpenAiCompatibleProvider(string baseUrl, string model, string? apiKey, double temperature = 0.2)
     {
         var normalized = baseUrl.TrimEnd('/');
         Endpoint = normalized;
         _model = model;
+        Temperature = temperature;
         _apiKey = string.IsNullOrWhiteSpace(apiKey) ? null : apiKey;
         _http = new HttpClient { BaseAddress = new Uri(normalized + "/"), Timeout = TimeSpan.FromSeconds(120) };
         if (_apiKey is not null)
@@ -31,6 +32,9 @@ public sealed class OpenAiCompatibleProvider : ICloudModelProvider
     }
 
     public string Endpoint { get; }
+
+    /// <summary>Sampling temperature this instance sends (was a literal in the request body).</summary>
+    public double Temperature { get; }
     public string Id => $"cloud:{_model}";
     public ModelRole Role => ModelRole.Reasoning;
     public bool IsAvailable => _available ??= Probe();
@@ -58,7 +62,7 @@ public sealed class OpenAiCompatibleProvider : ICloudModelProvider
         if (!string.IsNullOrWhiteSpace(system)) messages.Add(new { role = "system", content = system });
         messages.Add(new { role = "user", content = user });
 
-        var body = new { model = _model, messages, stream = false, temperature = 0.2 };
+        var body = new { model = _model, messages, stream = false, temperature = Temperature };
         using var resp = await _http.PostAsJsonAsync("chat/completions", body, ct).ConfigureAwait(false);
         var raw = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
         if (!resp.IsSuccessStatusCode)

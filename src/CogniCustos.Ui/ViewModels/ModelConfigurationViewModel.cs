@@ -162,6 +162,12 @@ public sealed class ModelConfigurationViewModel : ObservableObject
 
     public string AdvancedChevron => _advancedOpen ? "\uE70E" : "\uE70D";
 
+    /// <summary>
+    /// The chevron tracks "the advanced panel was opened from here". Closing the panel puts it
+    /// back, so the arrow does not keep pointing at a window that is gone.
+    /// </summary>
+    public void ResetAdvancedChevron() => AdvancedOpen = false;
+
     public string LocalModelName
     {
         get => _localModelName;

@@ -65,7 +65,7 @@
   <x:String x:Key="Settings.Model.Api">API 密钥</x:String>
   <x:String x:Key="Settings.Model.DocsNote">以上信息的获取方式请参考官方文档。</x:String>
   <x:String x:Key="Settings.Model.Advanced">高级设置</x:String>
-  <x:String x:Key="Settings.Model.AdvancedNote">打开高级设置窗口可配置提示词、temperature 与最大上下文长度等参数。不了解这些参数的含义时不建议在此调整。</x:String>
+  <x:String x:Key="Settings.Model.AdvancedNote">打开高级设置可以看到应用真正在发的每一条提示词与配套参数。本版只读，下一版开放编辑。</x:String>
   <x:String x:Key="Settings.Model.AdvancedTitle">高级设置</x:String>
   <x:String x:Key="Settings.Model.AdvancedPending">参数配置窗口尚未实现。</x:String>
   <x:String x:Key="Settings.Model.LocalModel">本地小模型</x:String>
@@ -267,5 +267,56 @@
   <x:String x:Key="Demo.Reader.Answer">可以，我这样读这一段：
 
 先看它在定义，不是在论证——所以第一遍只要把它当成给后面内容做铺垫的名词解释。紧接着那个例子才是要记住的：考试通常让你用这条规则去套一个类似的情形，而不是复述定义。建议在这条规则下面划线、旁边抄下那个例子，因为评分标准给分的就是这两件事连在一起。</x:String>
-
+  <!-- 高级设置：提示词与推理参数（P0 只读） -->
+  <x:String x:Key="Advanced.Title">高级设置</x:String>
+  <x:String x:Key="Advanced.Note">这里列出应用真正在发的每一条提示词，以及配套的推理参数。当前只读——这是给你调试用的观察窗，编辑在下一版。</x:String>
+  <x:String x:Key="Advanced.Footer">这些值现在写死在代码里（Core/Prompts.cs 与各适配器）。下一版在这里改、把覆盖存进 settings.json、默认值留作回退。</x:String>
+  <x:String x:Key="Advanced.Close">关闭</x:String>
+  <x:String x:Key="Advanced.CallSite">调用点</x:String>
+  <x:String x:Key="Advanced.Locked">代码固定</x:String>
+  <x:String x:Key="Advanced.Group.prompt">提示词</x:String>
+  <x:String x:Key="Advanced.Group.parameter">推理参数</x:String>
+  <x:String x:Key="Advanced.Group.constant">调参常量</x:String>
+  <x:String x:Key="Prompt.Chat.Title">主对话系统提示</x:String>
+  <x:String x:Key="Prompt.Chat.Purpose">每次助手回合作为 system 消息发送；携带工具清单与 JSON 协议。</x:String>
+  <x:String x:Key="Prompt.Chat.Persona">人设与规则</x:String>
+  <x:String x:Key="Prompt.Chat.Tools">工具清单</x:String>
+  <x:String x:Key="Prompt.Chat.Protocol">输出协议</x:String>
+  <x:String x:Key="Prompt.Summary.Title">一句话摘要</x:String>
+  <x:String x:Key="Prompt.Summary.Purpose">有模型时，把抓来的内容概括成原始区（R1）的一条摘要。</x:String>
+  <x:String x:Key="Prompt.Summary.Instruction">指令</x:String>
+  <x:String x:Key="Prompt.Judge.Title">相关性判定</x:String>
+  <x:String x:Key="Prompt.Judge.Purpose">判断未确认材料是否与问题相关；只回裁决与句柄，不回正文。</x:String>
+  <x:String x:Key="Prompt.Judge.Rule">规则</x:String>
+  <x:String x:Key="Prompt.Judge.Format">输出要求</x:String>
+  <x:String x:Key="Prompt.JudgeFormat.Title">判定回复格式</x:String>
+  <x:String x:Key="Prompt.JudgeFormat.Purpose">拼在判定器的用户消息末尾——解析器读的就是这个 JSON 数组。</x:String>
+  <x:String x:Key="Prompt.JudgeFormat.Instruction">格式</x:String>
+  <x:String x:Key="Prompt.Privacy.Title">隐私检查（出站闸门）</x:String>
+  <x:String x:Key="Prompt.Privacy.Purpose">任何内容离开本机之前先跑这一条。锁定：改弱它等于改弱闸门本身。</x:String>
+  <x:String x:Key="Prompt.Privacy.System">系统指令</x:String>
+  <x:String x:Key="Prompt.Privacy.Question">问题 + 待检文本</x:String>
+  <x:String x:Key="Prompt.LecturePersona.Title">点读：人设</x:String>
+  <x:String x:Key="Prompt.LecturePersona.Purpose">学长/学姐的口吻，通读与每次提问都用这一条。</x:String>
+  <x:String x:Key="Prompt.LecturePersona.Persona">人设</x:String>
+  <x:String x:Key="Prompt.LectureOutline.Title">点读：通读指令</x:String>
+  <x:String x:Key="Prompt.LectureOutline.Purpose">拼在整份文件的摘录后面，要求给出概要 + 页码目录。</x:String>
+  <x:String x:Key="Prompt.LectureOutline.Instruction">指令</x:String>
+  <x:String x:Key="Prompt.LectureOutline.Format">输出契约</x:String>
+  <x:String x:Key="Prompt.LectureVision.Title">点读：描述选区</x:String>
+  <x:String x:Key="Prompt.LectureVision.Purpose">只在选区没有文字层（扫描页、图表、照片）时使用。</x:String>
+  <x:String x:Key="Prompt.LectureVision.Instruction">指令</x:String>
+  <x:String x:Key="Prompt.ChatTemplate.Title">本地对话模板</x:String>
+  <x:String x:Key="Prompt.ChatTemplate.Purpose">内置 GGUF 期望的对话包裹方式，与模型家族绑定。</x:String>
+  <x:String x:Key="Prompt.ChatTemplate.Template">模板</x:String>
+  <x:String x:Key="Advanced.Llama.Title">内置本地模型</x:String>
+  <x:String x:Key="Advanced.Llama.Purpose">llama.cpp 运行时：上下文窗口、输出上限与后端。</x:String>
+  <x:String x:Key="Advanced.Ollama.Title">Ollama（本地）</x:String>
+  <x:String x:Key="Advanced.Ollama.Purpose">用户自己的 Ollama 服务：用哪个模型，以及调用时的采样参数。</x:String>
+  <x:String x:Key="Advanced.Vision.Title">视觉模型</x:String>
+  <x:String x:Key="Advanced.Vision.Purpose">描述选区里没有文字层的那部分内容。</x:String>
+  <x:String x:Key="Advanced.Cloud.Title">主推理模型（云端）</x:String>
+  <x:String x:Key="Advanced.Cloud.Purpose">用户自己填的任意 OpenAI 兼容端点。</x:String>
+  <x:String x:Key="Advanced.Constants.Title">调参常量</x:String>
+  <x:String x:Key="Advanced.Constants.Purpose">截断预算与步数上限——它们对效果的影响不比提示词本身小。</x:String>
 </ResourceDictionary>

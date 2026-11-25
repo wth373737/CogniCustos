@@ -16,14 +16,22 @@ public sealed class OllamaModelProvider : IModelProvider
     private readonly string _model;
     private bool? _available;
 
-    public OllamaModelProvider(string baseUrl, string model)
+    public OllamaModelProvider(string baseUrl, string model, double temperature = 0.2, int numPredict = 700)
     {
         BaseUrl = baseUrl.TrimEnd('/');
         _model = model;
+        Temperature = temperature;
+        NumPredict = numPredict;
         _http = new HttpClient { BaseAddress = new Uri(BaseUrl + "/"), Timeout = TimeSpan.FromSeconds(120) };
     }
 
     public string BaseUrl { get; }
+
+    /// <summary>Sampling temperature this instance sends (was a literal in the request body).</summary>
+    public double Temperature { get; }
+
+    /// <summary>Hard cap on generated tokens (Ollama's num_predict).</summary>
+    public int NumPredict { get; }
     public string Id => $"ollama:{_model}";
     public ModelRole Role => ModelRole.Reasoning;
     public bool IsAvailable => _available ??= Probe();
@@ -57,7 +65,7 @@ public sealed class OllamaModelProvider : IModelProvider
             model = _model,
             stream = false,
             messages,
-            options = new { temperature = 0.2, num_predict = 700 }
+            options = new { temperature = Temperature, num_predict = NumPredict }
         };
 
         using var resp = await _http.PostAsJsonAsync("api/chat", body, ct).ConfigureAwait(false);

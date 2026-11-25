@@ -120,4 +120,27 @@ public sealed class DemoShellDataSource : IShellDataSource
     public string? SetGpu(bool enabled) => null;
 
     public IReaderService CreateReader() => new DemoReaderService();
+
+    /// <summary>Two prompt entries and one parameter group: enough for the panel, shots and tests.</summary>
+    public AdvancedSnapshot AdvancedSnapshot() => new(
+    [
+        new AdvancedItemData("prompt", "Prompt.Chat.Title", "Prompt.Chat.Purpose",
+            "CogniCustosRuntime.ChatAsync（演示数据）",
+            [
+                new AdvancedRowData("Prompt.Chat.Persona", "", "你是 CogniCustos 的助手，运行在学生的本地电脑上。…", false),
+                new AdvancedRowData("Prompt.Chat.Protocol", "", "输出格式：只输出一个 JSON 对象 …", true),
+            ]),
+        new AdvancedItemData("prompt", "Prompt.LecturePersona.Title", "Prompt.LecturePersona.Purpose",
+            "DocLecture.OutlineAsync / AskAsync（演示数据）",
+            [
+                new AdvancedRowData("Prompt.LecturePersona.Persona", "",
+                    "你是一位博学、热心的学长/学姐，正在陪学弟/学妹看一份课程材料。…", false),
+            ]),
+        new AdvancedItemData("parameter", "Advanced.Llama.Title", "Advanced.Llama.Purpose",
+            "LlamaModelProvider（演示数据）",
+            [
+                new AdvancedRowData(null, "contextSize", "2048", false),
+                new AdvancedRowData(null, "maxTokens", "512", false),
+            ]),
+    ]);
 }

@@ -11,6 +11,9 @@ namespace CogniCustos.Core;
 /// </summary>
 public sealed class SensitiveContentChecker : ISensitiveContentChecker
 {
+    /// <summary>How much of the text the model sees (the rules above see all of it).</summary>
+    public const int MaxCheckedChars = 4000;
+
     private static readonly (string Name, Regex Pattern)[] Rules =
     {
         ("email", new Regex(@"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", RegexOptions.Compiled)),
@@ -54,8 +57,9 @@ public sealed class SensitiveContentChecker : ISensitiveContentChecker
                 try
                 {
                     var reply = await provider.CompleteAsync(
-                        "你是本地隐私检查器。只回答一行：YES 或 NO，后接不超过 12 个字的中文理由。",
-                        "以下文本是否包含个人敏感信息（姓名之外的身份证、学号、电话、邮箱、密码、密钥、银行卡、住址）？\n\n" + Truncate(text, 4000),
+                        PromptCatalog.Segment(PromptKeys.GuardPrivacy, "system"),
+                        PromptCatalog.Segment(PromptKeys.GuardPrivacy, "question")
+                        + "\n\n" + Truncate(text, MaxCheckedChars),
                         ct).ConfigureAwait(false);
                     var head = reply.Trim().ToUpperInvariant();
                     if (head.StartsWith("YES"))

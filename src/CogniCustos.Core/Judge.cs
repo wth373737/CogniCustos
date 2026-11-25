@@ -108,8 +108,8 @@ public sealed class KeywordJudge : IJudge
 /// </summary>
 public sealed class ModelJudge : IJudge
 {
-    private const int MaxCandidates = 8;
-    private const int MaxSummaryChars = 80;
+    public const int MaxCandidates = 8;
+    public const int MaxSummaryChars = 80;
 
     private readonly Func<IModelProvider?> _provider;
     private readonly IJudge _fallback;
@@ -179,9 +179,8 @@ public sealed class ModelJudge : IJudge
             lines.Append($"#{artifact.Id} 标题：{artifact.Title} 摘要：{summary}\n");
         }
 
-        var system = "你是判断器。判断哪些材料与问题相关。只输出 JSON 数组，不要写解释。";
-        var format = "[{\"id\":\"材料编号\",\"relevant\":true,\"category\":\"日程|邮件|课程|任务|其他\"}]";
-        var user = "问题：" + question + "\n\n材料：\n" + lines + "输出格式（只输出这个）：\n" + format;
+        var system = PromptCatalog.Render(PromptKeys.JudgeSystem);
+        var user = "问题：" + question + "\n\n材料：\n" + lines + PromptCatalog.Render(PromptKeys.JudgeFormat);
 
         string answer;
         try
