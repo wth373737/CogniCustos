@@ -195,6 +195,11 @@ public sealed class DemoShellDataSource : IShellDataSource
         return new PromptEditResult(null, text, false);
     }
 
+    public void LanguageChanged(string culture)
+    {
+        // the demo has no runtime behind it; the labels already follow the localiser
+    }
+
     public Task<CloudTestResult> TestCloudAsync(string model, string url, string apiKey) =>
         Task.FromResult(string.IsNullOrWhiteSpace(url)
             ? new CloudTestResult(false, "演示：接口地址为空。", 1)

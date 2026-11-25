@@ -71,6 +71,8 @@ public sealed class MailboxRow : ObservableObject
     public int FolderCount { get; }
     public string FolderSummary => $"{FolderCount} " + Localizer.Get("Settings.Email.FolderUnit");
 
+    public void RefreshText() => OnPropertyChanged(nameof(FolderSummary));
+
     public bool Enabled
     {
         get => _enabled;
@@ -94,14 +96,17 @@ public sealed class MailboxRow : ObservableObject
 public sealed class EmailAccountRow : ObservableObject
 {
     private string _status;
+    private readonly bool _unreadOnly;
+    private readonly int _lookbackDays;
 
     public EmailAccountRow(EmailAccountInfo account)
     {
         Address = account.Address;
         Host = account.Host;
         Port = account.Port;
-        Scope = $"最近 {account.LookbackDays} 天 · {(account.UnreadOnly ? "只抓未读" : "全部")}";
-        _status = "未验证";
+        _lookbackDays = account.LookbackDays;
+        _unreadOnly = account.UnreadOnly;
+        _status = Localizer.Get("Settings.Email.Unverified");
         DeleteCommand = new RelayCommand(() => DeleteRequested?.Invoke(this));
         TestCommand = new RelayCommand(() => TestRequested?.Invoke(this));
     }
@@ -110,7 +115,12 @@ public sealed class EmailAccountRow : ObservableObject
     public string Host { get; }
     public int Port { get; }
     public string Server => $"{Host}:{Port}";
-    public string Scope { get; }
+
+    /// <summary>Built from resources, so it re-renders when the language changes.</summary>
+    public string Scope => string.Format(Localizer.Get("Settings.Email.ScopeFormat"), _lookbackDays,
+        Localizer.Get(_unreadOnly ? "Settings.Email.UnreadOnly" : "Settings.Email.All"));
+
+    public void RefreshText() => OnPropertyChanged(nameof(Scope));
 
     public string Status
     {
@@ -343,7 +353,22 @@ public sealed class EmailRetrievalViewModel : ObservableObject
 
     public bool HasAccounts => Accounts.Count > 0;
 
-    public string EmptyNote => "还没有账号：添加一个邮箱后，每日抓取会读取最近若干天的新邮件。";
+    /// <summary>Re-render every resource-derived string after a language switch.</summary>
+    public void RefreshText()
+    {
+        OnPropertyChanged(nameof(AdvancedLabel));
+        OnPropertyChanged(nameof(ThunderbirdHeader));
+        OnPropertyChanged(nameof(ThunderbirdNote));
+        OnPropertyChanged(nameof(UseThunderbirdLabel));
+        OnPropertyChanged(nameof(RescanLabel));
+        OnPropertyChanged(nameof(OnlyOneHint));
+        OnPropertyChanged(nameof(EmptyNote));
+
+        foreach (var row in Accounts) row.RefreshText();
+        foreach (var mailbox in Mailboxes) mailbox.RefreshText();
+    }
+
+    public string EmptyNote => Localizer.Get("Settings.Email.EmptyNote");
 
     public void ClearForm()
     {
@@ -428,5 +453,13 @@ public sealed class WebBrowsingViewModel : ObservableObject
 
     public bool HasSources => Sources.Count > 0;
 
-    public string EmptyNote => "还没有网址：添加通知页或教务页后，每日抓取只读取正文，不做任何写操作。";
+    public string EmptyNote => Localizer.Get("Settings.Web.EmptyNote");
+
+    /// <summary>Re-render resource-derived strings after a language switch.</summary>
+
+    public void RefreshText()
+    {
+        OnPropertyChanged(nameof(EmptyNote));
+        OnPropertyChanged(nameof(Status));
+    }
 }

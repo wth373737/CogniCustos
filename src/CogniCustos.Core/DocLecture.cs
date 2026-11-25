@@ -131,50 +131,83 @@ public sealed class DocLecture
             // Never pretend this is an answer. Without a model the reader can still show the
             // user the words they boxed, and say plainly why nothing can answer — "no model"
             // alone sends people looking in the wrong place.
-            var head = "（当前没有可用的推理模型，所以只能把你选中的原文给你看。"
-                       + WhyNoModel() + "）\n\n";
+            var head = PromptLanguage.L(
+                           "（当前没有可用的推理模型，所以只能把你选中的原文给你看。" + WhyNoModel() + "）",
+                           "(No reasoning model is available, so the only thing I can show you is the text you selected. "
+                           + WhyNoModel() + ")") + "\n\n";
             var what = hasText
-                ? head + $"选中内容：{Clip(question.RegionText, 600)}"
+                ? head + PromptLanguage.L($"选中内容：{Clip(question.RegionText, 600)}",
+                    $"Selected text: {Clip(question.RegionText, 600)}")
                 : seen is null
-                    ? head + "（也没有识别出这块区域里的文字。）"
-                    : head + $"这块区域看起来是：{Clip(seen, 600)}";
+                    ? head + PromptLanguage.L("（也没有识别出这块区域里的文字。）",
+                        "(and nothing in the region could be read as text.)")
+                    : head + PromptLanguage.L($"这块区域看起来是：{Clip(seen, 600)}",
+                        $"The region reads as: {Clip(seen, 600)}");
             return what;
         }
 
-        var pageText = Clip(question.PageText, AskCharsPerPage);
+        // Which language does this answer come out in? The person's own question wins over the
+        // interface language; with no question the interface language is the default.
+        var answerChinese = string.IsNullOrWhiteSpace(question.Question)
+            ? PromptLanguage.Code == "zh"
+            : PromptLanguage.LooksChinese(question.Question);
+
+        string T(string zh, string en) => answerChinese ? zh : en;
+
+                var pageText = Clip(question.PageText, AskCharsPerPage);
         var user = new StringBuilder()
-            .AppendLine($"材料：{question.Title}，当前第 {question.Page} 页。")
-            .AppendLine("这一页的文字（可能不完整）：")
-            .AppendLine(pageText.Length == 0 ? "（这一页没有文字层）" : pageText)
+            .AppendLine(T($"材料：{question.Title}，当前第 {question.Page} 页。", $"Document: {question.Title}, page {question.Page}."))
+            .AppendLine(T("这一页的文字（可能不完整）：", "Text on this page (may be incomplete):"))
+            .AppendLine(pageText.Length == 0
+                ? T("（这一页没有文字层）", "(this page has no text layer)")
+                : pageText)
             .AppendLine();
 
         if (hasText)
         {
-            user.AppendLine("学弟/学妹用方框选中的内容：")
+            user.AppendLine(T("学弟/学妹用方框选中的内容：", "The passage the student boxed:"))
                 .AppendLine(Clip(question.RegionText, 1500))
                 .AppendLine();
         }
         else if (question.HadBox && seen is not null)
         {
-            user.AppendLine("学弟/学妹用方框选中的区域，视觉识别结果是：")
+            user.AppendLine(T("学弟/学妹用方框选中的区域，视觉识别结果是：", "The boxed region has no text layer; a vision model reads it as:"))
                 .AppendLine(Clip(seen, 1500))
-                .AppendLine("（以上是识别结果，可能有误差；拿不准就说明。）");
+                .AppendLine(T("（以上是识别结果，可能有误差；拿不准就说明。）", "(that reading may be wrong; say so if you are unsure.)"));
         }
         else if (!question.HadBox)
         {
-            user.AppendLine("学弟/学妹这一问没有框选，是想让你按整页内容回答。");
-            user.AppendLine("能定位到具体段落就说明在第几句/哪个位置；需要聚焦某处时可以请对方先框一下。");
+            user.AppendLine(T("学弟/学妹这一问没有框选，是想让你按整页内容回答。", "Nothing was boxed this time: answer from the whole page."));
+            user.AppendLine(T("能定位到具体段落就说明在第几句/哪个位置；需要聚焦某处时可以请对方先框一下。", "If you can point at the paragraph, say where; you may ask them to box a region to focus."));
             user.AppendLine();
         }
         else
         {
-            user.AppendLine("学弟/学妹选中了一块区域，但既没有文字层也没有视觉模型，");
-            user.AppendLine("所以你看不到那块内容。请在回答里说明这一点，再按整页内容给出能给的帮助。");
+            user.AppendLine(T("学弟/学妹选中了一块区域，但既没有文字层也没有视觉模型，", "A region was boxed, but it has no text layer and no vision model is available,"));
+            user.AppendLine(T("所以你看不到那块内容。请在回答里说明这一点，再按整页内容给出能给的帮助。", "so you cannot see it. Say that, then help as far as the page allows."));
         }
 
-        user.Append("问题：").AppendLine(string.IsNullOrWhiteSpace(question.Question)
-            ? "这块内容是什么意思？为什么重要？"
-            : question.Question);
+        // The directive already carries the rule; this line is the same rule stated where the
+        // model actually looks last (the user turn), for the case where the person switched
+        // language themselves. It is the difference between "answer in English" and "the user
+        // just wrote Chinese, follow them".
+        // The person switched language themselves: say so in the language they used, because a
+        // meta instruction in the interface language is exactly what gets ignored.
+        if (PromptLanguage.LooksChinese(question.Question) != (PromptLanguage.Code == "zh"))
+        {
+            user.AppendLine(PromptLanguage.LooksChinese(question.Question)
+                ? "（用户这一问用的是中文：请整段用简体中文回答，不要翻成别的语言。）"
+                : "(The user wrote in English: answer entirely in English, do not translate it.)");
+        }
+
+        user.Append(T("问题：", "Question:")).AppendLine(
+            string.IsNullOrWhiteSpace(question.Question)
+                ? T("这块内容是什么意思？为什么重要？", "What does this mean, and why does it matter?")
+                : question.Question);
+
+        // last line the model reads: the language to answer in. Recency matters more than
+        // position in the system prompt for a small model.
+        user.AppendLine(T("（请用简体中文回答。）", "(Answer in English.)"));
 
         try
         {
@@ -198,14 +231,26 @@ public sealed class DocLecture
         try { all = _models.All.ToList(); }
         catch { all = []; }
 
+        var english = PromptLanguage.Code == "en";
+
         if (all.Count == 0)
-            return "本实例里一个模型都没有注册：开设置页填好模型或启动本地模型再试";
+            return english
+                ? "Nothing is registered in this process: fill in a model in Settings, or start a local one."
+                : "本实例里一个模型都没有注册：开设置页填好模型或启动本地模型再试";
 
         var withoutCloud = all.All(p => !p.Id.StartsWith("cloud:", StringComparison.Ordinal));
-        var parts = all.Select(p => $"{p.Id} {(p.IsAvailable ? "可用" : "不可用")}");
+        var parts = all.Select(p => english
+            ? $"{p.Id} {(p.IsAvailable ? "usable" : "unusable")}"
+            : $"{p.Id} {(p.IsAvailable ? "可用" : "不可用")}");
 
-        return "已注册 " + string.Join("、", parts) +
-               (withoutCloud ? "；云端模型还没有注册到本实例（填完要点一次保存）" : "；请检查云端地址、模型名与 API 密钥");
+        var list = string.Join(english ? ", " : "、", parts);
+        return english
+            ? "Registered: " + list + (withoutCloud
+                ? "; no cloud model is registered in this process (press Save after filling the fields)"
+                : "; check the cloud URL, model name and API key")
+            : "已注册 " + list + (withoutCloud
+                ? "；云端模型还没有注册到本实例（填完要点一次保存）"
+                : "；请检查云端地址、模型名与 API 密钥");
     }
 
     /// <summary>Deterministic outline: first line of each page, no model involved.</summary>

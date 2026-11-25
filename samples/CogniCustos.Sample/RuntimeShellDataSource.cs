@@ -386,18 +386,27 @@ public sealed class RuntimeShellDataSource : IShellDataSource
 
         foreach (var spec in PromptCatalog.All)
         {
+            var rows = spec.Segments
+                .Select(segment => new AdvancedRowData(
+                    segment.LabelKey,
+                    string.Empty,
+                    PromptCatalog.SegmentText(spec.Key, segment.Id),   // what is in force now
+                    segment.Kind == PromptSegmentKind.Locked,
+                    spec.Key,
+                    segment.Id,
+                    PromptCatalog.IsOverridden(spec.Key, segment.Id)))
+                .ToList();
+
+            // the response-language rule is appended at render time; showing it here means nobody
+            // has to guess why the model answers in one language rather than the other
+            if (spec.WantsLanguage)
+            {
+                rows.Add(new AdvancedRowData("Prompt.Language.Label", string.Empty,
+                    PromptLanguage.Directive(), true));
+            }
+
             items.Add(new AdvancedItemData(
-                spec.GroupKey, spec.TitleKey, spec.PurposeKey, spec.CallSite,
-                spec.Segments
-                    .Select(segment => new AdvancedRowData(
-                        segment.LabelKey,
-                        string.Empty,
-                        PromptCatalog.SegmentText(spec.Key, segment.Id),   // what is in force now
-                        segment.Kind == PromptSegmentKind.Locked,
-                        spec.Key,
-                        segment.Id,
-                        PromptCatalog.IsOverridden(spec.Key, segment.Id)))
-                    .ToList(),
+                spec.GroupKey, spec.TitleKey, spec.PurposeKey, spec.CallSite, rows,
                 CanTry: spec.Key != PromptKeys.ProviderChatTemplate));
         }
 
@@ -486,6 +495,9 @@ public sealed class RuntimeShellDataSource : IShellDataSource
     /// Test the endpoint described by the form. The key may be blank when one is already stored,
     /// so a saved key does not have to be retyped to test a changed URL or model.
     /// </summary>
+    /// <summary>The UI language decides the language the model answers in.</summary>
+    public void LanguageChanged(string culture) => PromptCatalog.ConfigureLanguage(culture);
+
     public async Task<CogniCustos.Ui.ViewModels.CloudTestResult> TestCloudAsync(string model, string url, string apiKey)
     {
         model = (model ?? string.Empty).Trim();

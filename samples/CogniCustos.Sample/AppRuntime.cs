@@ -35,6 +35,11 @@ internal static class AppRuntime
         runtime.LocalModels.BuiltInFactory = (path, gpu) =>
             new LlamaModelProvider(path, gpuLayers: gpu ? 99 : 0, preferVulkan: gpu);
 
+        // prompts answer in whatever language the UI is in (the localiser restores the last one);
+        // COGNI_LANG lets the CLI checks exercise the other language without a window
+        var language = Environment.GetEnvironmentVariable("COGNI_LANG") ?? CogniCustos.Ui.Localization.Localizer.Current;
+        PromptCatalog.ConfigureLanguage(language);
+
         var vision = new OllamaVisionModel(OllamaUrl, VisionModel);
 
         if (borrowLocalModel) BorrowLocalModel(runtime);

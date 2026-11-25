@@ -134,6 +134,9 @@ public interface IShellDataSource
     /// <summary>Send one real request with the prompt as it stands, so an edit can be judged.</summary>
     Task<PromptTryResult> TryPromptAsync(string promptKey);
 
+    /// <summary>The UI language changed ("zh-CN" / "en-US"): prompts must answer in it.</summary>
+    void LanguageChanged(string culture);
+
     /// <summary>
     /// One real round trip to the endpoint described by these three values (what is typed in the
     /// form, not what was last saved). The settings page shows the result verbatim so a wrong URL

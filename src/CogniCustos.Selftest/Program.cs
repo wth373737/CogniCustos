@@ -1633,6 +1633,67 @@ internal static class Program
             return savedSomething && resolved.Id == "cloud:stub-model" && answer.Contains("stub answer");
         });
 
+        await Check("prompts: prose prompts carry the answer-language rule, JSON ones do not", () =>
+        {
+            PromptCatalog.ConfigureLanguage("zh-CN");
+            var personaZh = PromptCatalog.Render(PromptKeys.LecturePersona);
+            var summaryZh = PromptCatalog.Render(PromptKeys.SummaryOneLine);
+            var guardZh = PromptCatalog.Render(PromptKeys.GuardPrivacy,
+                new Dictionary<string, string> { ["system"] = "sys", ["question"] = "q" });
+
+            PromptCatalog.ConfigureLanguage("en-US");
+            var personaEn = PromptCatalog.Render(PromptKeys.LecturePersona);
+            PromptCatalog.ConfigureLanguage("zh-CN");
+
+            var ok = personaZh.Contains("回答语言：简体中文")
+                     && summaryZh.Contains("回答语言：简体中文")
+                     && !guardZh.Contains("回答语言")
+                     && personaEn.Contains("Answer language: English")
+                     && personaEn.Contains("beats the interface language")
+                     && !personaEn.Contains("回答语言")
+                     && DocLecture.Persona == personaZh;
+
+            Console.WriteLine($"      zh tail='{Tail(personaZh)}'");
+            return Task.FromResult(ok);
+        });
+
+        await Check("reader: the question's own language beats the interface language", async () =>
+        {
+            // What the model receives is what decides this, so the assertion is on the prompt.
+            var systemPrompts = new List<string>();
+            var userPrompts = new List<string>();
+            var router = new ModelRouter();
+            router.AddFirst(new RecordingProvider(systemPrompts, userPrompts));
+            var lecture = new DocLecture(router);
+
+            async Task Ask(string question) => await lecture.AskAsync(
+                new DocQuestion("f.pdf", 1, "page text", "boxed text", question), null);
+
+            PromptCatalog.ConfigureLanguage("en-US");
+            await Ask("这一页要求我们做什么？");
+            var chineseCase = userPrompts[^1];
+
+            await Ask("What does this page ask for?");
+            var englishCase = userPrompts[^1];
+
+            PromptCatalog.ConfigureLanguage("zh-CN");
+            await Ask("What does this page ask for?");
+            var chineseUiEnglishQuestion = userPrompts[^1];
+
+            PromptCatalog.ConfigureLanguage("zh-CN");
+
+            var ok = chineseCase.Contains("问题：")
+                     && chineseCase.Contains("（请用简体中文回答。）")
+                     && !chineseCase.Contains("Question:")
+                     && englishCase.Contains("Question:")
+                     && englishCase.Contains("(Answer in English.)")
+                     && chineseUiEnglishQuestion.Contains("Question:")
+                     && chineseUiEnglishQuestion.Contains("(Answer in English.)");
+
+            Console.WriteLine($"      enUi+zhQ len={chineseCase.Length} enUi+enQ len={englishCase.Length}");
+            return ok;
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;
@@ -1761,6 +1822,36 @@ internal static class Program
         public Task<float[]> EmbedAsync(string text, CancellationToken ct = default)
             => Task.FromResult(Array.Empty<float>());
     }
+
+    /// <summary>Records what was sent, so a prompt can be asserted on without a model.</summary>
+    private sealed class RecordingProvider : IModelProvider
+    {
+        private readonly List<string> _systems;
+        private readonly List<string> _users;
+
+        public RecordingProvider(List<string> systems, List<string> users)
+        {
+            _systems = systems;
+            _users = users;
+        }
+
+        public string Id => "test:recording";
+        public ModelRole Role => ModelRole.Reasoning;
+        public bool IsAvailable => true;
+
+        public Task<string> CompleteAsync(string system, string user, CancellationToken ct = default)
+        {
+            _systems.Add(system);
+            _users.Add(user);
+            return Task.FromResult("recorded");
+        }
+
+        public Task<float[]> EmbedAsync(string text, CancellationToken ct = default)
+            => Task.FromResult(Array.Empty<float>());
+    }
+
+    private static string Tail(string text) =>
+        text.Length > 60 ? "…" + text[^60..].Replace("\n", " ") : text.Replace("\n", " ");
 
     private static string Trim(string text) =>
         text.Length > 40 ? text[..40].Replace("\n", " ") + "…" : text.Replace("\n", " ");

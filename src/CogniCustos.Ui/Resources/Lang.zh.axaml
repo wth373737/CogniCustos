@@ -339,4 +339,14 @@
   <x:String x:Key="Settings.Model.SaveHint">只有按「保存」才会写入：三个字段一起保存；被拒绝的原因就显示在这里。</x:String>
   <x:String x:Key="Settings.Model.Unsaved">未保存</x:String>
   <x:String x:Key="Settings.Model.Saved">已保存</x:String>
+  <x:String x:Key="Settings.Email.Unverified">未验证</x:String>
+  <x:String x:Key="Settings.Email.ScopeFormat">最近 {0} 天 · {1}</x:String>
+  <x:String x:Key="Settings.Email.All">全部</x:String>
+  <x:String x:Key="Settings.Email.Added">已添加 {0}</x:String>
+  <x:String x:Key="Settings.Email.Removed">已删除 {0}</x:String>
+  <x:String x:Key="Settings.Email.EmptyNote">还没有账号：添加一个邮箱后，每日抓取会读取最近若干天的新邮件。</x:String>
+  <x:String x:Key="Settings.Web.Added">已添加</x:String>
+  <x:String x:Key="Settings.Web.Removed">已删除</x:String>
+  <x:String x:Key="Settings.Web.EmptyNote">还没有网址：添加通知页或教务页后，每日抓取只读取正文，不做任何写操作。</x:String>
+  <x:String x:Key="Prompt.Language.Label">回答语言（跟随界面语言）</x:String>
 </ResourceDictionary>

@@ -32,6 +32,18 @@ public sealed record PromptSpec(
     IReadOnlyList<string> Variables)
 {
     public bool HasLocked => Segments.Any(s => s.Kind == PromptSegmentKind.Locked);
+
+    /// <summary>
+    /// True for prompts whose output is prose the person reads: the response-language rule is
+    /// appended to these at render time. JSON-only prompts (the privacy verdict) do not get it,
+    /// because their output is a field, not a sentence.
+    /// </summary>
+    public bool WantsLanguage => Key is PromptKeys.ChatSystem
+        or PromptKeys.SummaryOneLine
+        or PromptKeys.JudgeSystem
+        or PromptKeys.LecturePersona
+        or PromptKeys.LectureOutline
+        or PromptKeys.LectureVision;
 }
 
 /// <summary>Stable keys. Code refers to these; the UI never contains the prompt text.</summary>
@@ -302,7 +314,19 @@ public static class PromptCatalog
     /// unreplaced placeholder is a bug, not a degraded answer.
     /// </summary>
     public static string Render(string key, IReadOnlyDictionary<string, string>? variables = null)
-        => string.Join("\n\n", Get(key).Segments.Select(s => Fill(SegmentText(key, s.Id), variables)));
+    {
+        var spec = Get(key);
+        var text = string.Join("\n\n", spec.Segments.Select(s => Fill(SegmentText(key, s.Id), variables)));
+
+        // the response-language rule travels with every prompt that produces prose
+        return spec.WantsLanguage ? text + "\n\n" + PromptLanguage.Directive() : text;
+    }
+
+    /// <summary>The UI language the prompts answer in ("zh" / "en").</summary>
+    public static string LanguageCode => PromptLanguage.Code;
+
+    /// <summary>Called by the host whenever the UI language changes.</summary>
+    public static void ConfigureLanguage(string? culture) => PromptLanguage.Set(culture);
 
     /// <summary>One segment, for prompts that are sent as separate messages.</summary>
     public static string Segment(string key, string segmentId, IReadOnlyDictionary<string, string>? variables = null)

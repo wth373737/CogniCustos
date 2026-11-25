@@ -340,4 +340,14 @@ First, the sentence is defining the term before using it, so read it as a defini
   <x:String x:Key="Settings.Model.SaveHint">Nothing is written until you press Save: all three fields are stored together, and the reason for a refusal appears here.</x:String>
   <x:String x:Key="Settings.Model.Unsaved">unsaved changes</x:String>
   <x:String x:Key="Settings.Model.Saved">saved</x:String>
+  <x:String x:Key="Settings.Email.Unverified">unverified</x:String>
+  <x:String x:Key="Settings.Email.ScopeFormat">last {0} days · {1}</x:String>
+  <x:String x:Key="Settings.Email.All">everything</x:String>
+  <x:String x:Key="Settings.Email.Added">added {0}</x:String>
+  <x:String x:Key="Settings.Email.Removed">removed {0}</x:String>
+  <x:String x:Key="Settings.Email.EmptyNote">No accounts yet: add a mailbox and the daily fetch will read its messages from the last few days.</x:String>
+  <x:String x:Key="Settings.Web.Added">added</x:String>
+  <x:String x:Key="Settings.Web.Removed">removed</x:String>
+  <x:String x:Key="Settings.Web.EmptyNote">No sites yet: add an announcements or course page and the daily fetch reads its text only, never writing anything back.</x:String>
+  <x:String x:Key="Prompt.Language.Label">Response language (follows the UI language)</x:String>
 </ResourceDictionary>

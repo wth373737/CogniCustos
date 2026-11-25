@@ -344,6 +344,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     public void ApplyLanguage(string culture)
     {
         Localizer.SetLanguage(culture);
+        _source.LanguageChanged(culture);
         IsLanguageMenuOpen = false;
         RefreshText();
         Toast = string.Empty;
@@ -471,14 +472,14 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         }
 
         Settings.EmailRetrieval.ClearForm();
-        Settings.EmailRetrieval.ShowStatus($"已添加 {address}");
+        Settings.EmailRetrieval.ShowStatus(string.Format(Localizer.Get("Settings.Email.Added"), address));
         RefreshEmailAccounts();
     }
 
     private void RemoveEmailAccount(string address)
     {
         _source.RemoveEmailAccount(address);
-        Settings.EmailRetrieval.ShowStatus($"已删除 {address}");
+        Settings.EmailRetrieval.ShowStatus(string.Format(Localizer.Get("Settings.Email.Removed"), address));
         RefreshEmailAccounts();
     }
 
@@ -566,14 +567,14 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         }
 
         Settings.WebBrowsing.NewUrl = string.Empty;
-        Settings.WebBrowsing.ShowStatus("已添加");
+        Settings.WebBrowsing.ShowStatus(Localizer.Get("Settings.Web.Added"));
         Settings.WebBrowsing.SetSources(_source.WebSources());
     }
 
     private void RemoveWebSource(string url)
     {
         _source.RemoveWebSource(url);
-        Settings.WebBrowsing.ShowStatus("已删除");
+        Settings.WebBrowsing.ShowStatus(Localizer.Get("Settings.Web.Removed"));
         Settings.WebBrowsing.SetSources(_source.WebSources());
     }
 

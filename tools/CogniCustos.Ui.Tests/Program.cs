@@ -1502,6 +1502,28 @@ internal static class Program
             Check(model.TestStatus.Contains("401"), $"the failure line hides the reason: {model.TestStatus}");
         });
 
+        Test("switching_language_tells_the_host_so_prompts_follow", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            var first = Localizer.Current;
+            shell.ToggleLanguageCommand.Execute(null);
+            Pump();
+            Check(source.Languages.Count == 1, "the host was not told about the language change");
+            Check(source.Languages[0] != first, "the host was told the language did not change");
+
+            shell.ToggleLanguageCommand.Execute(null);
+            Pump();
+            Check(source.Languages.Count == 2 && source.Languages[1] == first,
+                "the second change did not reach the host");
+
+            // and the mail section must re-render, not keep the labels of the old language
+            Check(shell.Settings.EmailRetrieval.AdvancedLabel.Length > 0,
+                "the mail section lost its label after the switch");
+        });
+
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }
@@ -1782,6 +1804,10 @@ internal sealed class RecordingSource : IShellDataSource
     public PromptEditResult ResetPromptOverride(string promptKey, string segmentId) =>
         new(null, "default text", false);
 
+    public List<string> Languages { get; } = [];
+
+    public void LanguageChanged(string culture) => Languages.Add(culture);
+
     public Task<CloudTestResult> TestCloudAsync(string model, string url, string apiKey) =>
         Task.FromResult(string.IsNullOrWhiteSpace(url)
             ? new CloudTestResult(false, "no url", 1)
@@ -1891,6 +1917,10 @@ internal sealed class RefusingSource : IShellDataSource
 
     public PromptEditResult ResetPromptOverride(string promptKey, string segmentId) =>
         new(null, "default text", false);
+
+    public List<string> Languages { get; } = [];
+
+    public void LanguageChanged(string culture) => Languages.Add(culture);
 
     public Task<CloudTestResult> TestCloudAsync(string model, string url, string apiKey) =>
         Task.FromResult(string.IsNullOrWhiteSpace(url)

@@ -95,5 +95,7 @@ public sealed class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(ShowWebBrowsing));
         OnPropertyChanged(nameof(ShowPlaceholder));
         Model.RefreshText();
+        EmailRetrieval.RefreshText();
+        WebBrowsing.RefreshText();
     }
 }

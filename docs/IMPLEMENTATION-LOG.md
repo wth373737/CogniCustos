@@ -1661,3 +1661,76 @@ field.Committed += () => CloudSaveRequested?.Invoke(ModelName.Value, Url.Value, 
 ### 5. 教训
 
 凡是"用户以为有、其实没有"的控件，都是我描述界面时的想当然。以后描述交互前先看 XAML。
+
+---
+
+## 2026-11-25 · 文本全部走资源 + 回复语言跟随界面并让位于用户
+
+### 1. 文本审计：XAML 干净，问题在 C#
+
+扫了所有 `.axaml` 的 `Text/Content/Header/Watermark` 字面量：只剩图标字形（`&#xE70F;` 之类）与品牌名 `CogniCustos`，都不该翻译。
+
+C# 里找出 5 处**真·界面文本**（其余是注释或演示数据）：
+
+| 位置 | 原文 | 现在 |
+|---|---|---|
+| `ShellViewModel` 邮件状态 | `$"已添加 {address}"`、`$"已删除 {address}"` | `Settings.Email.Added` / `.Removed`（`{0}`） |
+| `ShellViewModel` 网页状态 | `"已添加"` / `"已删除"` | `Settings.Web.Added` / `.Removed` |
+| `EmailAccountRow.Scope` | `$"最近 {n} 天 · {(unread?"只抓未读":"全部")}"` | `Settings.Email.ScopeFormat` + `.UnreadOnly`/`.All` |
+| `EmailRetrievalViewModel.EmptyNote` | 硬编码中文 | `Settings.Email.EmptyNote` |
+| `WebBrowsingViewModel.EmptyNote` | 硬编码中文 | `Settings.Web.EmptyNote` |
+
+### 2. 切语言后不刷新的两个区块
+
+邮件与网页两个设置区块**从来没有 RefreshText**，所以切了语言标签还是旧语言。现在：
+
+- `EmailRetrievalViewModel.RefreshText()`：自身 7 个标签 + 每个账号行 + 每个邮箱行；
+- `WebBrowsingViewModel.RefreshText()`：`EmptyNote` / `Status`；
+- `SettingsViewModel.RefreshTitles()` 一并调用；`Advanced` 走 `OnAllPropertiesChanged`。
+
+顺带发现并修掉一个真 bug：`Settings.Email.UnreadOnly` 在我的追加里与既有键重复，Avalonia 启动即抛
+`ResourceDictionary.Add` 重复键。资源文件现在 308 键、0 重复（并且加了去重脚本逻辑，后续追加不会再撞）。
+
+### 3. 回复语言：先是界面语言，用户一开口就让位
+
+规则写成两条，缺一不可：
+
+**（a）提示词层面**：`PromptLanguage`（Core）持有 `zh`/`en`，`PromptCatalog.Render` 给
+"会产出人话"的 6 条提示词自动追加一段语言指令——`chat.system`、`summary.one-line`、`judge.system`、
+`lecture.persona`、`lecture.outline`、`lecture.vision-describe`；隐私检查（JSON 判决）不加。
+指令原文：
+
+> 回答语言：简体中文，也就是界面语言。用户没有另行选择时，一律用它。
+> 但用户自己的语言优先：如果他这一轮的提问用的是别的语言，或者明确点名了某种语言，就整段改用那种语言回答，不要把问题翻译回中文。
+> 一段回答里不要中英混排；专有名词、代码、文件名、引用原文保持原样。
+
+**（b）用户消息层面**：`DocLecture` 的整段脚手架（"材料：… 这一页的文字… 问题：…"）现在跟随
+**回答语言**，而回答语言 = 用户这一问的语言（有 CJK 即中文），没提问时才用界面语言；
+最后一行再补一句目标语言（"（请用简体中文回答。）" / "(Answer in English.)"）。
+
+为什么两层都要：实测第一版只有 (a) 时，**英文界面 + 中文提问仍然整段英文**
+（模型把"English, no Chinese"当绝对禁令）。加上 (b) 之后同一问题立刻变成中文。
+
+### 4. 实测记录（真实 58 页 PDF，本地 qwen2.5:7b）
+
+| 界面语言 | 提问 | 结果 |
+|---|---|---|
+| 中文 | 中文 | 中文 |
+| 英文 | 英文 | 英文 |
+| 英文 | 中文 | **英语（错）→ 加上 (b) 后：中文（对）** |
+
+命令行复现：`set COGNI_LANG=en` 后跑 `--reader-ask`。
+
+### 5. 验证
+
+```bash
+Selftest   → passed=118（+2：语言指令落在哪些提示词；用户语言优先于界面语言，断言在真实提示词上）
+Ui.Tests   → ALL PASS（+1：切语言必须通知宿主，邮件区块重新渲染）
+Ui.Shots   → ALL OK
+```
+
+### 6. 还没做（如实记）
+
+- Core 里仍有**中文硬编码的诊断文案**（提示词校验、云端校验、模型注册原因等）。它们会出现在
+  英文界面里。要彻底解决需要 Core 输出**消息码**、由宿主翻译——这是下一步，不是这一轮。
+- 演示数据源（`DemoShellDataSource`）里的示例文本仍是中文：那是"数据"，不是界面文案。
