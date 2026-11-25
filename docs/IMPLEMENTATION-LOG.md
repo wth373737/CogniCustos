@@ -1564,3 +1564,60 @@ dotnet run --project tools/CogniCustos.Ui.Tests # ALL PASS（80）
 
 手工：设置页填 `https://api.deepseek.com` + `deepseek-chat` + key → 点「测试连接」→
 应显示`已连通 · 1234 ms · 可以。`；换成错 key 应显示 `连接失败 · … 401 …`。
+
+---
+
+## 2026-11-25 · 验证"配置是否真的生效"：统一装配点 + `--model-status` + 说清为什么没模型
+
+用户问题："配置了 URL/模型/API key，测试也成功，可点读仍说没有可用推理模型。"
+
+### 1. 先把链路证明一遍（不靠推理）
+
+自检里新增两条，用本地 TCP 桩跑**应用真实的顺序**：
+
+| 断言 | 覆盖的场景 |
+|---|---|
+| 保存后 `Resolve(Reasoning)` 是 `cloud:stub-model`，且 `DocLecture.AskAsync` 真的打到桩 | 会话内保存后立刻提问 |
+| 只在磁盘留 settings.json、**重启**后再装配，仍解析到云端且提问打到桩 | 配完关掉重开 |
+| 端点没有 `/models` 仍然可用 | 原 bug 的复现 |
+
+结论：代码链路上"保存 → 路由 → 点读"是通的。剩下的可能性只有两种——
+跑的不是这一版，或者装配点没跑到（于是有了下面第 2 条）。
+
+### 2. 装配点收敛到一处
+
+GUI、`--check`、`--reader-check`、`--reader-ask` 之前各写一份 runtime 装配。
+现在统一到 `Sample/AppRuntime.cs`：`SetFactory` + `BuiltInFactory` + 借用 Ollama 只此一处，
+任何入口都不会再"少配一步"。
+
+### 3. `--model-status`：把"到底在用哪个模型"变成一行事实
+
+```
+CogniCustos.Sample.exe --model-status
+  data / settings / prompts 路径
+  cloud: configured=True model='deepseek-chat' base='https://api.deepseek.com' key=已填写
+  registered providers:
+    cloud:deepseek-chat     role=Reasoning  available=True
+  resolve(reasoning) = cloud:deepseek-chat  → questions will use this
+```
+
+退出码 0 = 有模型能回答，2 = 没有任何 provider 可用（并给出下一步该查什么）。
+这是给用户的自检入口，也是我下次定位问题时要的第一条信息。
+
+### 4. 说清"为什么没有模型"
+
+阅读器的 standby 文案以前只有一句"没有可用的推理模型"。现在列出**注册了哪些 provider、
+各自可不可用**，并区分"云端还没注册（填完要点保存）"和"注册了但地址/密钥不对"。
+
+### 5. 顺带
+
+- `CloudModelService.StatusText()` / `UseCloud` 的措辞从"已生效"改成"已保存"
+  ——保存成功不等于调用成功，不能让界面替系统下这个结论。
+
+### 6. 验证
+
+```bash
+Selftest   → passed=116（+2：保存后链路、重启后链路）
+Ui.Tests   → ALL PASS（80）
+--check / --reader-check / --model-status 均 OK
+```

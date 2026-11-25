@@ -65,7 +65,7 @@ public sealed class CloudModelService
         SettingsStore.Save(_settingsPath, Settings);
         Register(model, baseUrl, apiKey);
 
-        return (true, $"主推理模型：{model} @ {uri.Host}");
+        return (true, $"主推理模型已保存：{model} @ {uri.Host}");
     }
 
     /// <summary>
@@ -85,7 +85,7 @@ public sealed class CloudModelService
 
     /// <summary>What the settings page shows under the three fields.</summary>
     public string StatusText() => IsConfigured
-        ? $"已配置：{Model} @ {HostOf(BaseUrl)}"
+        ? $"已保存：{Model} @ {HostOf(BaseUrl)}"
         : "未配置：当前使用本地模型";
 
     private static string HostOf(string url) =>

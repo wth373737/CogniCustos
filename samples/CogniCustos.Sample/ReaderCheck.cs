@@ -26,9 +26,7 @@ public static class ReaderCheck
             return 1;
         }
 
-        var root = Environment.GetEnvironmentVariable("COGNICUSTOS_HOME");
-        root ??= Path.Combine(AppContext.BaseDirectory, "data");
-        Directory.CreateDirectory(root);
+        var root = AppRuntime.Home();
 
         var runtime = CogniCustosRuntime.Create(root);
         var ollama = new OllamaModelProvider("http://127.0.0.1:11434", "qwen2.5:7b");

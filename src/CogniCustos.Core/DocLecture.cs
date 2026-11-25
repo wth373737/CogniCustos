@@ -129,9 +129,10 @@ public sealed class DocLecture
         if (provider is null || provider is StandbyModelProvider)
         {
             // Never pretend this is an answer. Without a model the reader can still show the
-            // user the words they boxed, and say plainly that nothing else is available.
-            var head = "（当前没有可用的推理模型，所以只能把你选中的原文给你看；" +
-                       "在设置页配置模型后我才能讲评。）\n\n";
+            // user the words they boxed, and say plainly why nothing can answer — "no model"
+            // alone sends people looking in the wrong place.
+            var head = "（当前没有可用的推理模型，所以只能把你选中的原文给你看。"
+                       + WhyNoModel() + "）\n\n";
             var what = hasText
                 ? head + $"选中内容：{Clip(question.RegionText, 600)}"
                 : seen is null
@@ -184,6 +185,27 @@ public sealed class DocLecture
         {
             return "模型调用失败：" + ex.Message;
         }
+    }
+
+    /// <summary>
+    /// Why nothing can answer, in the reader's own words: what is registered, what is usable, and
+    /// what to do about it. "找不到模型" is useless when the real cause is "the cloud provider is
+    /// registered but its key is wrong" or "nothing is registered at all".
+    /// </summary>
+    private string WhyNoModel()
+    {
+        List<IModelProvider> all;
+        try { all = _models.All.ToList(); }
+        catch { all = []; }
+
+        if (all.Count == 0)
+            return "本实例里一个模型都没有注册：开设置页填好模型或启动本地模型再试";
+
+        var withoutCloud = all.All(p => !p.Id.StartsWith("cloud:", StringComparison.Ordinal));
+        var parts = all.Select(p => $"{p.Id} {(p.IsAvailable ? "可用" : "不可用")}");
+
+        return "已注册 " + string.Join("、", parts) +
+               (withoutCloud ? "；云端模型还没有注册到本实例（填完要点一次保存）" : "；请检查云端地址、模型名与 API 密钥");
     }
 
     /// <summary>Deterministic outline: first line of each page, no model involved.</summary>

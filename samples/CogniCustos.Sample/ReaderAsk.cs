@@ -41,15 +41,8 @@ public static class ReaderAsk
 
         var question = args.Length > 7 ? string.Join(' ', args.Skip(7)) : string.Empty;
 
-        var root = Environment.GetEnvironmentVariable("COGNICUSTOS_HOME");
-        root ??= Path.Combine(AppContext.BaseDirectory, "data");
-        Directory.CreateDirectory(root);
-
-        var runtime = CogniCustosRuntime.Create(root);
-        var ollama = new OllamaModelProvider("http://127.0.0.1:11434", "qwen2.5:7b");
-        if (ollama.IsAvailable) runtime.AddModel(ollama);
-
-        var vision = new OllamaVisionModel("http://127.0.0.1:11434", "qwen3-vl:4b");
+        var root = AppRuntime.Home();
+        var (runtime, vision) = AppRuntime.Build(root);
         var reader = new RuntimeReaderService(runtime, vision);
         reader.TracePrompts((system, user) =>
         {

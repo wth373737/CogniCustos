@@ -1580,6 +1580,59 @@ internal static class Program
             return !result.Ok && result.Message.Contains("401");
         });
 
+        await Check("cloud: saving the configuration makes the router and the reader use it", async () =>
+        {
+            // Exactly the application's sequence: create the runtime, inject the HTTP factory,
+            // save the form, then ask the reader a question. The point is that the *reader* ends
+            // up on the cloud provider instead of the standby one.
+            using var stub = new StubEndpoint(respondToModels: false);
+            var cloudRoot = Path.Combine(AppContext.BaseDirectory, "cloud-" + Guid.NewGuid().ToString("N")[..6]);
+            var cloudRuntime = CogniCustosRuntime.Create(cloudRoot);
+            cloudRuntime.CloudModels.SetFactory((url, model, key) => new OpenAiCompatibleProvider(url, model, key));
+
+            // something else already takes the reasoning role, like the borrowed Ollama model
+            cloudRuntime.AddModel(new StubReasoningProvider());
+
+            var (saved, message) = cloudRuntime.CloudModels.UseCloud("stub-model", stub.BaseUrl, "test-key");
+            var resolved = cloudRuntime.Models.Resolve(ModelRole.Reasoning);
+
+            var lecture = new DocLecture(cloudRuntime.Models);
+            var answer = await lecture.AskAsync(
+                new DocQuestion("f.pdf", 1, "page text", "选中的这一句", "这是什么？"), null);
+
+            try { Directory.Delete(cloudRoot, true); } catch { }
+
+            Console.WriteLine($"      saved={saved} resolved={resolved.Id} answer='{Trim(answer)}'");
+            return saved && resolved is not StandbyModelProvider
+                         && resolved.Id == "cloud:stub-model"
+                         && stub.Paths.Count >= 1
+                         && answer.Contains("stub answer");
+        });
+
+        await Check("cloud: after a restart the saved configuration is registered again", async () =>
+        {
+            // The app's second launch: nothing but settings.json on disk. This is the path a user
+            // hits after configuring the model and closing the window.
+            using var stub = new StubEndpoint(respondToModels: false);
+            var root = Path.Combine(AppContext.BaseDirectory, "restart-" + Guid.NewGuid().ToString("N")[..6]);
+
+            var first = CogniCustosRuntime.Create(root);
+            first.CloudModels.SetFactory((url, model, key) => new OpenAiCompatibleProvider(url, model, key));
+            var (savedSomething, _) = first.CloudModels.UseCloud("stub-model", stub.BaseUrl, "k");
+
+            var second = CogniCustosRuntime.Create(root);
+            second.CloudModels.SetFactory((url, model, key) => new OpenAiCompatibleProvider(url, model, key));
+            var resolved = second.Models.Resolve(ModelRole.Reasoning);
+
+            var lecture = new DocLecture(second.Models);
+            var answer = await lecture.AskAsync(new DocQuestion("f.pdf", 2, "text", "选中的句子", "讲讲"), null);
+
+            try { Directory.Delete(root, true); } catch { }
+
+            Console.WriteLine($"      resolved={resolved.Id} answer='{Trim(answer)}'");
+            return savedSomething && resolved.Id == "cloud:stub-model" && answer.Contains("stub answer");
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;
@@ -1694,6 +1747,23 @@ internal static class Program
             _cts.Dispose();
         }
     }
+
+    /// <summary>A stand-in for "some other model already answers": the save must still win.</summary>
+    private sealed class StubReasoningProvider : IModelProvider
+    {
+        public string Id => "stub:local";
+        public ModelRole Role => ModelRole.Reasoning;
+        public bool IsAvailable => true;
+
+        public Task<string> CompleteAsync(string system, string user, CancellationToken ct = default)
+            => Task.FromResult("local stand-in");
+
+        public Task<float[]> EmbedAsync(string text, CancellationToken ct = default)
+            => Task.FromResult(Array.Empty<float>());
+    }
+
+    private static string Trim(string text) =>
+        text.Length > 40 ? text[..40].Replace("\n", " ") + "…" : text.Replace("\n", " ");
 
     private static async Task Check(string name, Func<Task<bool>> body)    {
         try

@@ -34,6 +34,8 @@ internal static class Program
             return ReaderCheck.Run(target);
         }
 
+        if (Array.IndexOf(args, "--model-status") >= 0) return ModelStatus.Run(args);
+
         var askIndex = Array.IndexOf(args, "--reader-ask");
         if (askIndex >= 0)
         {
