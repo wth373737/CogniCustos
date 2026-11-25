@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CogniCustos.Documents</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Docnet.Core" />
+    <PackageReference Include="PdfPig" />
+  </ItemGroup>
+</Project>

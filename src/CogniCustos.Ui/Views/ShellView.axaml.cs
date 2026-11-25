@@ -145,6 +145,16 @@ public sealed partial class ShellView : UserControl
         e.Handled = true;
     }
 
+    /// <summary>
+    /// The drawer's bottom tile: pick a document and open it in the reader. Picking needs a
+    /// TopLevel, which is why this one small step lives in the view and not in the view-model.
+    /// </summary>
+    private void OnReadFileClicked(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is ShellViewModel vm)
+            _ = DocumentPicker.OpenIntoReaderAsync(vm, TopLevel.GetTopLevel(this));
+    }
+
     private void OnTodayChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(TodayViewModel.Items))

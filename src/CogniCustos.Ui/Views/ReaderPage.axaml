@@ -1,0 +1,145 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:CogniCustos.Ui.ViewModels"
+             x:Class="CogniCustos.Ui.Views.ReaderPage"
+             x:DataType="vm:ShellViewModel"
+             Background="{StaticResource AppBg}"
+             ClipToBounds="True">
+
+  <UserControl.Resources>
+    <!-- one page-index row: the page number then what the lecture called it -->
+    <DataTemplate x:Key="ContentsRow" x:DataType="vm:ReaderSectionRow">
+      <Button Classes="cardRow" Command="{Binding Open}" Margin="0,0,0,2">
+        <Grid ColumnDefinitions="32,*">
+          <TextBlock Grid.Column="0" Text="{Binding Page}" FontSize="12"
+                     Foreground="{StaticResource InkFaint}" VerticalAlignment="Top" />
+          <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="13.5"
+                     Foreground="#FF3C4A47" TextWrapping="Wrap" />
+        </Grid>
+      </Button>
+    </DataTemplate>
+
+    <!-- one question/answer pair in the right-hand log -->
+    <DataTemplate x:Key="ExchangeRow" x:DataType="vm:ReaderExchange">
+      <StackPanel Spacing="4" Margin="0,0,0,14">
+        <TextBlock Text="{Binding PageTag}" FontSize="11" Foreground="{StaticResource InkFaint}" />
+        <TextBlock Text="{Binding Question}" FontSize="13" FontWeight="SemiBold"
+                   Foreground="#FF2B2B32" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding Answer}" FontSize="13" Foreground="#FF45454F" TextWrapping="Wrap"
+                   LineHeight="19" />
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid RowDefinitions="76,*,18">
+
+    <!-- header: what is open, where we are, and the two ways out -->
+    <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto" Margin="28,0,22,0">
+      <TextBlock Grid.Column="0" Classes="glyph" Text="&#xE736;" FontSize="24"
+                 Foreground="{StaticResource Ink}" VerticalAlignment="Center" />
+      <TextBlock Grid.Column="1" Text="{DynamicResource Reader.Title}" FontSize="24" FontWeight="SemiBold"
+                 Margin="10,0,0,0" VerticalAlignment="Center" Foreground="{StaticResource Ink}" />
+
+      <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <TextBlock Text="{Binding Reader.Title}" FontSize="13" Foreground="{StaticResource InkSoft}"
+                   VerticalAlignment="Center" MaxWidth="260" TextTrimming="CharacterEllipsis" />
+        <Button Classes="icon" Width="26" Height="26" Command="{Binding Reader.PreviousPageCommand}"
+                ToolTip.Tip="{DynamicResource Reader.Previous}">
+          <TextBlock Classes="glyph" Text="&#xE76B;" FontSize="14" Foreground="{StaticResource InkSoft}" />
+        </Button>
+        <TextBlock Text="{Binding Reader.PageLabel}" FontSize="14" FontWeight="SemiBold"
+                   Foreground="{StaticResource Ink}" VerticalAlignment="Center" MinWidth="52"
+                   TextAlignment="Center" />
+        <Button Classes="icon" Width="26" Height="26" Command="{Binding Reader.NextPageCommand}"
+                ToolTip.Tip="{DynamicResource Reader.Next}">
+          <TextBlock Classes="glyph" Text="&#xE76C;" FontSize="14" Foreground="{StaticResource InkSoft}" />
+        </Button>
+      </StackPanel>
+
+      <Button Grid.Column="4" Classes="chip" Content="{DynamicResource Reader.OpenFile}"
+              Click="OnOpenFileClicked" Margin="10,0,0,0" VerticalAlignment="Center" />
+
+      <Button Grid.Column="6" Classes="roundClose" Width="30" Height="30" Margin="12,0,0,0"
+              VerticalAlignment="Center" Command="{Binding Reader.CloseCommand}"
+              ToolTip.Tip="{DynamicResource Tip.Close}">
+        <TextBlock Classes="glyph" Text="{StaticResource GlyphClose}" FontSize="13"
+                   Foreground="{StaticResource Ink}" />
+      </Button>
+    </Grid>
+
+    <Grid Grid.Row="1" ColumnDefinitions="262,*,344" Margin="22,0,22,0">
+
+      <!-- left: what the whole file is about, and the page index -->
+      <Border Grid.Column="0" Background="#FFE7EFED" CornerRadius="10" Padding="16,14">
+        <Grid RowDefinitions="Auto,Auto,Auto,*">
+          <TextBlock Grid.Row="0" Text="{DynamicResource Reader.Summary}" FontSize="15.5"
+                     FontWeight="SemiBold" Foreground="#FF3C4A47" />
+          <ScrollViewer Grid.Row="1" MaxHeight="196" VerticalScrollBarVisibility="Auto"
+                        Margin="0,8,0,0">
+            <TextBlock Text="{Binding Reader.Summary}" FontSize="13" Foreground="#FF45454F"
+                       TextWrapping="Wrap" LineHeight="19" />
+          </ScrollViewer>
+
+          <TextBlock Grid.Row="2" Text="{Binding Reader.OutlineHint}" FontSize="15.5"
+                     FontWeight="SemiBold" Foreground="#FF3C4A47" Margin="0,14,0,0" />
+
+          <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" Margin="0,6,0,0">
+            <ItemsControl ItemsSource="{Binding Reader.Contents}" ItemTemplate="{StaticResource ContentsRow}" />
+          </ScrollViewer>
+        </Grid>
+      </Border>
+
+      <!-- middle: the page, the box, and the ask row right under it -->
+      <Grid Grid.Column="1" RowDefinitions="*,Auto" Margin="16,0,16,0">
+        <Border Grid.Row="0" Name="PageHost" Background="White" CornerRadius="8"
+                ClipToBounds="True" BorderBrush="#FFDCD9E8" BorderThickness="1"
+                PointerPressed="OnPagePointerPressed"
+                PointerMoved="OnPagePointerMoved"
+                PointerReleased="OnPagePointerReleased">
+          <Grid>
+            <Image Name="PageImage" Source="{Binding Reader.PageBitmap}" Stretch="Uniform" />
+            <Canvas Name="SelectionCanvas" IsHitTestVisible="False">
+              <Rectangle Name="SelectionBand" IsVisible="False"
+                         Fill="#339E6A5A" Stroke="#CC9E6A5A" StrokeThickness="1.5" />
+            </Canvas>
+            <TextBlock Text="{DynamicResource Reader.Empty}" FontSize="14"
+                       Foreground="#FF8B95A3" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       TextWrapping="Wrap" Width="320" TextAlignment="Center"
+                       IsVisible="{Binding !Reader.HasPage}" />
+          </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Background="{StaticResource Surface}" CornerRadius="8"
+                Padding="12,10" Margin="0,10,0,0">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding Reader.SelectionLabel}" FontSize="12"
+                       Foreground="#FF6D7C79" TextWrapping="Wrap" MaxHeight="34" />
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <Button Grid.Column="0" Classes="dialog primary" Content="{Binding Reader.AskLabel}"
+                      Command="{Binding Reader.AskCommand}" VerticalAlignment="Center" />
+              <TextBox Grid.Column="1" Margin="8,0,8,0" FontSize="13" Height="32" Padding="8,4"
+                       VerticalContentAlignment="Center"
+                       PlaceholderText="{DynamicResource Reader.AskPlaceholder}"
+                       Text="{Binding Reader.Question, Mode=TwoWay}" />
+              <Button Grid.Column="2" Classes="dialog" Content="{DynamicResource Reader.ClearSelection}"
+                      Command="{Binding Reader.ClearSelectionCommand}" VerticalAlignment="Center" />
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- right: what the lecture said, newest last -->
+      <Border Grid.Column="2" Background="{StaticResource Surface}" CornerRadius="10" Padding="16,14">
+        <Grid RowDefinitions="Auto,Auto,*">
+          <TextBlock Grid.Row="0" Text="{DynamicResource Reader.Log}" FontSize="15.5"
+                     FontWeight="SemiBold" Foreground="#FF3C4A47" />
+          <TextBlock Grid.Row="1" Text="{Binding Reader.Status}" IsVisible="{Binding Reader.HasStatus}"
+                     FontSize="12" Foreground="#FF8E1B1B" TextWrapping="Wrap" Margin="0,6,0,0" />
+          <ScrollViewer Grid.Row="2" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Reader.Exchanges}" ItemTemplate="{StaticResource ExchangeRow}" />
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

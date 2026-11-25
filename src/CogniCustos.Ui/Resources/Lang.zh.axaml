@@ -231,4 +231,41 @@
   <x:String x:Key="Tip.OpenList">打开列表</x:String>
   <x:String x:Key="Tip.CalendarPending">日历模式尚未实现</x:String>
 
+  <!-- 点读 -->
+  <x:String x:Key="Tile.ReadFile">点读文件</x:String>
+  <x:String x:Key="Reader.Title">点读</x:String>
+  <x:String x:Key="Reader.Summary">概要</x:String>
+  <x:String x:Key="Reader.Contents">页码目录</x:String>
+  <x:String x:Key="Reader.Reading">正在通读整份文件…</x:String>
+  <x:String x:Key="Reader.Ask">询问 AI 教导</x:String>
+  <x:String x:Key="Reader.Thinking">正在想…</x:String>
+  <x:String x:Key="Reader.AskPlaceholder">也可以接着问：这页想先讲哪里？</x:String>
+  <x:String x:Key="Reader.ClearSelection">取消框选</x:String>
+  <x:String x:Key="Reader.NoSelection">在页面上按住左键拖出一个方框，指住想问的内容</x:String>
+  <x:String x:Key="Reader.Selection">框选内容</x:String>
+  <x:String x:Key="Reader.SelectionPicture">框选的是图片 / 图形，不是文字</x:String>
+  <x:String x:Key="Reader.Log">讲评</x:String>
+  <x:String x:Key="Reader.DefaultQuestion">这块内容是什么意思？为什么重要？</x:String>
+  <x:String x:Key="Reader.OpenFile">换一个文件</x:String>
+  <x:String x:Key="Reader.PickTitle">选择要读的文件</x:String>
+  <x:String x:Key="Reader.Empty">还没有打开文件。用右侧抽屉最下面的「点读文件」，或点上方的「换一个文件」。</x:String>
+  <x:String x:Key="Reader.OpenFailed">打不开这个文件：</x:String>
+  <x:String x:Key="Reader.PageFailed">这一页渲染失败：</x:String>
+  <x:String x:Key="Reader.OutlineFailed">通读失败：</x:String>
+  <x:String x:Key="Reader.AskFailed">回答失败：</x:String>
+  <x:String x:Key="Reader.Previous">上一页</x:String>
+  <x:String x:Key="Reader.Next">下一页</x:String>
+  <x:String x:Key="Demo.Reader.Title">AKP202W 教学计划（演示）.pdf</x:String>
+  <x:String x:Key="Demo.Reader.Summary">这是沙盒自己画出来的演示文档：课程说明、成绩构成、周计划、小组作业要求。屏幕上看到的一切都来自阅读器自己的分页管线，所以你看到的版式就是真实文件会得到的版式。</x:String>
+  <x:String x:Key="Demo.Reader.Section1">课程说明与学习成果</x:String>
+  <x:String x:Key="Demo.Reader.Section2">成绩构成</x:String>
+  <x:String x:Key="Demo.Reader.Section3">周计划（第 1–7 周）</x:String>
+  <x:String x:Key="Demo.Reader.Section4">小组作业要求</x:String>
+  <x:String x:Key="Demo.Reader.PageText">演示页面的文字。真实文件里这里是该页的 PDF 文字层。</x:String>
+  <x:String x:Key="Demo.Reader.SelectionText">演示选区。真实文件里这里是方框底下的那些字。</x:String>
+  <x:String x:Key="Demo.Reader.DefaultQuestion">这块内容是什么意思？为什么重要？</x:String>
+  <x:String x:Key="Demo.Reader.Answer">可以，我这样读这一段：
+
+先看它在定义，不是在论证——所以第一遍只要把它当成给后面内容做铺垫的名词解释。紧接着那个例子才是要记住的：考试通常让你用这条规则去套一个类似的情形，而不是复述定义。建议在这条规则下面划线、旁边抄下那个例子，因为评分标准给分的就是这两件事连在一起。</x:String>
+
 </ResourceDictionary>

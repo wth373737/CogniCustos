@@ -118,4 +118,6 @@ public sealed class DemoShellDataSource : IShellDataSource
     public bool GpuEnabled() => false;
 
     public string? SetGpu(bool enabled) => null;
+
+    public IReaderService CreateReader() => new DemoReaderService();
 }

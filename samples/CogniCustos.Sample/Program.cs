@@ -27,6 +27,13 @@ internal static class Program
             return SelfCheck.Run();
         }
 
+        var readerIndex = Array.IndexOf(args, "--reader-check");
+        if (readerIndex >= 0)
+        {
+            var target = readerIndex + 1 < args.Length ? args[readerIndex + 1] : string.Empty;
+            return ReaderCheck.Run(target);
+        }
+
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         return 0;
     }

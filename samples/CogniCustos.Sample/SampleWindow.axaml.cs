@@ -23,7 +23,11 @@ public sealed partial class SampleWindow : Window
             new CogniCustos.Adapters.OpenAiCompatibleProvider(url, model, key));
         runtime.LocalModels.BuiltInFactory = (path, gpu) =>
             new CogniCustos.Adapters.LlamaModelProvider(path, gpuLayers: gpu ? 99 : 0, preferVulkan: gpu);
-        _source = new RuntimeShellDataSource(runtime);
+
+        // The reader's vision path only matters for boxes with no text layer; if Ollama is
+        // not running this stays unavailable and the reader says so instead of guessing.
+        var vision = new CogniCustos.Adapters.OllamaVisionModel("http://127.0.0.1:11434", "qwen3-vl:4b");
+        _source = new RuntimeShellDataSource(runtime, vision);
 
         // today's fetch runs before the shell is built, so freshly proposed items are
         // already on the incoming card when the window opens
@@ -50,6 +54,7 @@ public sealed partial class SampleWindow : Window
         {
             if (vm.Dialog.IsOpen) vm.Dialog.CancelCommand.Execute(null);
             else if (vm.Calendar.IsVisible) vm.Calendar.Close();
+            else if (vm.Reader.IsOpen) vm.Reader.Close();
             else vm.CloseOverlays();
 
             e.Handled = true;

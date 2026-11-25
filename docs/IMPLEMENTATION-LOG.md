@@ -1223,3 +1223,100 @@ dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720   # hom
 - 读邮件时界面没有进度条（只有一句提示），长邮箱会看起来"卡一下"；
 - 待确认卡片一次只显示提议的变更行，摘要（日期/时间那行）只在标题里；
 - 抽屉 mail tile 与"每日自动抓取"共用同一个 poller，所以点一次会让当天的自动抓取也跳过（`LastFetchDate` 同日）。
+
+---
+
+## 2026-11-25 · READ 点读（打开文件 → 通读概要 → 方框选中 → 学长学姐讲评）
+
+分支 `feat/point-read`。这是第一版"能用的点读"，界面与交互按最小可用做，细节留给下一轮。
+
+### 1. 用户看到的东西
+
+| 位置 | 行为 |
+|---|---|
+| 右侧抽屉最下面新增一行 | 瓷砖「点读文件」→ 打开文件对话框（pdf / doc / docx / ppt / pptx） |
+| 点读整页（ZIndex 21，盖住画布） | 左：概要 + 页码目录（目录行可点，跳到该页）；中：页面 + 页码翻页；右：讲评记录 |
+| 页面框选 | 在页面上按住左键拖出方框，松手即取"框里那些字"；再点一次空白处取消 |
+| 询问 | 「询问 AI 教导」按钮 + 旁边的输入框（可空着直接点，也可写得更具体）；回答进右侧讲评列 |
+| 打开文件 | 头部的「换一个文件」 |
+| 关闭 | 头部 ✕ 或 Esc（优先关日历/对话框，然后才是点读） |
+
+### 2. 三个技术决定（都有实测依据）
+
+1. **渲染用 Docnet（PDFium），不用 PDFtoImage。** PDFtoImage 5.4 会拖进 SkiaSharp 4.150，
+   Avalonia 12 钉的是 3.119；同一进程里两个大版本会互相拆台。Docnet 只回 BGRA 原始像素，
+   由 UI 直接做成 `WriteableBitmap`，全程不碰 SkiaSharp 的版本。
+2. **文字与坐标用 PdfPig。** 纯托管，给出词级 bbox（PDF 坐标左下原点），换算成 0..1 的
+   "左上原点"后，方框命中就是一次矩形比较。Docnet 自己的 `GetText` 只用于整页文字。
+3. **Office 转换走子进程（PowerShell 7），不在应用里做 COM。** 见第 3 节。
+
+### 3. 实测：这台机器上的 Office 自动化（重要，别重复踩）
+
+| 做法 | 结果 |
+|---|---|
+| .NET 8 进程里 `CreateInstance(Word.Application)`（STA 线程、MTA 线程都试过） | **永远不返回**；一个 45 行的裸 .NET 8 控制台程序也能复现 |
+| 同上，但用**命名参数** `Open(path, ReadOnly: true, …)` | 同样挂住（改位置参数不能修 COM 创建这一段） |
+| Windows PowerShell 5.1 调同样的脚本 | 直接报参数绑定错误（`PSReference`），不可用 |
+| **PowerShell 7**（`C:\Program Files\PowerShell\7\pwsh.exe`）跑同一脚本 | **1.4 MB PDF，6–8 秒完成** |
+| 从本应用（WinExe）派生子进程执行同一脚本 | **仍然挂住**，Word 停在启动画面 |
+
+结论与取舍：
+- PowerPoint → PDF（`SaveAs 32`）、Word → PDF（`SaveAs2 17`）的代码都对，脚本单独跑是通的；
+- 但只要由这个 WinExe 派生，Word 就不干活 —— 这一层是环境问题，不是本功能的逻辑问题；
+- 所以实现为"尽力而为 + 快速失败"：第一次尝试最多等 **25 秒**，失败后把结论写进
+  `reader/office-bridge.txt`（形如 `FAIL 2026-11-25 …`），**同一天再点就直接返回**（0.3 秒）；
+- 提示语明确给出可行路径：用 Office「另存为 → PDF」，再用点读打开那个 PDF。
+
+`COGNI_DOC_DEBUG=1` 时，`--reader-check` 会打印转换桥每一步（`convert: word: opened` 等），
+下次排查从这里开始。
+
+### 4. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Documents/`（新工程） | `DocumentBook`（打开/渲染/文字/词框/裁切）、`DocumentOpener`（PDF 直开、Office 转 PDF 后开）、`OfficePdfConverter`（PowerShell 桥 + 当日缓存 + 25 秒上限）、`PngEncoder`（BGRA→PNG，70 行，无依赖） |
+| `Directory.Packages.props` | `Docnet.Core 2.6.0`、`PdfPig 0.1.16` |
+| `src/CogniCustos.Contracts/Vision.cs` | `IVisionModel`（图片进、文字出） |
+| `src/CogniCustos.Core/DocLecture.cs` | 学长学姐人设、通读概要 + 目录（JSON 宽松解析，失败退化为逐页首行）、框选提问、无模型时的诚实回答 |
+| `src/CogniCustos.Adapters/OllamaVisionModel.cs` | Ollama `/api/generate` + `images`，只在选区没有文字层时才用 |
+| `src/CogniCustos.Ui/ViewModels/ReaderViewModel.cs`、`IReaderService.cs`、`DemoReaderService.cs` | 阅读器状态机；接缝；演示文档（自己画 8 页，不需要 PDF 引擎） |
+| `src/CogniCustos.Ui/Views/ReaderPage.axaml(.cs)`、`DocumentPicker.cs` | 整页界面、橡皮筋选区（含 letterbox 换算）、文件选择 |
+| `src/CogniCustos.Ui/Views/ShellView.axaml(.cs)`、`ShellViewModel`、`IShellDataSource`、`Lang.*` | 抽屉第 4 行、`Reader` 属性、`CreateReader()`、两条语言各 36 个键 |
+| `CogniCustos.Selftest/Program.cs` | 新增 11 条（88 → 99）：PDF 页数/像素/文字层/框选/裁切/PNG/拒收/OOXML 判定/目录解析/无模型 |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 6 条（69 → 75）+ `StubReader` |
+| `tools/CogniCustos.Ui.Shots/Program.cs` | 新增两个状态 `reader`、`reader-ask` |
+| `samples/CogniCustos.Sample/` | `RuntimeReaderService`（真文档 + 真模型）、`ReaderCheck`（`--reader-check <file>` 端到端自检） |
+
+### 5. 怎么验证
+
+```bash
+dotnet build CogniCustos.slnx -c Debug                       # 0 errors
+dotnet run --project src/CogniCustos.Selftest -c Debug       # passed=99
+dotnet run --project tools/CogniCustos.Ui.Tests -c Debug     # ALL PASS（75）
+dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720   # reader / reader-ask 两张图
+
+# 真文件 + 真模型（Ollama 在则用 qwen2.5:7b，vision 用 qwen3-vl:4b）
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --reader-check "…/0. Briefing CAT 304_Sem I_26.pdf"
+```
+
+实测（58 页的课程 PDF）：打开 114 ms、整页渲染 89 ms（1400×1050，5.7 MB）、
+通读概要 + 8 条目录 1.7 s、框选提问 1.3 s；答案里会点明"在第 1 页、页面顶部"。
+
+### 6. 以后要改哪里
+
+- **换渲染引擎**：只改 `DocumentBook.OpenPdf/Render`；上层只看 `RenderedPage(Width,Height,Bgra)`。
+- **框选命中规则**：`WordBox.CentreInside`（现在是"词中心落在框内"）。
+- **人设与提示词**：`DocLecture.Persona` / `OutlineAsync` / `AskAsync`。
+- **目录条数上限**：`DocLecture` 里的 40 条与 `OutlineCharsPerPage`。
+- **界面布局**：`ReaderPage.axaml` 的三列（262 / * / 344），抽屉第 4 行在 `ShellView.axaml`。
+- **Office 转换**：`OfficePdfConverter.Script`；换 `-File` 以外的调用方式时，先看 `office-bridge.txt` 的当日结论。
+
+### 7. 已知未做
+
+- **pptx/docx 自动转换在这台机器上不可用**（第 3 节的实测），只有 PDF 是可靠入口；
+- 选区只取"词中心在框内"的词，遇到多栏排版或图文混排会漏；扫描件靠 vision，质量取决于 4B 模型；
+- 没有缩放/平移、没有连续滚动、没有多页并排；
+- 通读是把每页前 320 字喂给模型（总额 7k 字符），长文档的目录可能只覆盖前 40 页；
+- 讲评记录只在本窗口内，关掉就没了（没有落库，也没有进知识库）；
+- 没有"把这段讲评存成笔记"的入口。
+

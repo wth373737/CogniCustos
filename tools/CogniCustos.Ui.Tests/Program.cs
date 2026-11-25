@@ -1206,6 +1206,113 @@ internal static class Program
         Test("canvas_scales_uniformly_at_2560x1440", (_, w) => AssertScale(w, 2.0), 2560, 1440);
         Test("canvas_letterboxes_at_4x3", (_, w) => AssertScale(w, 0.8), 1024, 768);
 
+        // ---- point read ----
+        Test("reader_opens_and_fills_summary_and_page_index", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Reader.OpenPreview("lecture.pdf");
+            Pump();
+
+            Check(shell.Reader.IsOpen, "the reader did not open");
+            Check(shell.Reader.Title == "stub.pdf", $"wrong title '{shell.Reader.Title}'");
+            Check(shell.Reader.PageCount == 5, $"wrong page count {shell.Reader.PageCount}");
+            Check(shell.Reader.HasPage, "the first page was not rendered");
+            Check(shell.Reader.Summary == "summary text", "the summary did not arrive");
+            Check(shell.Reader.Contents.Count == 2, $"wrong index length {shell.Reader.Contents.Count}");
+            Check(shell.Reader.Contents[1].Page == 3, "the index rows lost their page numbers");
+        });
+
+        Test("reader_selection_is_ordered_and_cleared_by_a_page_turn", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Reader.OpenPreview("lecture.pdf");
+            Pump();
+
+            // dragged bottom-right to top-left: the box must still be a box
+            shell.Reader.SelectRectangle(0.7, 0.6, 0.2, 0.1);
+            Pump();
+
+            Check(shell.Reader.HasSelection, "the box did not stick");
+            var (x0, y0, x1, y1) = shell.Reader.Selection;
+            Check(Math.Abs(x0 - 0.2) < 1e-9 && Math.Abs(y0 - 0.1) < 1e-9
+                  && Math.Abs(x1 - 0.7) < 1e-9 && Math.Abs(y1 - 0.6) < 1e-9,
+                $"the box was not normalised: {x0},{y0},{x1},{y1}");
+            Check(source.Reader.Selections.Count == 1, "the service was not asked for the words");
+            Check(!string.IsNullOrWhiteSpace(shell.Reader.SelectionText), "no words under the box");
+
+            shell.Reader.GoToPage(2);
+            Pump();
+            Check(!shell.Reader.HasSelection, "a page turn must drop the box");
+            Check(shell.Reader.CurrentPage == 2, "the page did not change");
+        });
+
+        Test("reader_ask_logs_an_exchange_and_clears_the_input", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Reader.OpenPreview("lecture.pdf");
+            Pump();
+            shell.Reader.SelectRectangle(0.1, 0.1, 0.5, 0.3);
+            shell.Reader.Question = "why does this matter?";
+            shell.Reader.AskAsync().GetAwaiter().GetResult();
+            Pump();
+
+            Check(shell.Reader.Exchanges.Count == 1, "the answer was not logged");
+            Check(shell.Reader.Exchanges[0].Question == "why does this matter?", "the question was lost");
+            Check(shell.Reader.Exchanges[0].Answer == "answer for page 1", "wrong answer text");
+            Check(shell.Reader.Exchanges[0].PageTag == "#1", "the log lost the page tag");
+            Check(shell.Reader.Question.Length == 0, "the input box was not cleared");
+            Check(source.Reader.Asked.Count == 1 && source.Reader.Asked[0].Page == 1,
+                "the service was not asked about this page");
+        });
+
+        Test("reader_close_resets_and_releases_the_document", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Reader.OpenPreview("lecture.pdf");
+            Pump();
+            shell.Reader.Close();
+            Pump();
+
+            Check(!shell.Reader.IsOpen, "the reader stayed open");
+            Check(source.Reader.Closed, "the document was not released");
+            Check(shell.Reader.PageBitmap is null, "the page bitmap was kept");
+            Check(!shell.Reader.HasSelection, "the box survived the close");
+            Check(shell.Reader.Title.Length == 0, "the title survived the close");
+        });
+
+        Test("reader_open_failure_keeps_the_window_closed", (_, _) =>
+        {
+            var source = new RecordingSource();
+            source.Reader.OpenFailure = "cannot read that file";
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            var failure = shell.Reader.OpenAsync("broken.pdf").GetAwaiter().GetResult();
+            Pump();
+
+            Check(failure == "cannot read that file", $"wrong failure '{failure}'");
+            Check(!shell.Reader.IsOpen, "a failed open must not show the window");
+        });
+
+        Test("drawer_has_one_extra_row_for_the_reader", (_, w) =>
+        {
+            var tile = w.GetVisualDescendants().OfType<Button>()
+                .FirstOrDefault(b => b.Name == "ReadFileTile");
+            Check(tile is not null, "the reader tile is missing from the drawer");
+        });
+
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }
@@ -1477,6 +1584,11 @@ internal sealed class RecordingSource : IShellDataSource
         OllamaSwitches.Add(model);
         return null;
     }
+
+    public IReaderService CreateReader() => Reader;
+
+    /// <summary>The stub the reader tests drive; the shell keeps the same instance.</summary>
+    public StubReader Reader { get; } = new();
 }
 
 /// <summary>Refuses every decision, so the "write failed" path can be asserted.</summary>
@@ -1557,4 +1669,50 @@ internal sealed class RefusingSource : IShellDataSource
     public string? AddWebSource(string url) => "page refused";
 
     public bool RemoveWebSource(string url) => false;
+
+    public IReaderService CreateReader() => new StubReader();
+}
+
+/// <summary>
+/// A reader that fills the seam without a document, so the window's own behaviour (open,
+/// page, selection, ask, close) can be asserted without a PDF engine or a model.
+/// </summary>
+internal sealed class StubReader : IReaderService
+{
+    public string? OpenFailure { get; set; }
+
+    public List<(int Page, string Question)> Asked { get; } = [];
+
+    public List<(double X0, double Y0, double X1, double Y1)> Selections { get; } = [];
+
+    public bool Closed { get; private set; }
+
+    public string Title => "stub.pdf";
+
+    public int PageCount => 5;
+
+    public string? Open(string path) => OpenFailure;
+
+    public ReaderPageImage Render(int page, int targetWidth) => new(new byte[40 * 40 * 4], 40, 40);
+
+    public string PageText(int page) => "page " + page;
+
+    public string TextIn(int page, double x0, double y0, double x1, double y1)
+    {
+        Selections.Add((x0, y0, x1, y1));
+        return "selected words";
+    }
+
+    public Task<ReaderOutline> OutlineAsync(CancellationToken ct = default) =>
+        Task.FromResult(new ReaderOutline("summary text",
+            [new ReaderSection(1, "first"), new ReaderSection(3, "third")]));
+
+    public Task<string> AskAsync(int page, double x0, double y0, double x1, double y1,
+        string question, CancellationToken ct = default)
+    {
+        Asked.Add((page, question));
+        return Task.FromResult("answer for page " + page);
+    }
+
+    public void Close() => Closed = true;
 }

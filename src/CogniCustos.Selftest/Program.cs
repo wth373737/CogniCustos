@@ -1256,6 +1256,132 @@ internal static class Program
                    && proposal.Title.Contains("考试");
         });
 
+        // ---------- point read: the document pipeline ----------
+
+        var docs = Path.Combine(root, "docs");
+        Directory.CreateDirectory(docs);
+        var samplePdf = Path.Combine(docs, "two-pages.pdf");
+        BuildTwoPagePdf(samplePdf);
+
+        await Check("docs: a PDF opens with its page count", () =>
+        {
+            using var book = CogniCustos.Documents.DocumentBook.OpenPdf(samplePdf);
+            return Task.FromResult(book.PageCount == 2 && book.HasTextLayer);
+        });
+
+        await Check("docs: a page rasterises to BGRA pixels", () =>
+        {
+            using var book = CogniCustos.Documents.DocumentBook.OpenPdf(samplePdf);
+            var page = book.Render(1, 800);
+
+            if (page.Width < 100 || page.Height < 100) return Task.FromResult(false);
+            if (page.Bgra.Length != page.Width * page.Height * 4) return Task.FromResult(false);
+
+            // a white page with black text: both must appear
+            var dark = 0;
+            var light = 0;
+            for (var i = 0; i < page.Bgra.Length; i += 4)
+            {
+                if (page.Bgra[i] < 80) dark++;
+                else if (page.Bgra[i] > 200) light++;
+            }
+
+            Console.WriteLine($"      {page.Width}x{page.Height} dark={dark} light={light}");
+            return Task.FromResult(dark > 50 && light > page.Width * page.Height / 2);
+        });
+
+        await Check("docs: the text layer is searchable", () =>
+        {
+            using var book = CogniCustos.Documents.DocumentBook.OpenPdf(samplePdf);
+            var text = book.Text(1);
+            Console.WriteLine($"      text: '{text.Replace("\n", " ")}'");
+            return Task.FromResult(text.Contains("HELLO") && text.Contains("WORLD"));
+        });
+
+        await Check("docs: a selection returns the words under the box", () =>
+        {
+            using var book = CogniCustos.Documents.DocumentBook.OpenPdf(samplePdf);
+            var words = book.Words(1);
+            if (words.Count == 0) return Task.FromResult(false);
+
+            // find the box around the first word, then ask the reader for it
+            var w = words[0];
+            var inside = book.TextIn(1, w.X0 - 0.01, w.Y0 - 0.01, w.X1 + 0.01, w.Y1 + 0.01);
+            // and a box at the very bottom of the page must not return the top line
+            var below = book.TextIn(1, 0, 0.90, 1, 0.99);
+
+            Console.WriteLine($"      first word '{w.Text}' inside '{inside}' below '{below}'");
+            return Task.FromResult(inside.Contains(w.Text) && below.Length == 0);
+        });
+
+        await Check("docs: a cropped region keeps its pixels", () =>
+        {
+            using var book = CogniCustos.Documents.DocumentBook.OpenPdf(samplePdf);
+            var page = book.Render(1, 800);
+            var crop = page.Crop(0.1, 0.1, 0.5, 0.4);
+
+            return Task.FromResult(crop.Width > 10 && crop.Height > 10
+                                   && crop.Width <= page.Width / 2 + 2
+                                   && crop.Bgra.Length == crop.Width * crop.Height * 4);
+        });
+
+        await Check("docs: a page encodes to a real PNG", () =>
+        {
+            using var book = CogniCustos.Documents.DocumentBook.OpenPdf(samplePdf);
+            var png = book.Render(1, 300).ToPng();
+
+            var signature = png.Length > 8 && png[0] == 0x89 && png[1] == 'P' && png[2] == 'N' && png[3] == 'G';
+            var width = (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19];
+            Console.WriteLine($"      png {png.Length} bytes, header width {width}");
+            return Task.FromResult(signature && width > 10);
+        });
+
+        await Check("docs: unsupported files are refused with a reason", () =>
+        {
+            var unsupported = Path.Combine(docs, "note.txt");
+            File.WriteAllText(unsupported, "plain text");
+
+            var opened = CogniCustos.Documents.DocumentOpener.TryOpen(unsupported, root, out var message);
+            return Task.FromResult(opened is null && message.Contains("暂不支持"));
+        });
+
+        await Check("docs: the office converter claims only office files", () =>
+            Task.FromResult(CogniCustos.Documents.OfficePdfConverter.IsOfficeDocument("a.docx")
+                            && CogniCustos.Documents.OfficePdfConverter.IsOfficeDocument("b.pptx")
+                            && !CogniCustos.Documents.OfficePdfConverter.IsOfficeDocument("c.pdf")));
+
+        await Check("lecture: the outline parses strict JSON from a chatty model", () =>
+        {
+            const string raw = """
+                Sure! Here is the outline:
+                {"summary":"这份材料讲研究设计。","sections":[{"page":2,"title":"研究问题"},{"page":1,"title":"导论"},{"page":99,"title":"越界"}]}
+                Hope it helps.
+                """;
+            var outline = DocLecture.ParseOutline(raw, 3);
+
+            return Task.FromResult(outline is not null
+                                   && outline.Summary.Contains("研究设计")
+                                   && outline.Sections.Count == 2
+                                   && outline.Sections[0].Page == 1
+                                   && outline.Source == "model");
+        });
+
+        await Check("lecture: a model that answers prose still yields an outline", () =>
+        {
+            var fallback = DocLecture.FallbackOutline(["第一页标题\n正文", "第二页\n更多"]);
+            return Task.FromResult(fallback.Sections.Count == 2
+                                   && fallback.Sections[0].Title.Contains("第一页")
+                                   && fallback.Source == "fallback");
+        });
+
+        await Check("lecture: without a model the question still answers honestly", async () =>
+        {
+            var lecture = new DocLecture(new ModelRouter());
+            var answer = await lecture.AskAsync(
+                new DocQuestion("f.pdf", 1, "page text", "选中的这一句", "这是什么？"), null);
+            return answer.Contains("选中的这一句") || answer.Contains("没有可用");
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;
@@ -1274,6 +1400,25 @@ internal static class Program
 
         public Task<float[]> EmbedAsync(string text, CancellationToken ct = default)
             => Task.FromResult(Array.Empty<float>());
+    }
+
+    /// <summary>
+    /// A two-page PDF built in memory, so the document pipeline can be tested without
+    /// shipping a fixture file (PdfPig writes the same format it reads).
+    /// </summary>
+    private static void BuildTwoPagePdf(string path)
+    {
+        var builder = new UglyToad.PdfPig.Writer.PdfDocumentBuilder();
+        var font = builder.AddStandard14Font(UglyToad.PdfPig.Fonts.Standard14Fonts.Standard14Font.Helvetica);
+
+        var first = builder.AddPage(595, 842);
+        first.AddText("HELLO WORLD", 24, new UglyToad.PdfPig.Core.PdfPoint(60, 760), font);
+        first.AddText("second line of the text layer", 12, new UglyToad.PdfPig.Core.PdfPoint(60, 700), font);
+
+        var second = builder.AddPage(595, 842);
+        second.AddText("PAGE TWO", 24, new UglyToad.PdfPig.Core.PdfPoint(60, 760), font);
+
+        File.WriteAllBytes(path, builder.Build());
     }
 
     private static async Task Check(string name, Func<Task<bool>> body)    {

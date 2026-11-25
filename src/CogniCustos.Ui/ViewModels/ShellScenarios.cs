@@ -93,6 +93,15 @@ public static class ShellScenarios
                 OpenFirstRow(vm.Cards[1]);
                 Click(vm, primary: false, Localizer.Get("Dialog.More"));
                 break;
+            case "reader":
+                OpenReader(vm);
+                break;
+            case "reader-ask":
+                OpenReader(vm);
+                vm.Reader.SelectRectangle(0.10, 0.18, 0.78, 0.36);
+                vm.Reader.Question = Localizer.Get("Reader.DefaultQuestion");
+                vm.Reader.AskAsync().GetAwaiter().GetResult();
+                break;
             case "toast":
                 vm.SetLanguageCommand.Execute(Localizer.Chinese);
                 vm.InputText = Localizer.Get("Demo.Note1");
@@ -105,6 +114,14 @@ public static class ShellScenarios
     {
         vm.ToggleSettingsCommand.Execute(null);
         Select(vm, key);
+    }
+
+    /// <summary>Open the point-read window on the demo document, box and all.</summary>
+    private static void OpenReader(ShellViewModel vm)
+    {
+        vm.ClosePanels();
+        vm.Reader.OpenPreview("demo-lecture.pdf");
+        vm.Reader.SelectRectangle(0.10, 0.18, 0.78, 0.36);
     }
 
     private static void OpenModelSection(ShellViewModel vm)

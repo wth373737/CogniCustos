@@ -40,6 +40,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Calendar = new CalendarViewModel();
         Reasoning = new ReasoningViewModel();
         Dialog = new DialogViewModel();
+        Reader = new ReaderViewModel(() => _source.CreateReader());
         Dialog.RequestClose += () => FinishDialog();
 
         ToggleDrawerCommand = new RelayCommand(ToggleMenu);
@@ -101,6 +102,9 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     /// <summary>The record list and the thought trace; two independent panels.</summary>
     public ReasoningViewModel Reasoning { get; }
+
+    /// <summary>The point-read window: a document on screen, a box, and an answer.</summary>
+    public ReaderViewModel Reader { get; }
 
     /// <summary>One dialog surface for the incoming decision, ignore confirmation,
     /// composer and note flows.</summary>
@@ -354,6 +358,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Calendar.RefreshText();
         Dialog.RefreshText(BuildDialogButtons);
         Reasoning.RefreshText();
+        Reader.RefreshText();
         foreach (var card in Cards) card.Refresh();
         Today.ResetSeeds(BuildTodaySeeds());
         RebuildLanguageMenu();
@@ -657,7 +662,17 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         if (HasToast) _toastTimer.Start();
     }
 
+    /// <summary>Show a one-line message on the reasoning panel; used by the reader too.</summary>
+    public void Notify(string text) => SetToast(text);
+
     public void CloseOverlays()
+    {
+        Reader.Close();
+        ClosePanels();
+    }
+
+    /// <summary>Everything except the reader: used when the reader itself is what opens.</summary>
+    public void ClosePanels()
     {
         Reasoning.Close();
         MenuOpen = false;

@@ -197,7 +197,6 @@ AI 改写修辞属于项目里的 AI 设计，UI 这轮用"输入什么就写什
 5. `DialogViewModel.RefreshText` 也会刷新 composer 的占位文字（切语言不再留旧提示）。
 
 ## 一之十、卡片里的两个箭头 = 翻页滚动（不是折叠）
-
 - 卡片高度固定 300（原来折叠到 78 的那套状态整块删掉：`IsCollapsed` / `CardHeight` / `CollapseGlyph` 都不存在了）；
 - 卡头右上箭头 = **往上翻一页**，卡底中间箭头 = **往下翻一页**，步长是视口高度的 85%（最少 48px），
   滚到顶/底就停住；
@@ -208,6 +207,34 @@ AI 改写修辞属于项目里的 AI 设计，UI 这轮用"输入什么就写什
 
 对应测试：`card_chevrons_page_the_body_instead_of_collapsing`——先断言 `CardViewModel` 上已经没有 `IsCollapsed`，
 再往第三张卡塞 14 行让它溢出，然后点卡底箭头确认 `Offset.Y > 0`、卡头箭头变可用、点回去能回滚。
+
+## 一之十一、点读页（ReaderPage，2026-11-25）
+
+设置页之后第二个**整块盖住画布**的页面（`ZIndex=21`，绑 `Reader.IsOpen`），入口是右侧抽屉第 4 行
+「点读文件」（`ReadFileTile`）。三列布局：
+
+| 列 | 宽 | 内容 |
+|---|---|---|
+| 左 | 262 | 概要（可滚，`MaxHeight=196`）+ 页码目录（`ReaderSectionRow`，点一行跳该页） |
+| 中 | * | 页面 + 下方「询问」条：框选说明行、`询问 AI 教导` 按钮、输入框、`取消框选` |
+| 右 | 344 | 讲评记录（每条带 `#页码`）与红色状态行 |
+
+**选区怎么算**（这是最容易做错的一处）：
+
+- 页面用 `Stretch="Uniform"` 画，位图在宿主里是**letterboxed** 的；指针坐标要先减掉左右/上下留白，
+  再除以实际绘制尺寸，得到 **0..1 的归一化坐标（左上原点）**——见 `ReaderPage.ToNormalised`；
+- 反向换算 `ToViewPoint` 用于"由状态画选区"（fixture、测试、翻页后重画）；
+- 归一化坐标一路传到 `IReaderService`，再由 `DocumentBook` 换算成 PDF 坐标（左下原点）去问 PdfPig；
+- 选区在 `LayoutUpdated` 里重画，但**只在数值真的变了才写** `Width/Height`，否则每帧都会触发布局。
+
+**接缝**：`IReaderService`（打开/渲染/整页文字/框选文字/通读/提问/关闭）是 UI 认识的全部。
+演示实现 `DemoReaderService` 自己画 8 页（不需要 PDF 引擎），小样的 `RuntimeReaderService` 接
+`Documents` + 模型。文件选择在视图层（`DocumentPicker`），因为 StorageProvider 要 `TopLevel`。
+
+截图：`docs/ui-reader.png`（框选 + 讲评）、`docs/ui-reader-empty.png`（刚打开）。
+对应测试：`reader_opens_and_fills_summary_and_page_index`、`reader_selection_is_ordered_and_cleared_by_a_page_turn`、
+`reader_ask_logs_an_exchange_and_clears_the_input`、`reader_close_resets_and_releases_the_document`、
+`reader_open_failure_keeps_the_window_closed`、`drawer_has_one_extra_row_for_the_reader`。
 
 ## 二、等比缩放（任何分辨率都保持示例图比例）
 

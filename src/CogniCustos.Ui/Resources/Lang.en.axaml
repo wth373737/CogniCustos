@@ -232,5 +232,41 @@
   <x:String x:Key="Tip.Expand">expand / collapse</x:String>
   <x:String x:Key="Tip.OpenList">open list</x:String>
   <x:String x:Key="Tip.CalendarPending">Calendar mode is not implemented yet</x:String>
+  <!-- point-read reader -->
+  <x:String x:Key="Tile.ReadFile">Read a file</x:String>
+  <x:String x:Key="Reader.Title">Point read</x:String>
+  <x:String x:Key="Reader.Summary">Summary</x:String>
+  <x:String x:Key="Reader.Contents">Page index</x:String>
+  <x:String x:Key="Reader.Reading">Reading the whole file…</x:String>
+  <x:String x:Key="Reader.Ask">Ask the senior</x:String>
+  <x:String x:Key="Reader.Thinking">Thinking…</x:String>
+  <x:String x:Key="Reader.AskPlaceholder">Or just ask: what should I explain on this page?</x:String>
+  <x:String x:Key="Reader.ClearSelection">Clear box</x:String>
+  <x:String x:Key="Reader.NoSelection">Drag a box on the page to point at something</x:String>
+  <x:String x:Key="Reader.Selection">In the box</x:String>
+  <x:String x:Key="Reader.SelectionPicture">The box covers a picture, not text</x:String>
+  <x:String x:Key="Reader.Log">Commentary</x:String>
+  <x:String x:Key="Reader.DefaultQuestion">What does this mean, and why does it matter?</x:String>
+  <x:String x:Key="Reader.OpenFile">Another file</x:String>
+  <x:String x:Key="Reader.PickTitle">Choose a document to read</x:String>
+  <x:String x:Key="Reader.Empty">No file open yet. Use the bottom tile in the drawer, or the "Another file" button.</x:String>
+  <x:String x:Key="Reader.OpenFailed">Could not open the file:</x:String>
+  <x:String x:Key="Reader.PageFailed">This page did not render:</x:String>
+  <x:String x:Key="Reader.OutlineFailed">Could not read the file through:</x:String>
+  <x:String x:Key="Reader.AskFailed">Could not answer:</x:String>
+  <x:String x:Key="Reader.Previous">previous page</x:String>
+  <x:String x:Key="Reader.Next">next page</x:String>
+  <x:String x:Key="Demo.Reader.Title">AKP202W Teaching Plan (demo).pdf</x:String>
+  <x:String x:Key="Demo.Reader.Summary">A demo document the sandbox draws itself: the course description, how the marks are split, the weekly schedule, and the group project brief. Everything on screen comes from the reader's own page pipeline, so the layout you see is the layout the real file gets.</x:String>
+  <x:String x:Key="Demo.Reader.Section1">Course description and learning outcomes</x:String>
+  <x:String x:Key="Demo.Reader.Section2">Assessment weights</x:String>
+  <x:String x:Key="Demo.Reader.Section3">Weekly schedule, weeks 1–7</x:String>
+  <x:String x:Key="Demo.Reader.Section4">Group project brief</x:String>
+  <x:String x:Key="Demo.Reader.PageText">Demo page text. With a real file this is the PDF text layer of the page.</x:String>
+  <x:String x:Key="Demo.Reader.SelectionText">Demo selection. With a real file these are the words under the box.</x:String>
+  <x:String x:Key="Demo.Reader.DefaultQuestion">What does this mean, and why does it matter?</x:String>
+  <x:String x:Key="Demo.Reader.Answer">Sure — here is how I would read that part:
+
+First, the sentence is defining the term before using it, so read it as a definition rather than an argument. Second, the example right after it is the one to remember: the exam usually asks you to apply the rule to a case like that, not to repeat the definition. I would underline the rule and jot the example beside it, because those two together are what the marking scheme rewards.</x:String>
 
 </ResourceDictionary>

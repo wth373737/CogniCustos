@@ -16,15 +16,21 @@ public sealed class RuntimeShellDataSource : IShellDataSource
 {
     private readonly CogniCustosRuntime _rt;
     private readonly List<string> _notes = [];
+    private readonly CogniCustos.Contracts.IVisionModel? _vision;
+    private RuntimeReaderService? _reader;
 
-    public RuntimeShellDataSource(CogniCustosRuntime runtime)
+    public RuntimeShellDataSource(CogniCustosRuntime runtime, CogniCustos.Contracts.IVisionModel? vision = null)
     {
         _rt = runtime;
+        _vision = vision;
         SeedIfEmpty();
         LoadNotes();
     }
 
     public string DataRoot => _rt.Root;
+
+    /// <summary>The point-read window's backing store: real pages, real words, real models.</summary>
+    public IReaderService CreateReader() => _reader ??= new RuntimeReaderService(_rt, _vision);
 
     // ---------- reminder line ----------
 

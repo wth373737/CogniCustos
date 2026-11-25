@@ -342,7 +342,7 @@
 
         <Grid RowDefinitions="*,Auto">
           <Grid Grid.Row="0" Margin="16,26,16,0" VerticalAlignment="Top"
-                ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto">
+                ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto,Auto,Auto">
               <Button Grid.Row="0" Grid.Column="0" Classes="tile" Width="100" Height="112"
                       Margin="0,0,0,18" HorizontalAlignment="Center"
                       ToolTip.Tip="{DynamicResource Tile.Knowledge}">
@@ -414,6 +414,19 @@
                     <TextBlock Classes="glyph" Text="{StaticResource GlyphSearch}" FontSize="16" HorizontalAlignment="Right" VerticalAlignment="Bottom" />
                   </Grid>
                   <TextBlock Text="{DynamicResource Tile.SearchGraphical}" FontSize="11"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center"
+                             Width="86" TextWrapping="Wrap" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Button>
+
+              <!-- one extra row at the bottom: open a document and have it explained -->
+              <Button Grid.Row="3" Grid.Column="0" Classes="tile" Width="100" Height="112"
+                      Margin="0,0,0,18" HorizontalAlignment="Center"
+                      Name="ReadFileTile" Click="OnReadFileClicked"
+                      ToolTip.Tip="{DynamicResource Tile.ReadFile}">
+                <StackPanel Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Classes="glyph" Text="&#xE736;" FontSize="30" HorizontalAlignment="Center" />
+                  <TextBlock Text="{DynamicResource Tile.ReadFile}" FontSize="11"
                              Foreground="{StaticResource InkSoft}" TextAlignment="Center"
                              Width="86" TextWrapping="Wrap" HorizontalAlignment="Center" />
                 </StackPanel>
@@ -490,6 +503,10 @@
 
     <!-- ============================ SETTINGS PAGE ============================ -->
     <views:SettingsPage ZIndex="20" Grid.ColumnSpan="3" IsVisible="{Binding SettingsOpen}" />
+
+    <!-- ============================ POINT-READ READER ============================ -->
+    <!-- a full-canvas page like the settings page: the document, the box, the answer -->
+    <views:ReaderPage ZIndex="21" Grid.ColumnSpan="3" IsVisible="{Binding Reader.IsOpen}" />
 
     <!-- ============ REASONING RECORD (list) and THOUGHT TRAJECTORY (trace) ============ -->
     <!-- two independent panels, two independent entries; neither dims the page -->

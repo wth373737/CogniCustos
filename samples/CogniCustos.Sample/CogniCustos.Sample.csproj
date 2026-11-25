@@ -30,6 +30,7 @@
     <ProjectReference Include="..\..\src\CogniCustos.Core\CogniCustos.Core.csproj" />
     <ProjectReference Include="..\..\src\CogniCustos.Adapters\CogniCustos.Adapters.csproj" />
     <ProjectReference Include="..\..\src\CogniCustos.Contracts\CogniCustos.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\CogniCustos.Documents\CogniCustos.Documents.csproj" />
   </ItemGroup>
 
 </Project>

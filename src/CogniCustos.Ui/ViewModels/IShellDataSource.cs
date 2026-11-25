@@ -109,4 +109,10 @@ public interface IShellDataSource
 
     /// <summary>Turn hardware acceleration on/off. Null on success, else the reason.</summary>
     string? SetGpu(bool enabled);
+
+    /// <summary>
+    /// The document the point-read window opens. The demo returns drawn pages; the sample
+    /// returns PDFium plus the models. The UI itself never sees either.
+    /// </summary>
+    IReaderService CreateReader();
 }

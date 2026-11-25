@@ -7,6 +7,7 @@
     <Project Path="src/CogniCustos.Contracts/CogniCustos.Contracts.csproj" />
     <Project Path="src/CogniCustos.Core/CogniCustos.Core.csproj" />
     <Project Path="src/CogniCustos.Desktop/CogniCustos.Desktop.csproj" />
+    <Project Path="src/CogniCustos.Documents/CogniCustos.Documents.csproj" />
     <Project Path="src/CogniCustos.Selftest/CogniCustos.Selftest.csproj" />
     <Project Path="src/CogniCustos.Ui/CogniCustos.Ui.csproj" />
   </Folder>

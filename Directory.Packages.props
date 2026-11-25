@@ -17,5 +17,10 @@
     <PackageVersion Include="LLamaSharp.Backend.Cpu" Version="0.30.0" />
     <PackageVersion Include="LLamaSharp.Backend.Vulkan" Version="0.30.0" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="8.0.10" />
+    <!-- PDF raster + text layer for the point-read reader. Docnet wraps PDFium and hands
+         back raw BGRA (no SkiaSharp), so Avalonia's own SkiaSharp 3.119 stays uncontested;
+         PdfPig is pure managed and gives word boxes for region hits. -->
+    <PackageVersion Include="Docnet.Core" Version="2.6.0" />
+    <PackageVersion Include="PdfPig" Version="0.1.16" />
   </ItemGroup>
 </Project>
