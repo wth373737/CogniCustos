@@ -67,6 +67,15 @@ public sealed class DemoShellDataSource : IShellDataSource
 
     public string? SwitchToBuiltIn() => null;
 
+    public (string Status, bool Available, bool Enabled) ThunderbirdMail() =>
+        ("3 个文件夹 · 最大 943 MB", true, true);
+
+    public bool SetUseThunderbird(bool enabled) => true;
+
+    public void RescanMail()
+    {
+    }
+
     public IReadOnlyList<EmailAccountInfo> EmailAccounts() =>
         [new EmailAccountInfo("student@usm.my", "outlook.office365.com", 993, 7, true)];
 

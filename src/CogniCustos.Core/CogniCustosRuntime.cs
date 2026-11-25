@@ -73,6 +73,16 @@ public sealed class CogniCustosRuntime
     /// <summary>Email accounts for the fetch: add / remove / really test the server.</summary>
     public EmailAccountsService EmailAccounts { get; private init; } = null!;
 
+    /// <summary>Mail folders found in the Thunderbird profiles (empty = nothing to read).</summary>
+    public IReadOnlyList<ThunderbirdFolder> MailFolders { get; private set; } = [];
+
+    /// <summary>Where the user's settings live (hosts read/write the source flags here).</summary>
+    public string SettingsPath { get; private set; } = "";
+
+    /// <summary>Re-scan Thunderbird after the user adds an account there.</summary>
+    public void RescanMail() =>
+        MailFolders = ThunderbirdMail.DiscoverFolders(ThunderbirdMail.DiscoverProfiles());
+
     /// <summary>The page list the daily fetch reads; edited from 网页浏览配置.</summary>
     public WebSourcesService WebSources { get; private init; } = null!;
 
@@ -166,6 +176,8 @@ public sealed class CogniCustosRuntime
             Poller = poller,
             EmailAccounts = emailAccounts,
             WebSources = webSources,
+            MailFolders = ThunderbirdMail.DiscoverFolders(ThunderbirdMail.DiscoverProfiles()),
+            SettingsPath = settingsPath,
         };
         if (log is not null) rt.Log += log;
 

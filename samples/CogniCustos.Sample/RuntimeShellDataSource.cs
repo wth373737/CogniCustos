@@ -172,6 +172,25 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         return ok ? null : message;
     }
 
+    public (string Status, bool Available, bool Enabled) ThunderbirdMail()
+    {
+        var folders = _rt.MailFolders;
+        var enabled = SettingsStore.Load(_rt.SettingsPath).UseThunderbird;
+        if (folders.Count == 0) return ("没有找到 Thunderbird 的邮件", false, enabled);
+
+        var biggest = Math.Round(folders[0].Bytes / 1024d / 1024d, 1);
+        return ($"{folders.Count} 个文件夹 · 最大 {biggest} MB", true, enabled);
+    }
+
+    public bool SetUseThunderbird(bool enabled)
+    {
+        var settings = SettingsStore.Load(_rt.SettingsPath);
+        SettingsStore.Save(_rt.SettingsPath, settings with { UseThunderbird = enabled });
+        return true;
+    }
+
+    public void RescanMail() => _rt.RescanMail();
+
     public IReadOnlyList<EmailAccountInfo> EmailAccounts() =>
         _rt.EmailAccounts.Accounts
             .Select(a => new EmailAccountInfo(a.Address, a.ImapHost, a.ImapPort, a.LookbackDays, a.UnreadOnly))

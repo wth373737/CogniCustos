@@ -145,7 +145,33 @@
               <TextBlock Text="{DynamicResource Settings.Email.Note}" FontSize="12.5"
                          Foreground="#FF6D7C79" TextWrapping="Wrap" />
 
-              <ItemsControl ItemsSource="{Binding Settings.EmailRetrieval.Accounts}">
+              <Border Background="#FFEDF4F1" CornerRadius="8" Padding="14,12">
+                <StackPanel Spacing="6">
+                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                    <TextBlock Grid.Column="0" Text="{Binding Settings.EmailRetrieval.ThunderbirdHeader}"
+                               FontSize="13.5" FontWeight="SemiBold" Foreground="#FF2B2B32"
+                               VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Classes="chip"
+                            Content="{Binding Settings.EmailRetrieval.RescanLabel}"
+                            Command="{Binding Settings.EmailRetrieval.RescanCommand}" />
+                    <Button Grid.Column="2" Classes="chip"
+                            Content="{Binding Settings.EmailRetrieval.UseThunderbirdLabel}"
+                            Command="{Binding Settings.EmailRetrieval.ToggleThunderbirdCommand}"
+                            ToolTip.Tip="{Binding Settings.EmailRetrieval.UseThunderbird}" />
+                  </Grid>
+                  <TextBlock Text="{Binding Settings.EmailRetrieval.ThunderbirdStatus}" FontSize="12.5"
+                             Foreground="#FF3C4A47" />
+                  <TextBlock Text="{Binding Settings.EmailRetrieval.ThunderbirdNote}" FontSize="12"
+                             Foreground="#FF6D7C79" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+
+              <Button Classes="chipGhost" HorizontalAlignment="Left"
+                      Content="{Binding Settings.EmailRetrieval.AdvancedLabel}"
+                      Command="{Binding Settings.EmailRetrieval.ToggleAdvancedCommand}" />
+
+              <ItemsControl ItemsSource="{Binding Settings.EmailRetrieval.Accounts}"
+                            IsVisible="{Binding Settings.EmailRetrieval.AdvancedOpen}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
                     <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,6,0,0">
@@ -171,7 +197,8 @@
                          Foreground="#FF93A29F" TextWrapping="Wrap"
                          IsVisible="{Binding !Settings.EmailRetrieval.HasAccounts}" />
 
-              <Border Background="#FFF7FAF9" CornerRadius="8" Padding="14,12" Margin="0,6,0,0">
+              <Border Background="#FFF7FAF9" CornerRadius="8" Padding="14,12" Margin="0,6,0,0"
+                      IsVisible="{Binding Settings.EmailRetrieval.AdvancedOpen}">
                 <StackPanel Spacing="8">
                   <TextBlock Text="{DynamicResource Settings.Email.Add}" FontSize="13.5" FontWeight="SemiBold"
                              Foreground="#FF2B2B32" />

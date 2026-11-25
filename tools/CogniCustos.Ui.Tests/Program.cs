@@ -694,6 +694,25 @@ internal static class Program
             Check(source.Pages.Count == 0, "removing the page did not reach the store");
         });
 
+        Test("thunderbird_card_status_and_rescan_reach_the_store", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            Check(shell.Settings.EmailRetrieval.ThunderbirdStatus.Length > 0, "the status line is empty");
+            Check(shell.Settings.EmailRetrieval.UseThunderbird, "Thunderbird started disabled");
+
+            shell.Settings.EmailRetrieval.RescanCommand.Execute(null);
+            Pump();
+            Check(source.Rescans >= 2, "rescan did not ask the store");
+
+            shell.Settings.EmailRetrieval.ToggleThunderbirdCommand.Execute(null);
+            Pump();
+            Check(!source.ThunderbirdEnabled, "the toggle did not reach the store");
+            Check(!shell.Settings.EmailRetrieval.UseThunderbird, "the card did not follow the store");
+        });
+
         // ---- reasoning record list and thought trace (two independent entries) ----
         Test("reasoning_row_opens_the_record_list", (vm, _) =>
         {
@@ -1299,6 +1318,25 @@ internal sealed class RecordingSource : IShellDataSource
 
     public List<EmailAccountInfo> Mail { get; } = [];
 
+    public (string Status, bool Available, bool Enabled) ThunderbirdMail()
+    {
+        Rescans++;
+        return ($"{Rescans} 个文件夹", true, ThunderbirdEnabled);
+    }
+
+    public int Rescans { get; private set; }
+    public bool ThunderbirdEnabled { get; private set; } = true;
+
+    public bool SetUseThunderbird(bool enabled)
+    {
+        ThunderbirdEnabled = enabled;
+        return true;
+    }
+
+    public void RescanMail()
+    {
+    }
+
     public IReadOnlyList<EmailAccountInfo> EmailAccounts() => Mail;
 
     public string? AddEmailAccount(string address, string host, int port, string secret, int lookbackDays,
@@ -1396,6 +1434,14 @@ internal sealed class RefusingSource : IShellDataSource
     public (string Model, string Url, bool Configured) CloudSettings() => ("", "", false);
 
     public string? SaveCloud(string model, string url, string apiKey) => "cloud refused";
+
+    public (string Status, bool Available, bool Enabled) ThunderbirdMail() => ("", false, false);
+
+    public bool SetUseThunderbird(bool enabled) => false;
+
+    public void RescanMail()
+    {
+    }
 
     public IReadOnlyList<EmailAccountInfo> EmailAccounts() => [];
 

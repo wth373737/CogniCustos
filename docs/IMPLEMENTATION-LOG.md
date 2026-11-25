@@ -892,3 +892,82 @@ dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720   # set
 - **IMAP 读取还没接**：现在能配账号、能测端口、能导入，但每日抓取只读收件夹（`InboxPath`）里的文件。
 - 邮件正文解析（MIME/HTML）与已读标记没有做。
 - 网页这一节没有"需要登录"的域名授权流程——那是 cookie 插件的职责，我们只读。
+
+---
+
+## 2026-11-25 · TB 改走雷鸟（不配协议），并在真实邮箱上验证
+
+### 1. 为什么改
+
+你说得对：很多邮箱根本不接受第三方单独配 IMAP（Gmail 要应用密码、Outlook 要走 OAuth、163 要授权码），
+协议这条路"太卡"。而**雷鸟已经把这些都解决了**：用户登录一次，邮件就在磁盘上，格式稳定。
+所以默认路径改成"读雷鸟的本地邮件库"，手动配服务器降级为进阶选项。
+
+### 2. 实现
+
+| 项 | 内容 |
+|---|---|
+| 发现 | `%APPDATA%\Thunderbird\Profiles\*` → `ImapMail/<account>/<folder>`、`Mail/<account>/<folder>`，跳过 `.msf` 索引与空文件 |
+| 读取 | 只读每个 mbox **末尾 4 MB**（Outlook 那个 INBOX 有 943 MB，不能整读），按 `From ` 行切分，取最新 N 条 |
+| 解码 | CRLF 归一；RFC 2047 主题（`=?utf-8?B?…?=`、`Q` 编码）；嵌套 multipart 递归找 `text/plain`（否则 `text/html`）；`base64` / `quoted-printable` 正文解码；去标签 |
+| 日期 | 邮件日期是 `Mon, 01 Jan 2026 10:00:00 +0800`。**很多发件人星期写错**，.NET 会直接拒解析——现在先剥掉星期再解析；缺 `Date` 时退到 `Received` |
+| 接入 | `ThunderbirdMailSource : IInfoSource`，`InfoSources.From` 里排在最前；`UseThunderbird` 默认开 |
+| 界面 | 邮件抓取配置顶部一张卡片："从 Thunderbird 读取 / N 个文件夹 · 最大 X MB / 重新扫描 / 使用 Thunderbird 开关"，下面是灰字说明；手动账号列表收进"高级（不推荐）"折叠 |
+
+### 3. 真实数据实测（本机）
+
+```
+thunderbird : 7 个邮箱文件夹（最大 943.5 MB）
+   · outlook.office365-1.com/INBOX  943.5 MB
+   · outlook.office365.com/INBOX    282.3 MB
+   · imap.gmail-1.com/INBOX         107.6 MB
+   · imap.gmail-2.com/INBOX          76.6 MB
+   · imap.163-1.com/INBOX             0.4 MB
+
+--mail-peek（只读）解析示例：
+· [2026-11-24] HEBAHAN KEMPEN 16 HARI AKTIVISME …  ← 马来语主题、正文正确
+· [2026-11-24] WORKSHOP: SPSS BASIC STATISTICS
+· [2026-11-25] What's new in ClickUp: Sheets, schedules …
+
+--fetch-now：抓到 55 封 → 关键词命中 7 封 → 生成 7 个待确认提议
+```
+
+**第一版关键词太宽**：7 条命中里全是营销邮件（Position Tracking、Google 账号提示、账单通知）。
+加了"噪声词表"（unsubscribe/退订/促销/限时/登录活动…）后：**55 封里只剩 1 条像重要变化**。
+
+### 4. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/ThunderbirdMail.cs` | **新增**：发现、tail 读取、主题/正文解码、`ThunderbirdMailSource` |
+| `src/CogniCustos.Core/InfoPoller.cs` | 默认源加入 Thunderbird；关键词噪声表 |
+| `src/CogniCustos.Core/SettingsAndReminders.cs` | `UseThunderbird`（默认 true） |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | `MailFolders`、`RescanMail`、`SettingsPath` |
+| `src/CogniCustos.Ui/ViewModels/RetrievalViewModels.cs` | Thunderbird 卡片状态、扫描/开关命令、高级折叠 |
+| `src/CogniCustos.Ui/ViewModels/{IShellDataSource,ShellViewModel,DemoShellDataSource}.cs`、`Views/SettingsPage.axaml`、`Lang.*` | 接缝、文案、布局 |
+| `samples/CogniCustos.Sample/MailPeek.cs` | **新增** `--mail-peek`（只读查看解析结果） |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 2 条（82 → 84） |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 1 条（65 → 66） |
+
+### 5. 怎么验证
+
+```bash
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --mail-peek   # 只看，不写
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --fetch-now   # 真跑一遍
+dotnet run --project src/CogniCustos.Selftest -c Debug                          # passed=84
+```
+
+### 6. 以后要改哪里
+
+- **读哪些文件夹**：`ThunderbirdMailSource` 的 `Folders()`；目前读所有非空 mbox（含 Trash），要排除的话在那里过滤。
+- **读多少**：`TailBytes`（4 MB）与 `perFolder`（20 条）。
+- **关键词与噪声**：`InfoKeywords.Defaults` / `InfoKeywords.Ignored`。
+- **雷鸟路径**：`ThunderbirdMail.ProfilesRoot`；自定义安装位置可传 `DiscoverProfiles(root)`。
+- **换回 IMAP**：实现 `IInfoSource` 并放进 `InfoSources.From`；两者可以并存。
+
+### 7. 已知未做
+
+- 只读 INBOX 这类 mbox，不读 `.msf` 索引（所以"已读/未读"状态拿不到）。
+- 附件不解析；HTML 邮件只取文本。
+- 没有"已抓过就跳过"的增量标记：同一封邮件再次运行仍会入原始区（靠内容哈希去重，不会重复提议）。
+- 雷鸟开着时它可能正在写 mbox；已用 `FileShare.ReadWrite` 打开，但极端情况下最后一条可能不完整（会丢该条，不影响其它）。

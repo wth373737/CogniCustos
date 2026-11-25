@@ -333,6 +333,9 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.Model.SetLocalStatus(_source.LocalModelStatus());
         Settings.Model.SetGpuState(_source.GpuEnabled(), string.Empty);
 
+        var thunderbird = _source.ThunderbirdMail();
+        Settings.EmailRetrieval.SetThunderbirdStatus(thunderbird.Status, thunderbird.Available, thunderbird.Enabled);
+
         Settings.EmailRetrieval.SetAccounts(_source.EmailAccounts());
         Settings.WebBrowsing.SetSources(_source.WebSources());
 
@@ -468,6 +471,23 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         RefreshEmailAccounts();
     }
 
+    /// <summary>Re-scan Thunderbird's profiles after the user adds an account there.</summary>
+    private void RefreshThunderbird()
+    {
+        _source.RescanMail();
+        var (status, available, enabled) = _source.ThunderbirdMail();
+        Settings.EmailRetrieval.SetThunderbirdStatus(status, available, enabled);
+        SetToast(status);
+    }
+
+    private void ToggleThunderbird(bool enabled)
+    {
+        _source.SetUseThunderbird(enabled);
+        var (status, available, _) = _source.ThunderbirdMail();
+        Settings.EmailRetrieval.SetThunderbirdStatus(status, available, enabled);
+        SetToast(enabled ? "已开启：从 Thunderbird 读取邮件" : "已关闭 Thunderbird 读取");
+    }
+
     private void RefreshEmailAccounts() =>
         Settings.EmailRetrieval.SetAccounts(_source.EmailAccounts());
 
@@ -548,6 +568,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.EmailRetrieval.RemoveRequested += RemoveEmailAccount;
         Settings.EmailRetrieval.TestRequested += TestEmailAccount;
         Settings.EmailRetrieval.ImportRequested += ImportEmailAccounts;
+        Settings.EmailRetrieval.RescanRequested += RefreshThunderbird;
+        Settings.EmailRetrieval.UseThunderbirdRequested += ToggleThunderbird;
         Settings.WebBrowsing.AddRequested += AddWebSource;
         Settings.WebBrowsing.RemoveRequested += RemoveWebSource;
     }

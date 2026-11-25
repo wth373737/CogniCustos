@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CogniCustos.Ui.Mvvm;
+using CogniCustos.Ui.Localization;
 
 namespace CogniCustos.Ui.ViewModels;
 
@@ -62,6 +63,64 @@ public sealed class EmailRetrievalViewModel : ObservableObject
             AddRequested?.Invoke(Address.Trim(), Host.Trim(), port, Secret, days, UnreadOnly);
         });
         ImportCommand = new RelayCommand(() => ImportRequested?.Invoke());
+        RescanCommand = new RelayCommand(() => RescanRequested?.Invoke());
+        ToggleAdvancedCommand = new RelayCommand(() => AdvancedOpen = !AdvancedOpen);
+    }
+
+    public RelayCommand RescanCommand { get; }
+    public RelayCommand ToggleAdvancedCommand { get; }
+
+    public event Action? RescanRequested;
+    public event Action<bool>? UseThunderbirdRequested;
+
+    private bool _useThunderbird = true;
+    private string _thunderbirdStatus = string.Empty;
+    private bool _advancedOpen;
+    private bool _thunderbirdAvailable;
+
+    /// <summary>Read mail from Thunderbird's store: the default, because it always works.</summary>
+    public bool UseThunderbird
+    {
+        get => _useThunderbird;
+        private set => Set(ref _useThunderbird, value);
+    }
+
+    public RelayCommand ToggleThunderbirdCommand => _toggleThunderbird ??= new RelayCommand(() =>
+        UseThunderbirdRequested?.Invoke(!UseThunderbird));
+
+    private RelayCommand? _toggleThunderbird;
+
+    /// <summary>"3 个文件夹 · 最大 943 MB" or "没有找到 Thunderbird 配置".</summary>
+    public string ThunderbirdStatus
+    {
+        get => _thunderbirdStatus;
+        private set => Set(ref _thunderbirdStatus, value);
+    }
+
+    public bool ThunderbirdAvailable
+    {
+        get => _thunderbirdAvailable;
+        private set => Set(ref _thunderbirdAvailable, value);
+    }
+
+    /// <summary>The manual IMAP form is here for unusual setups; it stays collapsed.</summary>
+    public bool AdvancedOpen
+    {
+        get => _advancedOpen;
+        private set => Set(ref _advancedOpen, value);
+    }
+
+    public string AdvancedLabel => Localizer.Get("Settings.Email.Advanced");
+    public string ThunderbirdHeader => Localizer.Get("Settings.Email.Thunderbird");
+    public string ThunderbirdNote => Localizer.Get("Settings.Email.ThunderbirdNote");
+    public string UseThunderbirdLabel => Localizer.Get("Settings.Email.UseThunderbird");
+    public string RescanLabel => Localizer.Get("Settings.Email.Rescan");
+
+    public void SetThunderbirdStatus(string status, bool available, bool enabled)
+    {
+        ThunderbirdStatus = status;
+        ThunderbirdAvailable = available;
+        UseThunderbird = enabled;
     }
 
     public ObservableCollection<EmailAccountRow> Accounts { get; } = [];

@@ -27,6 +27,17 @@ public sealed class InfoKeywords
         "会议", "讲座", "调课", "补课", "重要", "通知", "变更",
     ];
 
+    /// <summary>
+    /// Real mail is mostly advertising; these words mean "nothing to act on", so a message
+    /// carrying them is skipped even when it also contains an important-sounding word.
+    /// </summary>
+    private static readonly string[] Ignored =
+    [
+        "unsubscribe", "退订", "newsletter", "促销", "优惠", "限时", "coinbase", "tracking update",
+        "privacy policy", "cookie", "webinar recording", "verify your account", "sign-in",
+        "登录活动", "安全提醒", "您的 Google", "деталь",
+    ];
+
     private readonly string[] _words;
 
     public InfoKeywords(IEnumerable<string>? words = null)
@@ -37,7 +48,9 @@ public sealed class InfoKeywords
     public bool LooksImportant(string title, string text)
     {
         var haystack = (title + " " + text).ToLowerInvariant();
-        return _words.Any(w => haystack.Contains(w.ToLowerInvariant()));
+        if (Ignored.Any(w => haystack.Contains(w, StringComparison.OrdinalIgnoreCase))) return false;
+
+        return _words.Any(w => haystack.Contains(w, StringComparison.OrdinalIgnoreCase));
     }
 
     public string Bucket(string title, string text)
@@ -329,6 +342,12 @@ public static class InfoSources
     public static IReadOnlyList<IInfoSource> From(AppSettings settings, HttpMessageHandler? handler = null)
     {
         var sources = new List<IInfoSource>();
+
+        // Thunderbird first: it is the path that works for every mailbox, because the user
+        // already logged in there and Thunderbird keeps the mail on disk
+        if (settings.UseThunderbird)
+            sources.Add(new ThunderbirdMailSource());
+
         if (settings.WebSources is { Count: > 0 })
             sources.Add(new WebInfoSource(settings.WebSources, handler));
 

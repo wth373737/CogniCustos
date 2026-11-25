@@ -1074,6 +1074,73 @@ internal static class Program
             return !bad.Ok && good.Ok && again.Ok && service.Urls.Count == 1;
         });
 
+        // ---------- mail the Thunderbird way: read its local store ----------
+
+        await Check("thunderbird: mbox messages are decoded (subject, qp body, nesting), newest first",
+            async () =>
+        {
+            var mbox = Path.Combine(root, "thunderbird-test", "INBOX");
+            Directory.CreateDirectory(Path.GetDirectoryName(mbox)!);
+
+            var older =
+                "From - Mon Jan 01 10:00:00 2026\r\n" +
+                "Subject: =?utf-8?B?5rWL6K+V5Li76aKY?=\r\n" +
+                "From: office@usm.my\r\n" +
+                "Date: Mon, 01 Jan 2026 10:00:00 +0800\r\n" +
+                "Content-Type: multipart/mixed; boundary=\"outer\"\r\n" +
+                "\r\n" +
+                "--outer\r\n" +
+                "Content-Type: multipart/alternative; boundary=\"inner\"\r\n" +
+                "\r\n" +
+                "--inner\r\n" +
+                "Content-Type: text/plain; charset=utf-8\r\n" +
+                "Content-Transfer-Encoding: quoted-printable\r\n" +
+                "\r\n" +
+                "=E8=80=83=E8=AF=95=E5=91=A8=E5=9C=A84=E6=9C=886=E6=97=A5\r\n" +
+                "--inner--\r\n" +
+                "--outer--\r\n";
+
+            var newer =
+                "From - Tue Jan 02 10:00:00 2026\r\n" +
+                "Subject: Plain subject\r\n" +
+                "From: teacher@usm.my\r\n" +
+                "Date: Tue, 02 Jan 2026 10:00:00 +0800\r\n" +
+                "Content-Type: text/plain; charset=utf-8\r\n" +
+                "\r\n" +
+                "作业截止时间改到 1 月 9 日。\r\n";
+
+            await File.WriteAllTextAsync(mbox, older + newer, System.Text.Encoding.UTF8);
+
+            var messages = ThunderbirdMail.ReadRecent(mbox, 10);
+            var newest = messages.FirstOrDefault();
+            var oldest = messages.LastOrDefault();
+
+            Console.WriteLine($"      tb: count={messages.Count} " +
+                              string.Join(" | ", messages.Select(m => $"{m.Date:yyyy-MM-dd} '{m.Subject}' '{(m.Body.Length > 20 ? m.Body[..20] : m.Body)}'")));
+
+            return messages.Count == 2
+                   && newest.Subject == "Plain subject"
+                   && newest.Body.Contains("作业截止")
+                   && oldest.Subject == "测试主题"
+                   && oldest.Body.Contains("考试周在4月6日");
+        });
+
+        await Check("thunderbird: folders are discovered from a profile layout", async () =>
+        {
+            var profile = Path.Combine(root, "thunderbird-test-profile");
+            var inboxDir = Path.Combine(profile, "ImapMail", "imap.test.com");
+            Directory.CreateDirectory(inboxDir);
+            await File.WriteAllTextAsync(Path.Combine(inboxDir, "INBOX"),
+                "From - Mon Jan 01 10:00:00 2026\r\nSubject: hello\r\n\r\nbody\r\n");
+            await File.WriteAllTextAsync(Path.Combine(inboxDir, "INBOX.msf"), "index");
+            await File.WriteAllTextAsync(Path.Combine(inboxDir, "msgFilterRules.dat"), "");
+
+            var folders = ThunderbirdMail.DiscoverFolders([profile]);
+            return folders.Count == 1
+                   && folders[0].Account == "imap.test.com"
+                   && folders[0].Folder == "INBOX";
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

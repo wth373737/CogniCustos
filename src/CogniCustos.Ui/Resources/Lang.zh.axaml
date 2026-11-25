@@ -107,7 +107,7 @@
   <x:String x:Key="Settings.Model.CloudNotConfigured">未配置：由本地模型回答</x:String>
 
   <x:String x:Key="Settings.Email.Header">邮件抓取配置</x:String>
-  <x:String x:Key="Settings.Email.Note">账号只在本机使用，每日抓取读取最近若干天的新邮件。密码存在本机，保存后不再回显；请填应用专用密码，不要填登录密码。</x:String>
+  <x:String x:Key="Settings.Email.Note">默认由每日抓取读取 Thunderbird 保存在本机的邮件副本。下面的手动账号是进阶选项，只用于 Thunderbird 处理不了的情况。</x:String>
   <x:String x:Key="Settings.Email.Add">添加账号</x:String>
   <x:String x:Key="Settings.Email.Address">邮箱地址</x:String>
   <x:String x:Key="Settings.Email.Server">IMAP 服务器 / 端口</x:String>
@@ -123,6 +123,12 @@
   <x:String x:Key="Settings.Web.Add">添加网页</x:String>
   <x:String x:Key="Settings.Web.Remove">删除</x:String>
   <x:String x:Key="Settings.Web.Watermark">https://…</x:String>
+
+  <x:String x:Key="Settings.Email.Thunderbird">从 Thunderbird 读取邮件</x:String>
+  <x:String x:Key="Settings.Email.ThunderbirdNote">只要在 Thunderbird 里登录过一次，每日抓取就直接读它在本机保存的邮件副本。不需要服务器地址、不需要应用密码、不碰协议——这也是它对很多"根本没法单独配"的邮箱仍然可用的原因。</x:String>
+  <x:String x:Key="Settings.Email.UseThunderbird">使用 Thunderbird</x:String>
+  <x:String x:Key="Settings.Email.Rescan">重新扫描</x:String>
+  <x:String x:Key="Settings.Email.Advanced">高级：手动配置服务器（不推荐）</x:String>
 
   <!--
     简体中文 UI 文案。键必须与 Lang.en.axaml 完全一致（测试会逐键比对）。

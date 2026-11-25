@@ -58,6 +58,13 @@ public interface IShellDataSource
 
     // ---------- retrieval: email accounts and web pages ----------
 
+    /// <summary>What the email section shows about Thunderbird's local mail store.</summary>
+    (string Status, bool Available, bool Enabled) ThunderbirdMail();
+
+    bool SetUseThunderbird(bool enabled);
+
+    void RescanMail();
+
     IReadOnlyList<EmailAccountInfo> EmailAccounts();
 
     /// <summary>Add an account. Null on success, else the reason.</summary>

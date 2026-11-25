@@ -17,6 +17,14 @@ internal static class FetchNow
         var rt = CogniCustosRuntime.Create(root);
         var settings = SettingsStore.Load(Path.Combine(root, "state", "settings.json"));
 
+        var folders = rt.MailFolders;
+        Console.WriteLine($"thunderbird : {folders.Count} 个邮箱文件夹" +
+                          (folders.Count > 0 ? $"（最大 {Math.Round(folders[0].Bytes / 1024d / 1024d, 1)} MB）" : ""));
+        foreach (var folder in folders.Take(5))
+        {
+            Console.WriteLine($"  · {folder.Account}/{folder.Folder}  {Math.Round(folder.Bytes / 1024d / 1024d, 1)} MB");
+        }
+
         Console.WriteLine($"web sources : {settings.WebSources?.Count ?? 0}");
         Console.WriteLine($"inbox       : {settings.InboxPath ?? "(not set)"}");
 
