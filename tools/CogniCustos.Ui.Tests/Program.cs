@@ -652,7 +652,17 @@ internal static class Program
             shell.Settings.Model.ModelName.Commit();
             Pump();
 
-            Check(source.CloudModel == "qwen3-max", $"the commit did not reach the store: '{source.CloudModel}'");
+            // editing is not saving: the form says so, and nothing reaches the store yet
+            Check(shell.Settings.Model.HasUnsavedChanges, "editing did not mark the form as unsaved");
+            Check(source.CloudModel != "qwen3-max", "the edit was written before Save was pressed");
+            Check(shell.Settings.Model.SaveCommand.CanExecute(null), "Save is not available for a changed form");
+
+            shell.Settings.Model.SaveCommand.Execute(null);
+            Pump();
+
+            Check(source.CloudModel == "qwen3-max", $"Save did not reach the store: '{source.CloudModel}'");
+            Check(!shell.Settings.Model.HasUnsavedChanges, "the form still claims unsaved changes after saving");
+            Check(shell.Settings.Model.SaveStatus.Contains("qwen3-max"), "the inline save line is empty");
             Check(shell.Settings.Model.CloudStatus.Length > 0, "the status line stayed empty");
         });
 
@@ -1446,6 +1456,22 @@ internal static class Program
             // even if a caller asks anyway, the store refuses and says why
             var result = source.SavePromptOverride(protocol.PromptKey, protocol.SegmentId, "改一下");
             Check(result.Failure is not null, "the store accepted an edit to a locked segment");
+        });
+
+        Test("cloud_save_shows_the_reason_inline_instead_of_only_a_toast", (_, _) =>
+        {
+            // RefusingSource fails every save; the reason must end up next to the fields
+            var shell = new ShellViewModel(new RefusingSource());
+            Pump();
+
+            shell.Settings.Model.ModelName.SetValue("qwen3-max");
+            shell.Settings.Model.SaveCommand.Execute(null);
+            Pump();
+
+            Check(shell.Settings.Model.HasSaveStatus, "the save failure was not shown inline");
+            Check(shell.Settings.Model.SaveStatus.Contains("refused"),
+                $"the inline line hides the reason: {shell.Settings.Model.SaveStatus}");
+            Check(shell.Settings.Model.SaveStatusBrush.Contains("8E1B1B"), "a failure is not drawn as a failure");
         });
 
         Test("cloud_test_button_reports_the_round_trip", (vm, _) =>

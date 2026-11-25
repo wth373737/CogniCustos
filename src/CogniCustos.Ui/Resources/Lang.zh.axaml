@@ -102,7 +102,7 @@
   <x:String x:Key="Settings.Model.GpuNoteOn">在显卡上运行（Vulkan）。显存不足时可降低卸载层数。</x:String>
   <x:String x:Key="Settings.Model.GpuNoteOff">在 CPU 上运行；有支持的显卡时约慢 4 倍。</x:String>
 
-  <x:String x:Key="Settings.Model.CloudSaved">已保存并生效</x:String>
+  <x:String x:Key="Settings.Model.CloudSaved">已保存</x:String>
   <x:String x:Key="Settings.Model.CloudSavedShort">主推理模型已保存</x:String>
   <x:String x:Key="Settings.Model.CloudNotConfigured">未配置：由本地模型回答</x:String>
 
@@ -335,4 +335,8 @@
   <x:String x:Key="Settings.Model.TestHint">用上面三个字段真发一次请求，不用先保存。</x:String>
   <x:String x:Key="Settings.Model.TestOk">已连通</x:String>
   <x:String x:Key="Settings.Model.TestFail">连接失败</x:String>
+  <x:String x:Key="Settings.Model.Save">保存</x:String>
+  <x:String x:Key="Settings.Model.SaveHint">只有按「保存」才会写入：三个字段一起保存；被拒绝的原因就显示在这里。</x:String>
+  <x:String x:Key="Settings.Model.Unsaved">未保存</x:String>
+  <x:String x:Key="Settings.Model.Saved">已保存</x:String>
 </ResourceDictionary>

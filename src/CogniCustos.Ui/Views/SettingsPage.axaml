@@ -486,14 +486,25 @@
                          IsVisible="{Binding Settings.Model.HasCloudStatus}"
                          Foreground="#FF6D7C79" Margin="0,4,0,0" />
 
-              <!-- 连接测试：真的发一次请求，成败、耗时、错误原文都写在这一行 -->
-              <StackPanel Spacing="4" Margin="0,2,0,0">
+              <!-- 显式保存 + 连接测试：字段改完必须按这里，失焦不再偷偷写配置 -->
+              <StackPanel Spacing="5" Margin="0,2,0,0">
                 <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="dialog primary" Content="{Binding Settings.Model.SaveLabel}"
+                          Command="{Binding Settings.Model.SaveCommand}" />
+                  <Border IsVisible="{Binding Settings.Model.HasUnsavedChanges}" Background="#FFF4E7D6"
+                          CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Settings.Model.UnsavedLabel}" FontSize="10.5"
+                               Foreground="#FF8A5A1E" />
+                  </Border>
                   <Button Classes="dialog" Content="{Binding Settings.Model.TestLabel}"
                           Command="{Binding Settings.Model.TestCommand}" />
-                  <TextBlock Text="{Binding Settings.Model.TestHint}" FontSize="11"
-                             Foreground="#FF93A29F" VerticalAlignment="Center" TextWrapping="Wrap" />
                 </StackPanel>
+                <TextBlock Text="{Binding Settings.Model.SaveHint}" FontSize="11"
+                           Foreground="#FF93A29F" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Settings.Model.SaveStatus}"
+                           IsVisible="{Binding Settings.Model.HasSaveStatus}"
+                           FontSize="11.5" TextWrapping="Wrap"
+                           Foreground="{Binding Settings.Model.SaveStatusBrush}" />
                 <TextBlock Text="{Binding Settings.Model.TestStatus}"
                            IsVisible="{Binding Settings.Model.HasTestStatus}"
                            FontSize="11.5" TextWrapping="Wrap"

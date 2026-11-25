@@ -639,9 +639,13 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         if (_source.SaveCloud(model, url, apiKey) is { } failure)
         {
+            // inline as well as a toast: the reason has to be readable next to the fields
+            Settings.Model.ShowSaveFailure(failure);
             SetToast(failure);
             return;
         }
+
+        Settings.Model.MarkSaved(model);
 
         Settings.Model.SetCloudStatus(_source.CloudSettings().Configured
             ? Localizer.Get("Settings.Model.CloudSaved") + " " + model

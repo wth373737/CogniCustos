@@ -102,7 +102,7 @@
   <x:String x:Key="Settings.Model.GpuNoteOn">Runs on the GPU (Vulkan). If the model does not fit, lower the offload in the advanced settings.</x:String>
   <x:String x:Key="Settings.Model.GpuNoteOff">Runs on the CPU. On a supported graphics card this is roughly 4x slower.</x:String>
 
-  <x:String x:Key="Settings.Model.CloudSaved">Saved and active</x:String>
+  <x:String x:Key="Settings.Model.CloudSaved">saved</x:String>
   <x:String x:Key="Settings.Model.CloudSavedShort">Primary model saved</x:String>
   <x:String x:Key="Settings.Model.CloudNotConfigured">Not configured: the local model answers</x:String>
 
@@ -336,4 +336,8 @@ First, the sentence is defining the term before using it, so read it as a defini
   <x:String x:Key="Settings.Model.TestHint">Sends one real request with the fields above, before anything is saved.</x:String>
   <x:String x:Key="Settings.Model.TestOk">connected</x:String>
   <x:String x:Key="Settings.Model.TestFail">failed</x:String>
+  <x:String x:Key="Settings.Model.Save">Save</x:String>
+  <x:String x:Key="Settings.Model.SaveHint">Nothing is written until you press Save: all three fields are stored together, and the reason for a refusal appears here.</x:String>
+  <x:String x:Key="Settings.Model.Unsaved">unsaved changes</x:String>
+  <x:String x:Key="Settings.Model.Saved">saved</x:String>
 </ResourceDictionary>

@@ -31,11 +31,11 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         EnableOllamaCommand = new RelayCommand(() => OllamaEnableRequested?.Invoke(OllamaModelText.Trim()));
         ToggleGpuCommand = new RelayCommand(() => GpuToggleRequested?.Invoke(!GpuOn));
 
-        // the three primary-model fields save when a value is committed
+        // Editing a field only changes the value on screen. Saving is the explicit button below
+        // the three fields: committing one field used to fire a save with the other two still
+        // empty, so the row showed the new value while nothing had been written.
         foreach (var field in new[] { ModelName, Url, ApiKey })
-        {
-            field.Committed += () => CloudSaveRequested?.Invoke(ModelName.Value, Url.Value, ApiKey.Value);
-        }
+            field.Committed += MarkDirty;
 
         ToggleAdvancedCommand = new RelayCommand(() =>
         {
@@ -50,6 +50,74 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         TestCommand = new RelayCommand(
             () => CloudTestRequested?.Invoke(ModelName.Value, Url.Value, ApiKey.Value),
             () => !IsTesting);
+
+        // explicit save: the three fields are written together or not at all
+        SaveCommand = new RelayCommand(
+            () => CloudSaveRequested?.Invoke(ModelName.Value, Url.Value, ApiKey.Value),
+            () => HasUnsavedChanges);
+    }
+
+    // ---------- explicit save ----------
+
+    private bool _dirty;
+    private string _saveStatus = string.Empty;
+    private bool _saveFailed;
+
+    public RelayCommand SaveCommand { get; }
+
+    public string SaveLabel => Localizer.Get("Settings.Model.Save");
+
+    public string SaveHint => Localizer.Get("Settings.Model.SaveHint");
+
+    /// <summary>True when the form holds something that has not been written to settings yet.</summary>
+    public bool HasUnsavedChanges => _dirty;
+
+    public string UnsavedLabel => Localizer.Get("Settings.Model.Unsaved");
+
+    /// <summary>Inline result of the last save attempt (never only a toast).</summary>
+    public string SaveStatus => _saveStatus;
+
+    public bool HasSaveStatus => _saveStatus.Length > 0;
+
+    public string SaveStatusBrush => _saveFailed ? "#FF8E1B1B" : "#FF2E6B5A";
+
+    private void MarkDirty()
+    {
+        _dirty = true;
+        _saveStatus = string.Empty;
+        NotifySave();
+    }
+
+    public void MarkSaved(string model)
+    {
+        _dirty = false;
+        _saveFailed = false;
+        _saveStatus = Localizer.Get("Settings.Model.Saved") + " " + model;
+        NotifySave();
+    }
+
+    public void ShowSaveFailure(string reason)
+    {
+        _saveFailed = true;
+        _saveStatus = reason;
+        NotifySave();
+    }
+
+    private void NotifySave()
+    {
+        OnPropertyChanged(nameof(HasUnsavedChanges));
+        OnPropertyChanged(nameof(SaveStatus));
+        OnPropertyChanged(nameof(HasSaveStatus));
+        OnPropertyChanged(nameof(SaveStatusBrush));
+        SaveCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>Seed the form from settings without marking it dirty.</summary>
+    public void ClearDirty()
+    {
+        _dirty = false;
+        _saveFailed = false;
+        NotifySave();
     }
 
     // ---------- connection test ----------
@@ -336,6 +404,10 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         OnPropertyChanged(nameof(AdvancedLabel));
         OnPropertyChanged(nameof(AdvancedNote));
         OnPropertyChanged(nameof(TestLabel));
+        OnPropertyChanged(nameof(SaveLabel));
+        OnPropertyChanged(nameof(SaveHint));
+        OnPropertyChanged(nameof(UnsavedLabel));
+        OnPropertyChanged(nameof(SaveStatus));
         OnPropertyChanged(nameof(TestHint));
         OnPropertyChanged(nameof(TestStatus));
         OnPropertyChanged(nameof(LocalModelHeader));
