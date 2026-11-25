@@ -1313,6 +1313,51 @@ internal static class Program
             Check(tile is not null, "the reader tile is missing from the drawer");
         });
 
+        // The page is letterboxed inside its host, so pointer coordinates must be mapped
+        // against the *drawn page*, not against the host. Getting this wrong shifts every
+        // selection to the left and makes the right edge unreachable (reported from a real
+        // run: "the box jumps left and the right side cannot be selected").
+        Test("reader_selection_uses_the_page_rect_not_the_host", (vm, w) =>
+        {
+            vm.ClosePanels();
+            vm.Reader.OpenPreview("demo.pdf");
+            Pump();
+
+            var host = w.GetVisualDescendants().OfType<Border>().First(b => b.Name == "PageHost");
+            var image = w.GetVisualDescendants().OfType<Image>().First(i => i.Name == "PageImage");
+            var hostOrigin = host.TranslatePoint(new Point(0, 0), w)!.Value;
+            var pageOrigin = image.TranslatePoint(new Point(0, 0), host)!.Value;
+            var page = new Rect(new Point(hostOrigin.X + pageOrigin.X, hostOrigin.Y + pageOrigin.Y),
+                image.Bounds.Size);
+
+            Check(page.Width < host.Bounds.Width - 20,
+                "the page is not letterboxed here, so this test would not catch the bug it covers");
+
+            var from = new Point(page.X + page.Width * 0.25, page.Y + page.Height * 0.30);
+            var to = new Point(page.X + page.Width * 0.95, page.Y + page.Height * 0.80);
+
+            w.MouseDown(from, MouseButton.Left);
+            w.MouseMove(new Point((from.X + to.X) / 2, (from.Y + to.Y) / 2));
+            w.MouseMove(to);
+            w.MouseUp(to, MouseButton.Left);
+            Pump();
+
+            Check(vm.Reader.HasSelection, "the drag produced no selection");
+
+            var (x0, y0, x1, y1) = vm.Reader.Selection;
+            Check(Math.Abs(x0 - 0.25) < 0.02, $"left edge mapped to {x0:F3}, expected 0.250");
+            Check(Math.Abs(y0 - 0.30) < 0.02, $"top edge mapped to {y0:F3}, expected 0.300");
+            Check(Math.Abs(x1 - 0.95) < 0.02, $"right edge mapped to {x1:F3}, expected 0.950 — the far right must be reachable");
+            Check(Math.Abs(y1 - 0.80) < 0.02, $"bottom edge mapped to {y1:F3}, expected 0.800");
+
+            // the box has to be drawn where the page is, not somewhere to the left
+            var band = w.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Rectangle>().First(r => r.Name == "SelectionBand");
+            var drawnLeft = Canvas.GetLeft(band) + hostOrigin.X;
+            var expectedLeft = page.X + page.Width * 0.25;
+            Check(Math.Abs(drawnLeft - expectedLeft) < 1.5,
+                $"the box was drawn at x={drawnLeft:F1}, expected {expectedLeft:F1}");
+        });
+
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }

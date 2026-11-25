@@ -117,45 +117,38 @@ public partial class ReaderPage : UserControl
 
     // ---------- page geometry ----------
     //
-    // The page is drawn with Stretch=Uniform, so the bitmap is letterboxed inside the host.
-    // These two conversions add/remove that letterbox; everything else works in fractions.
+    // Avalonia already letterboxes for us: with Stretch=Uniform the Image control's own Bounds
+    // *is* the drawn rectangle, offset inside the host. So the page rect in host coordinates is
+    // (image origin, image size) — no scaling maths, and no chance of mixing two coordinate
+    // spaces (which is what made an earlier version shift every selection to the left).
 
-    private (double Scale, double OffsetX, double OffsetY) Letterbox()
+    /// <summary>The drawn page, in the coordinates the pointer events use (the host).</summary>
+    private bool TryPageRect(out Rect page)
     {
-        if (PageImage.Source is not Bitmap bitmap) return (0, 0, 0);
+        page = default;
+        if (PageImage.Source is not Bitmap) return false;
 
-        var host = PageImage.Bounds;
-        var (bw, bh) = (bitmap.PixelSize.Width, bitmap.PixelSize.Height);
-        if (bw <= 0 || bh <= 0 || host.Width <= 0 || host.Height <= 0) return (0, 0, 0);
+        var origin = PageImage.TranslatePoint(new Point(0, 0), PageHost);
+        if (origin is null) return false;
 
-        var scale = Math.Min(host.Width / bw, host.Height / bh);
-        return (scale, (host.Width - bw * scale) / 2, (host.Height - bh * scale) / 2);
+        page = new Rect(origin.Value, PageImage.Bounds.Size);
+        return page.Width > 0.5 && page.Height > 0.5;
     }
 
     /// <summary>Window point → fraction of the page.</summary>
     private (double X, double Y) ToNormalised(Point point)
     {
-        if (PageImage.Source is not Bitmap bitmap) return (0, 0);
+        if (!TryPageRect(out var page)) return (0, 0);
 
-        var (scale, offsetX, offsetY) = Letterbox();
-        if (scale <= 0) return (0, 0);
-
-        var drawnWidth = bitmap.PixelSize.Width * scale;
-        var drawnHeight = bitmap.PixelSize.Height * scale;
-        return (Math.Clamp((point.X - offsetX) / drawnWidth, 0, 1),
-                Math.Clamp((point.Y - offsetY) / drawnHeight, 0, 1));
+        return (Math.Clamp((point.X - page.X) / page.Width, 0, 1),
+                Math.Clamp((point.Y - page.Y) / page.Height, 0, 1));
     }
 
     /// <summary>Fraction of the page → window point.</summary>
     private Point ToViewPoint(double x, double y)
     {
-        if (PageImage.Source is not Bitmap bitmap) return default;
-
-        var (scale, offsetX, offsetY) = Letterbox();
-        if (scale <= 0) return default;
-
-        return new Point(offsetX + x * bitmap.PixelSize.Width * scale,
-                         offsetY + y * bitmap.PixelSize.Height * scale);
+        if (!TryPageRect(out var page)) return default;
+        return new Point(page.X + x * page.Width, page.Y + y * page.Height);
     }
 
     private void DrawCommitted()

@@ -440,3 +440,5 @@ VS Code 里对应 `shots-compare` 任务。第 4、5 个参数是草图的裁切
 
 
 **第 5 轮**：画布改 1280×720（16:9）。**第 4 轮**：等比缩放 + 文案资源化。**第 3 轮**：四个 bug + 回归工程。
+
+**2026-11-25 修**：选区坐标改为按 PageImage 的 origin+size（TryPageRect），不再自己算 letterbox；docs/ui-reader.png 已按修复后重出。

@@ -1320,3 +1320,26 @@ samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --reader-chec
 - 讲评记录只在本窗口内，关掉就没了（没有落库，也没有进知识库）；
 - 没有"把这段讲评存成笔记"的入口。
 
+
+### 8. 真机反馈修掉的第一处：框选坐标（2026-11-25 晚）
+
+用户实测：**框稍微拖大一点，整块往左闪一下，靠右的区域框不住。**
+
+原因不是渲染，是坐标空间混了。`ToNormalised` 把 `PageImage.Bounds` 当成"宿主尺寸"，
+但指针坐标 `e.GetPosition(PageHost)` 是相对 `PageHost` 的。Avalonia 在 `Stretch=Uniform` 下
+**把 Image 控件本身摆成绘制后的矩形**（实测：host 598×535，image 在 110,0 处、376.9×533），
+于是丢掉的是图片在宿主里的那 111 px 偏移：
+
+- 归一化被压缩 598 / 376.9 ≈ **1.59 倍**并整体左移；
+- 松手后 `DrawCommitted()` 又用这份错误坐标重画框 → 看到"整块往左闪一下"；
+- 右边缘早就越过 1、被 clamp 到 1 → 最右边永远框不住。
+
+修法：不再自己算 letterbox，直接问控件要矩形——`TryPageRect()` = `(PageImage 原点, PageImage 尺寸)`，
+`ToNormalised` / `ToViewPoint` 都用它。
+
+回归：`reader_selection_uses_the_page_rect_not_the_host`——用真指针（MouseDown/Move/Up）从页面
+25%/30% 拖到 95%/80%，断言四个归一化数值，并断言框的落点；再断言页面确实在宿主里居中留边
+（否则这条测试抓不到东西）。把 `TryPageRect` 换回旧的宿主写法时，它会报
+`left edge mapped to 0.343, expected 0.250`——正是用户看到的左移量。修复后 075 → 076 条断言。
+
+顺带确认：截图 `docs/ui-reader.png` 里那个框，修复前是探出页面左边界的，现在落在页内。
