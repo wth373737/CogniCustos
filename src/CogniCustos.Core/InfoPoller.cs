@@ -5,7 +5,9 @@ using CogniCustos.Contracts;
 namespace CogniCustos.Core;
 
 /// <summary>One item pulled from outside (a web page or an inbox file).</summary>
-public sealed record FetchedItem(string Kind, string Source, string Title, string Text, string? Url = null);
+/// <param name="Key">A stable identity for dedupe (Message-ID for mail; URL for a page).</param>
+public sealed record FetchedItem(string Kind, string Source, string Title, string Text, string? Url = null,
+    string Key = "");
 
 /// <summary>A place the poller reads from. Web pages and an inbox folder are enough for v1.</summary>
 public interface IInfoSource
@@ -45,6 +47,18 @@ public sealed class InfoKeywords
 
     public IReadOnlyList<string> Words => _words;
 
+    /// <summary>
+    /// The first pass over every fetched item: "important" gets a finer summary and a
+    /// proposal, "promo" is advertising, everything else is "routine".
+    /// </summary>
+    public string Label(string title, string text)
+    {
+        var haystack = (title + " " + text).ToLowerInvariant();
+
+        if (Ignored.Any(w => haystack.Contains(w.ToLowerInvariant()))) return "promo";
+        return _words.Any(w => haystack.Contains(w.ToLowerInvariant())) ? "important" : "routine";
+    }
+
     public bool LooksImportant(string title, string text)
     {
         var haystack = (title + " " + text).ToLowerInvariant();
@@ -80,6 +94,73 @@ public sealed class InfoKeywords
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// A time of day, when the text states one: "9:00", "09:00-10:30", "上午 9 点".
+    /// Returns null when the message is not specific, so the caller can keep its default.
+    /// </summary>
+    public (string Start, string End)? FindTime(string text)
+    {
+        var range = Regex.Match(text,
+            @"(?<h1>\d{1,2})[:：](?<m1>\d{2})\s*[-–~至到]\s*(?<h2>\d{1,2})[:：](?<m2>\d{2})");
+        if (range.Success)
+        {
+            var start = Clock(range.Groups["h1"].Value, range.Groups["m1"].Value);
+            var end = Clock(range.Groups["h2"].Value, range.Groups["m2"].Value);
+            if (start is not null && end is not null) return (start, end);
+        }
+
+        var single = Regex.Match(text, @"(?<!\d)(?<h>\d{1,2})[:：](?<m>\d{2})(?!\d)");
+        if (single.Success)
+        {
+            var start = Clock(single.Groups["h"].Value, single.Groups["m"].Value);
+            if (start is not null)
+            {
+                var hour = int.Parse(start[..2]);
+                var endHour = Math.Min(23, hour + 1);
+                return (start, $"{endHour:00}{start[2..]}");
+            }
+        }
+
+        var chinese = Regex.Match(text, @"(上午|下午|晚上)?\s*(?<h>\d{1,2})\s*点(半)?");
+        if (chinese.Success)
+        {
+            var hour = int.Parse(chinese.Groups["h"].Value);
+            if (chinese.Groups[1].Value is "下午" or "晚上" && hour < 12) hour += 12;
+            if (hour > 23) return null;
+
+            var start = $"{hour:00}:00";
+            return (start, $"{Math.Min(23, hour + 1):00}:00");
+        }
+
+        return null;
+
+        static string? Clock(string h, string m)
+        {
+            if (!int.TryParse(h, out var hour) || !int.TryParse(m, out var minute)) return null;
+            if (hour is < 0 or > 23 || minute is < 0 or > 59) return null;
+            return $"{hour:00}:{minute:00}";
+        }
+    }
+
+    /// <summary>One line that says what happened, when: what the pending card shows.</summary>
+    public string Brief(string title, string text, DateTime? date, (string Start, string End)? time)
+    {
+        var parts = new List<string>();
+
+        if (date is not null)
+        {
+            parts.Add(date.Value.ToString("yyyy-MM-dd"));
+            if (time is not null) parts.Add($"{time.Value.Start}-{time.Value.End}");
+        }
+        else if (time is not null)
+        {
+            parts.Add(time.Value.Start);
+        }
+
+        parts.Add(Bucket(title, text) + "：" + title.Trim());
+        return string.Join(" · ", parts);
     }
 
     private static DateTime? Build(string y, string m, string d)
@@ -125,7 +206,9 @@ public sealed class WebInfoSource : IInfoSource
                 var html = await http.GetStringAsync(url, ct).ConfigureAwait(false);
                 var title = Regex.Match(html, @"<title[^>]*>(?<t>.*?)</title>",
                     RegexOptions.IgnoreCase | RegexOptions.Singleline).Groups["t"].Value;
-                items.Add(new FetchedItem("web", new Uri(url).Host, Clean(title), Readable(html), url));
+                var text = Readable(html);
+                items.Add(new FetchedItem("web", new Uri(url).Host, Clean(title), text, url,
+                    $"web:{url}|{text.Length}|{text.GetHashCode():X}"));
             }
             catch
             {
@@ -178,7 +261,9 @@ public sealed class InboxInfoSource : IInfoSource
             {
                 var text = File.ReadAllText(file, Encoding.UTF8);
                 var firstLine = text.Split('\n').FirstOrDefault(l => l.Trim().Length > 0)?.Trim() ?? Path.GetFileName(file);
-                items.Add(new FetchedItem("email", Path.GetFileName(_folder), firstLine, text, file));
+                var stamp = File.GetLastWriteTimeUtc(file).Ticks;
+                items.Add(new FetchedItem("email", Path.GetFileName(_folder), firstLine, text, file,
+                    $"inbox:{file}|{stamp}"));
             }
             catch
             {
@@ -191,11 +276,16 @@ public sealed class InboxInfoSource : IInfoSource
 }
 
 /// <summary>What one poll produced.</summary>
-public sealed record PollResult(int Fetched, int Important, IReadOnlyList<string> ProposalIds, IReadOnlyList<string> Titles)
+public sealed record PollResult(int Fetched, int Important, IReadOnlyList<string> ProposalIds,
+    IReadOnlyList<string> Titles, int SourceCount = 0, int Skipped = 0)
 {
-    public string Summary => Fetched == 0
-        ? "没有可抓取的来源"
-        : $"抓到 {Fetched} 条，其中 {Important} 条像重要变化，已生成 {ProposalIds.Count} 个待确认提议";
+    public string Summary =>
+        SourceCount == 0
+            ? "没有可抓取的来源"
+            : Fetched == 0 && Skipped > 0
+                ? $"没有新内容：{Skipped} 条都读过了"
+                : $"抓到 {Fetched} 条" + (Skipped > 0 ? $"（跳过已读 {Skipped} 条）" : "") +
+                  $"，其中 {Important} 条像重要变化，已生成 {ProposalIds.Count} 个待确认提议";
 }
 
 /// <summary>
@@ -243,6 +333,7 @@ public sealed class InfoPoller
     {
         var fetched = 0;
         var important = 0;
+        var skipped = 0;
         var proposalIds = new List<string>();
         var titles = new List<string>();
 
@@ -260,14 +351,28 @@ public sealed class InfoPoller
 
             foreach (var item in items)
             {
-                // every item is kept: the raw zone is the record of what arrived
-                _raw.Put(item.Kind, item.Source, item.Text, item.Title);
+                // a message that was already read is not news; the ledger remembers every
+                // Message-ID so a daily run only reports what changed
+                var key = item.Key.Length > 0 ? item.Key : item.Source + "|" + item.Title;
+                if (_raw.WasIngested(key))
+                {
+                    skipped++;
+                    continue;
+                }
+
+                var artifact = _raw.Put(item.Kind, item.Source, item.Text, item.Title);
+                _raw.MarkIngested(key, item.Source);
                 fetched++;
 
-                if (!_keywords.LooksImportant(item.Title, item.Text)) continue;
+                var label = _keywords.Label(item.Title, item.Text);
+                _raw.SetLabel(artifact.Id, label);
+
+                if (label != "important") continue;
                 important++;
 
-                var due = _keywords.FindDate(item.Text + " " + item.Title, today);
+                var haystack = item.Text + " " + item.Title;
+                var due = _keywords.FindDate(haystack, today);
+                var time = _keywords.FindTime(item.Text);
                 var changes = new List<Change>
                 {
                     new(BuiltinTools.TargetTasksAdd, System.Text.Json.JsonSerializer.Serialize(new
@@ -285,20 +390,25 @@ public sealed class InfoPoller
                         System.Text.Json.JsonSerializer.Serialize(new
                         {
                             date = due.Value.ToString("yyyy-MM-dd"),
-                            start = "09:00",
-                            end = "10:00",
+                            start = time?.Start ?? "09:00",
+                            end = time?.End ?? "10:00",
                             title = _keywords.Bucket(item.Title, item.Text) + "：" + item.Title,
                         })));
                 }
 
-                var proposal = _gate.ProposeSet($"抓取：{item.Title}", $"来自 {item.Source}（{_keywords.Bucket(item.Title, item.Text)}）", changes);
+                // the pending card leads with the brief: date/time first, then the category
+                var title = _keywords.Brief(item.Title, item.Text, due, time);
+                var description = $"重要邮件 · {_keywords.Bucket(item.Title, item.Text)}\n来源：{item.Source}\n\n" +
+                                  (item.Text.Length > 240 ? item.Text[..240] + "…" : item.Text);
+
+                var proposal = _gate.ProposeSet(title, description, changes);
                 proposalIds.Add(proposal.Id);
                 titles.Add(item.Title);
             }
         }
 
         MarkRan(today);
-        return new PollResult(fetched, important, proposalIds, titles);
+        return new PollResult(fetched, important, proposalIds, titles, _sources.Count, skipped);
     }
 }
 

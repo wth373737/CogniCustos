@@ -955,7 +955,8 @@ internal static class Program
             var inbox = Path.Combine(root, "inbox");
             Directory.CreateDirectory(inbox);
             File.WriteAllText(Path.Combine(inbox, "exam.txt"),
-                "教务通知\n关于 2027 年 4 月 6 日 至 4 月 10 日 考试安排的通知：考试周期间停课。");
+                "教务通知\n关于 2027 年 4 月 6 日 至 4 月 10 日 考试安排的通知：考试周期间停课。" +
+                DateTime.Now.Ticks);
 
             var settingsPath = Path.Combine(root, "state", "settings.json");
             var settings = SettingsStore.Load(settingsPath);
@@ -983,8 +984,10 @@ internal static class Program
             var poller = new InfoPoller(rt.Raw, rt.Gate,
                 new IInfoSource[] { new InboxInfoSource(inbox) }, settingsPath);
 
-            // make it due again: the previous assertion marked today as done
+            // make it due again and give it unseen content: the ledger skips what was read
             poller.MarkRan(DateTime.Today.AddDays(-1));
+            File.WriteAllText(Path.Combine(inbox, "exam-2.txt"),
+                "教务通知\n关于 2027 年 4 月 6 日 考试 的通知：请提前查阅考场。" + DateTime.Now.Ticks);
 
             var result = await poller.RunAsync(DateTime.Today);
             Console.WriteLine($"      confirm: {result.Summary}");
@@ -1206,6 +1209,51 @@ internal static class Program
                    && directories.Contains("outlook.office365.com")
                    && directories.Contains("outlook.office365-1.com")
                    && labels.SequenceEqual(new[] { "first@student.usm.my", "second@student.usm.my" });
+        });
+
+        await Check("fetch: important mail is labelled, promo mail is not offered", async () =>
+        {
+            var inbox = Path.Combine(root, "label-inbox");
+            Directory.CreateDirectory(inbox);
+            File.WriteAllText(Path.Combine(inbox, "exam.txt"),
+                "考试通知\n数学分析期末考试在 2027 年 4 月 8 日 09:30 开始，请提前到场。" + DateTime.Now.Ticks);
+            File.WriteAllText(Path.Combine(inbox, "promo.txt"),
+                "限时优惠\n今天下单立减 50%，退订请点这里。" + DateTime.Now.Ticks);
+
+            var settingsPath = Path.Combine(root, "state", "label-settings.json");
+            var poller = new InfoPoller(rt.Raw, rt.Gate,
+                new IInfoSource[] { new InboxInfoSource(inbox) }, settingsPath);
+
+            var result = await poller.RunAsync(DateTime.Today);
+            var important = rt.Raw.List(200).Where(a => a.Source == "label-inbox").ToList();
+            var labelled = important.Select(a => (a.Title, Label: rt.Raw.GetLabel(a.Id))).ToList();
+
+            Console.WriteLine("      labels: " + string.Join(" | ", labelled.Select(l => $"{l.Title}={l.Label}")));
+
+            return result.Fetched == 2
+                   && result.Important == 1
+                   && labelled.Any(l => l.Title.StartsWith("考试通知") && l.Label == "important")
+                   && labelled.Any(l => l.Title.StartsWith("限时优惠") && l.Label == "promo");
+        });
+
+        await Check("fetch: the pending title reads like a plan entry (date, time, category)", async () =>
+        {
+            var inbox = Path.Combine(root, "label-inbox");
+            File.WriteAllText(Path.Combine(inbox, "exam-2.txt"),
+                "考试通知\n数学分析期末考试在 2027 年 4 月 8 日 09:30 开始，请提前到场。" + DateTime.Now.Ticks);
+            var settingsPath = Path.Combine(root, "state", "label-settings.json");
+            var poller = new InfoPoller(rt.Raw, rt.Gate,
+                new IInfoSource[] { new InboxInfoSource(inbox) }, settingsPath);
+
+            var result = await poller.RunAsync(DateTime.Today);
+            if (result.ProposalIds.Count == 0) return false;
+
+            var proposal = rt.Gate.Pending().First(p => p.Id == result.ProposalIds[0]);
+            Console.WriteLine($"      brief: {proposal.Title}");
+
+            return proposal.Title.Contains("2027-04-08")
+                   && proposal.Title.Contains("09:30")
+                   && proposal.Title.Contains("考试");
         });
 
         Console.WriteLine($"passed={_passed} failed={_failed}");

@@ -82,6 +82,8 @@ public sealed class DemoShellDataSource : IShellDataSource
 
     public bool SetMailFolderEnabled(string account, string folder, bool enabled) => true;
 
+    public bool SetOnlyMailbox(string mailbox) => true;
+
     public void RescanMail()
     {
     }

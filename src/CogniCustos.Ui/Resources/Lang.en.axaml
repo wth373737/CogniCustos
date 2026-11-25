@@ -132,6 +132,10 @@
 
   <x:String x:Key="Settings.Email.Folders">Mailboxes to read</x:String>
 
+  <x:String x:Key="Settings.Email.OnlyThis">Only this</x:String>
+
+  <x:String x:Key="Settings.Email.FolderUnit">folder(s)</x:String>
+
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.

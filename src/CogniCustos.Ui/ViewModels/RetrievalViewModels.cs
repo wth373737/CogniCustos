@@ -51,6 +51,45 @@ public sealed class MailFolderRow : ObservableObject
     public event Action<MailFolderRow, bool>? Toggled;
 }
 
+/// <summary>One mailbox: a switch for all of its folders, and a "only this one" button.</summary>
+public sealed class MailboxRow : ObservableObject
+{
+    private bool _enabled;
+
+    public MailboxRow(string mailbox, string server, bool enabled, int folderCount)
+    {
+        Mailbox = mailbox;
+        Server = server;
+        FolderCount = folderCount;
+        _enabled = enabled;
+
+        OnlyCommand = new RelayCommand(() => OnlyRequested?.Invoke(Mailbox));
+    }
+
+    public string Mailbox { get; }
+    public string Server { get; }
+    public int FolderCount { get; }
+    public string FolderSummary => $"{FolderCount} " + Localizer.Get("Settings.Email.FolderUnit");
+
+    public bool Enabled
+    {
+        get => _enabled;
+        set
+        {
+            if (!Set(ref _enabled, value)) return;
+            Toggled?.Invoke(this, value);
+        }
+    }
+
+    /// <summary>The folders this mailbox contributes (so the page can nest them).</summary>
+    public ObservableCollection<MailFolderRow> Folders { get; } = [];
+
+    public RelayCommand OnlyCommand { get; }
+
+    public event Action<MailboxRow, bool>? Toggled;
+    public event Action<string>? OnlyRequested;
+}
+
 /// <summary>One account row in 邮件抓取配置.</summary>
 public sealed class EmailAccountRow : ObservableObject
 {
@@ -175,6 +214,11 @@ public sealed class EmailRetrievalViewModel : ObservableObject
     /// <summary>Mailbox folders discovered in Thunderbird, each with a switch.</summary>
     public ObservableCollection<MailFolderRow> MailFolders { get; } = [];
 
+    /// <summary>Mailboxes (not servers): one switch that drives every folder of that mailbox.</summary>
+    public ObservableCollection<MailboxRow> Mailboxes { get; } = [];
+
+    public event Action<string, bool>? MailboxToggleRequested;
+
     public event Action<string, string, bool>? MailFolderToggleRequested;
 
     public void SetMailFolders(IEnumerable<MailFolderInfo> folders)
@@ -192,6 +236,34 @@ public sealed class EmailRetrievalViewModel : ObservableObject
     }
 
     public bool HasMailFolders => MailFolders.Count > 0;
+
+    public string OnlyOneHint => Localizer.Get("Settings.Email.OnlyOneHint");
+
+    /// <summary>"只读 wutianhao@student.usm.my"：one click keeps that mailbox and drops the rest.</summary>
+    public event Action<string>? OnlyMailboxRequested;
+
+    public void BuildMailboxes()
+    {
+        Mailboxes.Clear();
+
+        foreach (var group in MailFolders.GroupBy(f => f.Mailbox))
+        {
+            var row = new MailboxRow(group.Key,
+                group.Select(f => f.Server).Distinct().FirstOrDefault() ?? "",
+                group.All(f => f.Enabled),
+                group.Count(f => f.Enabled));
+
+            row.Toggled += (_, enabled) => MailboxToggleRequested?.Invoke(row.Mailbox, enabled);
+            row.OnlyRequested += mailbox => OnlyMailboxRequested?.Invoke(mailbox);
+            foreach (var folder in group) row.Folders.Add(folder);
+
+            Mailboxes.Add(row);
+        }
+
+        OnPropertyChanged(nameof(HasMailboxes));
+    }
+
+    public bool HasMailboxes => Mailboxes.Count > 0;
 
     public RelayCommand AddCommand { get; }
     public RelayCommand ImportCommand { get; }

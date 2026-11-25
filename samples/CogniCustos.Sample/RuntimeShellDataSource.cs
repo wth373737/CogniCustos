@@ -199,6 +199,8 @@ public sealed class RuntimeShellDataSource : IShellDataSource
     public bool SetMailFolderEnabled(string account, string folder, bool enabled) =>
         _rt.SetMailFolderEnabled(account, folder, enabled);
 
+    public bool SetOnlyMailbox(string mailbox) => _rt.SetOnlyMailbox(mailbox);
+
     public IReadOnlyList<EmailAccountInfo> EmailAccounts() =>
         _rt.EmailAccounts.Accounts
             .Select(a => new EmailAccountInfo(a.Address, a.ImapHost, a.ImapPort, a.LookbackDays, a.UnreadOnly))

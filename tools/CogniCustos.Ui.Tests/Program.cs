@@ -731,6 +731,25 @@ internal static class Program
             Check(!shell.Settings.EmailRetrieval.MailFolders[1].Enabled, "the row came back on");
         });
 
+        Test("only_one_mailbox_keeps_it_and_drops_the_rest", (_, _) =>
+        {
+            var source = new RecordingSource();
+            source.Folders.Add(new("imap.gmail-1.com", "INBOX", "wutianhao373737@gmail.com", "imap.gmail.com", 107.6, true));
+
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            Check(shell.Settings.EmailRetrieval.Mailboxes.Count == 2, "the mailbox groups did not build");
+
+            var target = shell.Settings.EmailRetrieval.Mailboxes.First(m => m.Mailbox == "wutianhao@student.usm.my");
+            target.OnlyCommand.Execute(null);
+            Pump();
+
+            Check(source.OnlyMailbox == "wutianhao@student.usm.my", $"only-mailbox did not reach the store: '{source.OnlyMailbox}'");
+            Check(shell.Settings.EmailRetrieval.Mailboxes.Count(m => m.Enabled) == 1,
+                "more than one mailbox stayed on");
+        });
+
         // ---- reasoning record list and thought trace (two independent entries) ----
         Test("reasoning_row_opens_the_record_list", (vm, _) =>
         {
@@ -1366,6 +1385,19 @@ internal sealed class RecordingSource : IShellDataSource
         return true;
     }
 
+    public string? OnlyMailbox { get; private set; }
+
+    public bool SetOnlyMailbox(string mailbox)
+    {
+        OnlyMailbox = mailbox;
+        for (var i = 0; i < Folders.Count; i++)
+        {
+            Folders[i] = Folders[i] with { Enabled = Folders[i].Mailbox == mailbox };
+        }
+
+        return true;
+    }
+
     public void RescanMail()
     {
     }
@@ -1475,6 +1507,8 @@ internal sealed class RefusingSource : IShellDataSource
     public IReadOnlyList<MailFolderInfo> MailFolders() => [];
 
     public bool SetMailFolderEnabled(string account, string folder, bool enabled) => false;
+
+    public bool SetOnlyMailbox(string mailbox) => false;
 
     public void RescanMail()
     {

@@ -73,6 +73,9 @@ public interface IShellDataSource
     /// <summary>Read this folder from now on (or stop reading it).</summary>
     bool SetMailFolderEnabled(string account, string folder, bool enabled);
 
+    /// <summary>Keep this mailbox and stop reading every other one.</summary>
+    bool SetOnlyMailbox(string mailbox);
+
     void RescanMail();
 
     IReadOnlyList<EmailAccountInfo> EmailAccounts();

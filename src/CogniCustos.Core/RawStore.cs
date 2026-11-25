@@ -188,6 +188,53 @@ public sealed class SqliteRawStore : IRawStore
         return Get(id);
     }
 
+    public bool WasIngested(string key)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM ingested_messages WHERE key = $k LIMIT 1;";
+        cmd.Parameters.AddWithValue("$k", key);
+        return cmd.ExecuteScalar() is not null;
+    }
+
+    public void MarkIngested(string key, string source)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO ingested_messages (key, source, ingested_at)
+            VALUES ($k, $s, $t)
+            ON CONFLICT(key) DO NOTHING;
+            """;
+        cmd.Parameters.AddWithValue("$k", key);
+        cmd.Parameters.AddWithValue("$s", source);
+        cmd.Parameters.AddWithValue("$t", DateTimeOffset.Now.ToString("O"));
+        cmd.ExecuteNonQuery();
+    }
+
+    public void SetLabel(string id, string label)
+    {
+        if (!int.TryParse(id, out var key)) return;
+
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE raw_artifacts SET label = $l WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$l", label);
+        cmd.Parameters.AddWithValue("$id", key);
+        cmd.ExecuteNonQuery();
+    }
+
+    public string? GetLabel(string id)
+    {
+        if (!int.TryParse(id, out var key)) return null;
+
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT label FROM raw_artifacts WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$id", key);
+        return cmd.ExecuteScalar() as string;
+    }
+
     public RawArtifact? Get(string id) => int.TryParse(id, out var key) ? Read(Open(), key) : null;
 
     public IReadOnlyList<RawArtifact> List(int limit = 20)

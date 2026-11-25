@@ -14,7 +14,7 @@ namespace CogniCustos.Core;
 public static class SqliteSchema
 {
     /// <summary>Bump this and add a step below; never edit a released step.</summary>
-    public const int Version = 5;
+    public const int Version = 7;
 
     public static void EnsureUpgraded(SqliteConnection conn)
     {
@@ -32,9 +32,34 @@ public static class SqliteSchema
         if (version < 3) Step3RawAndSandbox(conn);
         if (version < 4) Step4Proposals(conn);
         if (version < 5) Step5Visibility(conn);
+        if (version < 6) Step6IngestLedger(conn);
+        if (version < 7) Step7Label(conn);
 
         Exec(conn, $"PRAGMA user_version = {Version};");
         tx.Commit();
+    }
+
+    /// <summary>
+    /// One row per message ever read, keyed by its Message-ID: the daily fetch can run
+    /// twice and the same mail will not be ingested twice (docs §6.5: raw keeps what
+    /// arrived, but arriving again is not new).
+    /// </summary>
+    private static void Step6IngestLedger(SqliteConnection conn) => Exec(conn, """
+        CREATE TABLE IF NOT EXISTS ingested_messages (
+            key          TEXT PRIMARY KEY,
+            source       TEXT NOT NULL,
+            ingested_at  TEXT NOT NULL
+        );
+        """);
+
+    /// <summary>
+    /// A first-pass label on raw material ("important" / "routine" / "promo"). It is what
+    /// decides whether an item gets a finer summary and a proposal at all.
+    /// </summary>
+    private static void Step7Label(SqliteConnection conn)
+    {
+        if (!Columns(conn, "raw_artifacts").Contains("label"))
+            Exec(conn, "ALTER TABLE raw_artifacts ADD COLUMN label TEXT;");
     }
 
     public static int UserVersion(SqliteConnection conn)

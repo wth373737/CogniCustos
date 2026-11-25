@@ -334,6 +334,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.Model.SetGpuState(_source.GpuEnabled(), string.Empty);
 
         Settings.EmailRetrieval.SetMailFolders(_source.MailFolders());
+        Settings.EmailRetrieval.BuildMailboxes();
 
         var thunderbird = _source.ThunderbirdMail();
         Settings.EmailRetrieval.SetThunderbirdStatus(thunderbird.Status, thunderbird.Available, thunderbird.Enabled);
@@ -494,8 +495,33 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     private void ToggleMailFolder(string account, string folder, bool enabled)
     {
         _source.SetMailFolderEnabled(account, folder, enabled);
-        Settings.EmailRetrieval.SetMailFolders(_source.MailFolders());
+        RefreshMailFolders();
         SetToast($"{account} / {folder}：" + (enabled ? "会读取" : "不读取"));
+    }
+
+    /// <summary>A mailbox switch: every folder of that mailbox follows it.</summary>
+    private void ToggleMailbox(string mailbox, bool enabled)
+    {
+        foreach (var folder in Settings.EmailRetrieval.MailFolders.Where(f => f.Mailbox == mailbox))
+        {
+            _source.SetMailFolderEnabled(folder.Account, folder.Folder, enabled);
+        }
+
+        RefreshMailFolders();
+        SetToast($"{mailbox}：" + (enabled ? "会读取" : "不读取"));
+    }
+
+    private void OnlyMailbox(string mailbox)
+    {
+        _source.SetOnlyMailbox(mailbox);
+        RefreshMailFolders();
+        SetToast($"只读取 {mailbox}");
+    }
+
+    private void RefreshMailFolders()
+    {
+        Settings.EmailRetrieval.SetMailFolders(_source.MailFolders());
+        Settings.EmailRetrieval.BuildMailboxes();
     }
 
     private void RefreshEmailAccounts() =>
@@ -581,6 +607,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.EmailRetrieval.RescanRequested += RefreshThunderbird;
         Settings.EmailRetrieval.UseThunderbirdRequested += ToggleThunderbird;
         Settings.EmailRetrieval.MailFolderToggleRequested += ToggleMailFolder;
+        Settings.EmailRetrieval.MailboxToggleRequested += ToggleMailbox;
+        Settings.EmailRetrieval.OnlyMailboxRequested += OnlyMailbox;
         Settings.WebBrowsing.AddRequested += AddWebSource;
         Settings.WebBrowsing.RemoveRequested += RemoveWebSource;
     }

@@ -132,6 +132,10 @@
 
   <x:String x:Key="Settings.Email.Folders">要读取的邮箱</x:String>
 
+  <x:String x:Key="Settings.Email.OnlyThis">只读这个</x:String>
+
+  <x:String x:Key="Settings.Email.FolderUnit">个文件夹</x:String>
+
   <!--
     简体中文 UI 文案。键必须与 Lang.en.axaml 完全一致（测试会逐键比对）。
     翻译方式：复制本文件为 Lang.<culture>.axaml，只改值、不改键。

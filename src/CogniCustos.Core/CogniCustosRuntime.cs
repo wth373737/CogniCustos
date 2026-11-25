@@ -114,6 +114,21 @@ public sealed class CogniCustosRuntime
         return true;
     }
 
+    /// <summary>"只读这个邮箱": mute every folder that does not belong to it.</summary>
+    public bool SetOnlyMailbox(string mailbox)
+    {
+        var settings = SettingsStore.Load(SettingsPath);
+        var muted = MailFolders
+            .Where(f => !string.Equals(f.Label, mailbox, StringComparison.OrdinalIgnoreCase))
+            .Select(f => $"{f.Account}/{f.Folder}")
+            .Distinct()
+            .ToList();
+
+        SettingsStore.Save(SettingsPath, settings with { MutedMailFolders = muted });
+        Poller.UseSources(BuildSources(SettingsPath, MailSource));
+        return true;
+    }
+
     /// <summary>All discovered folders (the source asks this, then drops the muted ones).</summary>
     private static IEnumerable<ThunderbirdFolder> Candidates(ThunderbirdMailSource source, string settingsPath) =>
         source.Folders();

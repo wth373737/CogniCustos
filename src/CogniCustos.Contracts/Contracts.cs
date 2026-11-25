@@ -206,6 +206,18 @@ public interface IRawStore
 
     /// <summary>Raised after a background summary replaced the deterministic one.</summary>
     event Action<RawArtifact>? SummaryUpdated;
+
+    /// <summary>Has this message key been ingested before (so a daily run can skip it)?</summary>
+    bool WasIngested(string key);
+
+    /// <summary>Remember a message key; called right after its content is stored.</summary>
+    void MarkIngested(string key, string source);
+
+    /// <summary>First-pass label on a raw item (important / routine / promo).</summary>
+    void SetLabel(string id, string label);
+
+    /// <summary>What the label says, or null when it was never set.</summary>
+    string? GetLabel(string id);
 }
 
 public sealed record KnowledgeHit(string Source, string Snippet, double Score);

@@ -168,22 +168,39 @@
                              Foreground="#FF6D7C79" Margin="0,4,0,0"
                              IsVisible="{Binding Settings.EmailRetrieval.HasMailFolders}" />
 
-                  <ItemsControl ItemsSource="{Binding Settings.EmailRetrieval.MailFolders}">
+                  <ItemsControl ItemsSource="{Binding Settings.EmailRetrieval.Mailboxes}">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
-                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2,0,0">
-                          <CheckBox Grid.Column="0" IsChecked="{Binding Enabled, Mode=TwoWay}"
-                                    VerticalAlignment="Center" />
-                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Display}" FontSize="12.5"
-                                       Foreground="#FF2B2B32" />
-                            <TextBlock Text="{Binding DirectoryNote}" FontSize="10.5"
-                                       Foreground="#FF93A29F"
-                                       IsVisible="{Binding HasDirectoryNote}" />
-                          </StackPanel>
-                          <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="11.5"
-                                     Foreground="#FF93A29F" VerticalAlignment="Center" />
-                        </Grid>
+                        <StackPanel Margin="0,4,0,0">
+                          <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                            <CheckBox Grid.Column="0" IsChecked="{Binding Enabled, Mode=TwoWay}"
+                                      VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                              <TextBlock Text="{Binding Mailbox}" FontSize="12.5" Foreground="#FF2B2B32" />
+                              <TextBlock Text="{Binding FolderSummary}" FontSize="10.5" Foreground="#FF93A29F" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="{Binding Server}" FontSize="10.5"
+                                       Foreground="#FF93A29F" VerticalAlignment="Center" />
+                            <Button Grid.Column="3" Classes="chipGhost"
+                                    Content="{DynamicResource Settings.Email.OnlyThis}"
+                                    Command="{Binding OnlyCommand}" />
+                          </Grid>
+
+                          <ItemsControl ItemsSource="{Binding Folders}" Margin="26,0,0,0">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,1,0,0">
+                                  <CheckBox Grid.Column="0" IsChecked="{Binding Enabled, Mode=TwoWay}"
+                                            VerticalAlignment="Center" />
+                                  <TextBlock Grid.Column="1" Text="{Binding Folder}" FontSize="11.5"
+                                             Foreground="#FF6D7C79" VerticalAlignment="Center" />
+                                  <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="10.5"
+                                             Foreground="#FF93A29F" VerticalAlignment="Center" />
+                                </Grid>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>

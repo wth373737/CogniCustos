@@ -1089,3 +1089,71 @@ dotnet run --project src/CogniCustos.Selftest -c Debug     # passed=86
 
 - 一个 Gmail 目录（`imap.gmail-2.com`，76 MB）在 prefs 里查不到归属，仍显示目录名。
 - 勾选/取消仍以 `目录/文件夹` 作为键（稳定），改显示名不会破坏已保存的选择。
+
+---
+
+## 2026-11-25 · MAIL-2 增量 + 只读某个邮箱 + 打标签/精细概括/进日历
+
+### 1. 增量：同一封邮件只入一次
+
+| 项 | 内容 |
+|---|---|
+| 台账 | 数据库 v6 新增 `ingested_messages(key, source, ingested_at)`，主键是消息标识 |
+| 标识 | 邮件用 `Message-ID`；没有就退回 `目录/文件夹 + 日期 + 主题`。网页用 `网址 + 长度 + 哈希`，收件夹用 `路径 + 修改时间` |
+| 行为 | 抓取时先 `WasIngested`，已读过的直接跳过（计入 `Skipped`），不再入原始区、不再生成提议 |
+| 提示 | 结果行会说明："没有新内容：55 条都读过了" / "抓到 3 条（跳过已读 52 条）" |
+
+实测同一份邮箱连跑两次：第一次 `抓到 55 条 … 1 个提议`，第二次 `没有新内容：55 条都读过了`。
+
+### 2. 只读某个邮箱
+
+界面把文件夹按**邮箱**分组（`wutianhao@student.usm.my` 这类地址），每个邮箱一行：总开关 + `只读这个` 按钮 + 服务器名；
+下面嵌套它自己的文件夹，可单独勾。`只读这个` 会把其它邮箱的所有文件夹写进 `MutedMailFolders`，下次抓取只读它。
+
+### 3. 打标签 → 精细概括 → 待确认 → 日历
+
+| 步 | 内容 |
+|---|---|
+| 标签 | 数据库 v7 给 `raw_artifacts` 加 `label`；抓取时先分类：`important` / `routine` / `promo`（促销词表命中即 promo） |
+| 精细概括 | 只有 `important` 继续：抽日期（`2027-04-08`）与时间（`09:30`、`9:00-10:30`、`上午 9 点`），生成一行摘要 |
+| 待确认 | 提议标题就是这行摘要，例如 `2027-04-08 · 09:30-10:30 · 考试：考试通知`；描述里写"重要邮件 · 考试 / 来源 / 正文前 240 字" |
+| 日历 | 确认后落库：任务进待办，日程块用抽到的时间（没有时间才用 09:00–10:00） |
+
+### 4. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/SqliteSchema.cs` | v6 台账表、v7 `label` 列 |
+| `src/CogniCustos.Contracts/Contracts.cs` | `WasIngested` / `MarkIngested` / `SetLabel` / `GetLabel` |
+| `src/CogniCustos.Core/RawStore.cs` | 四个方法 |
+| `src/CogniCustos.Core/InfoPoller.cs` | 去重、`Label()`、`FindTime()`、`Brief()`、跳过的计数与文案 |
+| `src/CogniCustos.Core/ThunderbirdMail.cs` | `Message-ID` 进 `FetchedItem.Key` |
+| `src/CogniCustos.Ui/ViewModels/RetrievalViewModels.cs` | `MailboxRow`（邮箱级开关 + 只读这个）、分组 |
+| `src/CogniCustos.Ui/ViewModels/{IShellDataSource,ShellViewModel,DemoShellDataSource}.cs`、`Views/SettingsPage.axaml`、`Lang.*` | 分组界面与事件 |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs`、`samples/.../RuntimeShellDataSource.cs` | `SetOnlyMailbox` |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 2 条（86 → 88） |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 1 条（67 → 68） |
+
+### 5. 怎么验证
+
+```bash
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --fetch-now   # 连跑两次看"没有新内容"
+dotnet run --project src/CogniCustos.Selftest -c Debug                           # passed=88
+dotnet run --project tools/CogniCustos.Ui.Tests -c Debug                         # ALL PASS（68）
+```
+
+断言覆盖：标签正确（考试=important、限时优惠=promo）、标题形如 `2027-04-08 · 09:30-10:30 · 考试：考试通知`、
+`只读这个` 只留一个邮箱、勾选状态直达后端。
+
+### 6. 以后要改哪里
+
+- **换标识**：`ThunderbirdMailSource` 里 `FetchedItem.Key`。
+- **标签规则**：`InfoKeywords.Label` 与 `Ignored` / `Defaults` 词表。
+- **时间抽取**：`InfoKeywords.FindTime`（支持 `9:00`、`9:00-10:30`、`上午 9 点`；暂不处理"下周三"）。
+- **"没有新内容"的判定**：`PollResult.Summary`。
+
+### 7. 已知未做
+
+- 标签还没有界面（只能从 `raw.list` / 数据库看）；"重要邮件"的模型精修仍待接（现在是确定性抽取）。
+- `Message-ID` 缺失时的退化键包含主题，主题改过的同一封邮件会被当成新的。
+- 时间只解析到分钟，不处理时区/跨天；"下周三 9 点"这类相对日期还不支持。

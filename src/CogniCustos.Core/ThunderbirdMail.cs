@@ -170,7 +170,7 @@ public static class ThunderbirdMail
     }
 
     /// <summary>The newest messages of one mbox, newest first.</summary>
-    public static IReadOnlyList<(string Subject, string From, DateTime Date, string Body)> ReadRecent(
+    public static IReadOnlyList<(string MessageId, string Subject, string From, DateTime Date, string Body)> ReadRecent(
         string mboxPath, int max = 20)
     {
         if (!File.Exists(mboxPath)) return [];
@@ -190,7 +190,7 @@ public static class ThunderbirdMail
             .Where(s => s.Trim().Length > 0)
             .ToList();
 
-        var messages = new List<(string Subject, string From, DateTime Date, string Body)>();
+        var messages = new List<(string MessageId, string Subject, string From, DateTime Date, string Body)>();
         foreach (var segment in segments)
         {
             var headerEnd = segment.IndexOf("\n\n", StringComparison.Ordinal);
@@ -203,7 +203,8 @@ public static class ThunderbirdMail
             var from = DecodeHeader(Header(headers, "From") ?? "");
             var date = ParseDate(Header(headers, "Date") ?? Header(headers, "Received"));
 
-            messages.Add((subject, from, date, ReadableBody(headers, body)));
+            var messageId = (Header(headers, "Message-ID") ?? "").Trim().Trim('<', '>');
+            messages.Add((messageId, subject, from, date, ReadableBody(headers, body)));
         }
 
         return messages
@@ -466,8 +467,14 @@ public sealed class ThunderbirdMailSource : IInfoSource
 
             foreach (var message in ThunderbirdMail.ReadRecent(folder.Path, _perFolder))
             {
+                // Message-ID is the natural identity; without one, the folder + date +
+                // subject still separates two different mails well enough
+                var key = message.MessageId.Length > 0
+                    ? "mail:" + message.MessageId
+                    : $"mail:{folder.Account}/{folder.Folder}|{message.Date:O}|{message.Subject}";
+
                 items.Add(new FetchedItem("email", $"Thunderbird · {folder.Label}/{folder.Folder}",
-                    message.Subject, message.Body));
+                    message.Subject, message.Body, null, key));
             }
         }
 
