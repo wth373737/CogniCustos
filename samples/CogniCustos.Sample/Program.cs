@@ -7,6 +7,11 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Contains("--fetch-now"))
+        {
+            return FetchNow.RunAsync().GetAwaiter().GetResult();
+        }
+
         if (args.Contains("--model-check"))
         {
             return ModelCheck.RunAsync(args.Contains("--gpu")).GetAwaiter().GetResult();

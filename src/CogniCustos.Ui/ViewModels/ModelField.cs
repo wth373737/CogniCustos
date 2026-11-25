@@ -60,6 +60,9 @@ public sealed class ModelField : ObservableObject
         IsEditing = true;
     }
 
+    /// <summary>Raised after a value was committed (Enter or losing focus).</summary>
+    public event Action? Committed;
+
     public void Commit()
     {
         if (!IsEditing) return;
@@ -68,6 +71,17 @@ public sealed class ModelField : ObservableObject
         if (text.Length > 0) _value = text;
 
         IsEditing = false;
+        Committed?.Invoke();
+        OnPropertyChanged(nameof(Value));
+        OnPropertyChanged(nameof(DisplayValue));
+    }
+
+    /// <summary>Set the value without touching the editing state (used when seeding).</summary>
+    public void SetValue(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        _value = value.Trim();
+        _editText = _value;
         OnPropertyChanged(nameof(Value));
         OnPropertyChanged(nameof(DisplayValue));
     }

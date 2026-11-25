@@ -47,6 +47,12 @@ public interface IShellDataSource
     /// <summary>Switch to the bundled model. Null on success, else the reason.</summary>
     string? SwitchToBuiltIn();
 
+    /// <summary>What the primary-model fields should show: model, base URL, key present.</summary>
+    (string Model, string Url, bool Configured) CloudSettings();
+
+    /// <summary>Save and apply the primary model. Null on success, else the reason.</summary>
+    string? SaveCloud(string model, string url, string apiKey);
+
     /// <summary>Is the bundled model running on the GPU?</summary>
     bool GpuEnabled();
 

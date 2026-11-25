@@ -160,6 +160,18 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         return ok ? null : message;
     }
 
+    public (string Model, string Url, bool Configured) CloudSettings()
+    {
+        var cloud = _rt.CloudModels;
+        return (cloud.Model, cloud.BaseUrl, cloud.IsConfigured);
+    }
+
+    public string? SaveCloud(string model, string url, string apiKey)
+    {
+        var (ok, message) = _rt.CloudModels.UseCloud(model, url, apiKey);
+        return ok ? null : message;
+    }
+
     public bool GpuEnabled() => _rt.LocalModels.UseGpu;
 
     public string? SetGpu(bool enabled)

@@ -638,6 +638,22 @@ internal static class Program
             Check(shell.Settings.Model.GpuStateLabel.Length > 0, "the row lost its state label");
         });
 
+        Test("committing_a_primary_field_saves_the_model", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Settings.Model.ModelName.BeginEditCommand.Execute(null);
+            Pump();
+            shell.Settings.Model.ModelName.EditText = "qwen3-max";
+            shell.Settings.Model.ModelName.Commit();
+            Pump();
+
+            Check(source.CloudModel == "qwen3-max", $"the commit did not reach the store: '{source.CloudModel}'");
+            Check(shell.Settings.Model.CloudStatus.Length > 0, "the status line stayed empty");
+        });
+
         // ---- reasoning record list and thought trace (two independent entries) ----
         Test("reasoning_row_opens_the_record_list", (vm, _) =>
         {
@@ -1228,6 +1244,19 @@ internal sealed class RecordingSource : IShellDataSource
 
     public bool Gpu { get; private set; }
 
+    public (string Model, string Url, bool Configured) CloudSettings() =>
+        (CloudModel ?? "deepseek-flash", CloudUrl ?? "https://api.deepseek.com", CloudModel is not null);
+
+    public string? CloudModel { get; private set; }
+    public string? CloudUrl { get; private set; }
+
+    public string? SaveCloud(string model, string url, string apiKey)
+    {
+        CloudModel = model;
+        CloudUrl = url;
+        return null;
+    }
+
     public bool GpuEnabled() => Gpu;
 
     public string? SetGpu(bool enabled)
@@ -1286,4 +1315,8 @@ internal sealed class RefusingSource : IShellDataSource
     public bool GpuEnabled() => false;
 
     public string? SetGpu(bool enabled) => "gpu refused";
+
+    public (string Model, string Url, bool Configured) CloudSettings() => ("", "", false);
+
+    public string? SaveCloud(string model, string url, string apiKey) => "cloud refused";
 }

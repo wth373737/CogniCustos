@@ -332,6 +332,12 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.RefreshTitles();
         Settings.Model.SetLocalStatus(_source.LocalModelStatus());
         Settings.Model.SetGpuState(_source.GpuEnabled(), string.Empty);
+
+        var cloud = _source.CloudSettings();
+        Settings.Model.SetCloudValues(cloud.Model, cloud.Url, cloud.Configured);
+        Settings.Model.SetCloudStatus(cloud.Configured
+            ? Localizer.Get("Settings.Model.CloudSaved") + " " + cloud.Model
+            : Localizer.Get("Settings.Model.CloudNotConfigured"));
         Calendar.RefreshText();
         Dialog.RefreshText(BuildDialogButtons);
         Reasoning.RefreshText();
@@ -413,6 +419,24 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     /// Hardware acceleration: the store owns the flag; the row only shows it. Switching it
     /// re-registers the provider, so it takes effect on the next model call.
     /// </summary>
+    /// <summary>
+    /// The primary model: saving it registers the provider immediately, so the next answer
+    /// comes from the endpoint the fields describe.
+    /// </summary>
+    private void SaveCloud(string model, string url, string apiKey)
+    {
+        if (_source.SaveCloud(model, url, apiKey) is { } failure)
+        {
+            SetToast(failure);
+            return;
+        }
+
+        Settings.Model.SetCloudStatus(_source.CloudSettings().Configured
+            ? Localizer.Get("Settings.Model.CloudSaved") + " " + model
+            : Localizer.Get("Settings.Model.CloudNotConfigured"));
+        SetToast(Localizer.Get("Settings.Model.CloudSavedShort"));
+    }
+
     private void ToggleGpu(bool enabled)
     {
         if (_source.SetGpu(enabled) is { } failure)
@@ -448,6 +472,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.Model.DeleteRequested += AskRemoveLocalModel;
         Settings.Model.OllamaEnableRequested += EnableOllama;
         Settings.Model.GpuToggleRequested += ToggleGpu;
+        Settings.Model.CloudSaveRequested += SaveCloud;
     }
 
     private void SetToast(string text)

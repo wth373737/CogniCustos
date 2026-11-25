@@ -67,6 +67,11 @@ public sealed class DemoShellDataSource : IShellDataSource
 
     public string? SwitchToBuiltIn() => null;
 
+    public (string Model, string Url, bool Configured) CloudSettings() =>
+        ("deepseek-flash", "https://api.deepseek.com", true);
+
+    public string? SaveCloud(string model, string url, string apiKey) => null;
+
     public bool GpuEnabled() => false;
 
     public string? SetGpu(bool enabled) => null;

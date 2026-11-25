@@ -31,6 +31,12 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         EnableOllamaCommand = new RelayCommand(() => OllamaEnableRequested?.Invoke(OllamaModelText.Trim()));
         ToggleGpuCommand = new RelayCommand(() => GpuToggleRequested?.Invoke(!GpuOn));
 
+        // the three primary-model fields save when a value is committed
+        foreach (var field in new[] { ModelName, Url, ApiKey })
+        {
+            field.Committed += () => CloudSaveRequested?.Invoke(ModelName.Value, Url.Value, ApiKey.Value);
+        }
+
         ToggleAdvancedCommand = new RelayCommand(() =>
         {
             AdvancedOpen = !AdvancedOpen;
@@ -57,6 +63,30 @@ public sealed class ModelConfigurationViewModel : ObservableObject
 
     /// <summary>Raised when the hardware-acceleration switch is flipped.</summary>
     public event Action<bool>? GpuToggleRequested;
+
+    /// <summary>Raised when one of the primary-model fields is committed.</summary>
+    public event Action<string, string, string>? CloudSaveRequested;
+
+    private string _cloudStatus = string.Empty;
+
+    /// <summary>Under the three fields: what is saved and in effect.</summary>
+    public string CloudStatus
+    {
+        get => _cloudStatus;
+        private set => Set(ref _cloudStatus, value);
+    }
+
+    public bool HasCloudStatus => _cloudStatus.Length > 0;
+
+    public void SetCloudStatus(string status) => CloudStatus = status;
+
+    /// <summary>Seed the fields from what is already saved.</summary>
+    public void SetCloudValues(string model, string url, bool configured)
+    {
+        if (!string.IsNullOrWhiteSpace(model)) ModelName.SetValue(model);
+        if (!string.IsNullOrWhiteSpace(url)) Url.SetValue(url);
+        if (configured) ApiKey.SetValue("••••••");
+    }
 
     public RelayCommand ToggleGpuCommand { get; }
 

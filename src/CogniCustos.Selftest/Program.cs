@@ -948,6 +948,77 @@ internal static class Program
             return stored.SummaryKind == "fallback" && stored.Summary.Length > 0;
         });
 
+        // ---------- the daily fetch: raw first, proposals next, main DB on confirmation ----------
+
+        await Check("fetch: keyword hits become proposals, everything lands in the raw zone", async () =>
+        {
+            var inbox = Path.Combine(root, "inbox");
+            Directory.CreateDirectory(inbox);
+            File.WriteAllText(Path.Combine(inbox, "exam.txt"),
+                "教务通知\n关于 2027 年 4 月 6 日 至 4 月 10 日 考试安排的通知：考试周期间停课。");
+
+            var settingsPath = Path.Combine(root, "state", "settings.json");
+            var settings = SettingsStore.Load(settingsPath);
+            SettingsStore.Save(settingsPath, settings with { InboxPath = inbox });
+
+            var rawBefore = rt.Raw.List(100).Count;
+            var poller = new InfoPoller(rt.Raw, rt.Gate,
+                new IInfoSource[] { new InboxInfoSource(inbox) }, settingsPath);
+
+            var result = await poller.RunAsync(DateTime.Today);
+
+            var rawAfter = rt.Raw.List(100).Count;
+            Console.WriteLine($"      fetch: {result.Summary} raw {rawBefore}->{rawAfter} titles=[{string.Join(",", result.Titles)}]");
+            return result.Fetched >= 1
+                   && result.Important >= 1
+                   && result.ProposalIds.Count >= 1
+                   && rawAfter > rawBefore
+                   && result.Titles.Count == 1;
+        });
+
+        await Check("fetch: confirming a fetched proposal puts it on the plan and the calendar", async () =>
+        {
+            var inbox = Path.Combine(root, "inbox");
+            var settingsPath = Path.Combine(root, "state", "settings.json");
+            var poller = new InfoPoller(rt.Raw, rt.Gate,
+                new IInfoSource[] { new InboxInfoSource(inbox) }, settingsPath);
+
+            // make it due again: the previous assertion marked today as done
+            poller.MarkRan(DateTime.Today.AddDays(-1));
+
+            var result = await poller.RunAsync(DateTime.Today);
+            Console.WriteLine($"      confirm: {result.Summary}");
+            if (result.ProposalIds.Count == 0) return false;
+
+            var approval = rt.Gate.Approve(result.ProposalIds[0]);
+            Console.WriteLine($"      approve: ok={approval.Ok} {approval.Content}");
+            if (!approval.Ok) return false;
+
+            var tasks = rt.Tasks.ListAsync().Result;
+            var added = tasks.FirstOrDefault(t => t.Title.Contains("教务通知"));
+            var blocks = rt.Schedule.ListRangeAsync("2027-04-06", "2027-04-06").Result;
+
+            Console.WriteLine($"      plan: task={added?.Title} due={added?.Due} blocks={blocks.Count}");
+            return added is not null
+                   && added.Due == "2027-04-06"
+                   && blocks.Count > 0;
+        });
+
+        await Check("fetch: the daily gate runs at most once per day", async () =>
+        {
+            var settingsPath = Path.Combine(root, "state", "settings.json");
+            var poller = new InfoPoller(rt.Raw, rt.Gate,
+                new IInfoSource[] { new InboxInfoSource(Path.Combine(root, "inbox")) }, settingsPath);
+
+            poller.MarkRan(DateTime.Today.AddDays(-1));
+            var dueAfterYesterday = poller.IsDue(DateTime.Today);
+
+            await poller.RunAsync(DateTime.Today);
+            var dueAgain = poller.IsDue(DateTime.Today);
+
+            return dueAfterYesterday && !dueAgain;
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

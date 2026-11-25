@@ -60,6 +60,7 @@ public sealed class MainWindow : Window
         TryWireOllama();
         TryWireCloud();
         _rt.AddTool(new PortalSidecarTool(_settings.PortalSidecarUrl, _rt.Raw));
+        _rt.CloudModels.SetFactory((url, model, key) => new OpenAiCompatibleProvider(url, model, key));
         _rt.LocalModels.BuiltInFactory = (path, gpu) =>
             new LlamaModelProvider(path, gpuLayers: gpu ? 99 : 0, preferVulkan: gpu);
 

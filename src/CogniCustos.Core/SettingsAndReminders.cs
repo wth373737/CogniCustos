@@ -15,6 +15,15 @@ public sealed record AppSettings
     /// <summary>Run the bundled model on the GPU (Vulkan) instead of the CPU.</summary>
     public bool UseGpu { get; init; }
 
+    /// <summary>Pages the daily poll reads (empty = nothing to fetch from the web).</summary>
+    public System.Collections.Generic.List<string>? WebSources { get; init; }
+
+    /// <summary>Folder of one-file-per-message inbox items (empty = no mail source).</summary>
+    public string? InboxPath { get; init; }
+
+    /// <summary>yyyy-MM-dd of the last automatic poll, so it runs at most once a day.</summary>
+    public string? LastFetchDate { get; init; }
+
     /// <summary>Fixed by design: the Ollama path is the advanced, pre-filled option.</summary>
     public string OllamaBaseUrl { get; init; } = "http://127.0.0.1:11434";
     public string OllamaModel { get; init; } = "qwen2.5:7b";

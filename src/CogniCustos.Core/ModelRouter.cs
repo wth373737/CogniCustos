@@ -15,6 +15,9 @@ public sealed class ModelRouter : IModelRouter
 
     public void Add(IModelProvider provider) => _providers.Add(provider);
 
+    /// <summary>Register at highest priority (a configured cloud model outranks local ones).</summary>
+    public void AddFirst(IModelProvider provider) => _providers.Insert(0, provider);
+
     /// <summary>Replace every provider of one role (switching local model source).</summary>
     public void ReplaceRole(ModelRole role, IModelProvider? provider)
     {

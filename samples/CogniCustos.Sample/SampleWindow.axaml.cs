@@ -19,9 +19,25 @@ public sealed partial class SampleWindow : Window
         Directory.CreateDirectory(root);
 
         var runtime = CogniCustosRuntime.Create(root);
+        runtime.CloudModels.SetFactory((url, model, key) =>
+            new CogniCustos.Adapters.OpenAiCompatibleProvider(url, model, key));
         runtime.LocalModels.BuiltInFactory = (path, gpu) =>
             new CogniCustos.Adapters.LlamaModelProvider(path, gpuLayers: gpu ? 99 : 0, preferVulkan: gpu);
         _source = new RuntimeShellDataSource(runtime);
+
+        // today's fetch runs before the shell is built, so freshly proposed items are
+        // already on the incoming card when the window opens
+        if (runtime.Poller.IsDue(DateTime.Today))
+        {
+            try
+            {
+                runtime.Poller.RunAsync(DateTime.Today).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // a failing source must not stop the app from opening
+            }
+        }
 
         DataContext = new ShellViewModel(_source);
         Title = $"CogniCustos — Sample · {_source.DataRoot}";

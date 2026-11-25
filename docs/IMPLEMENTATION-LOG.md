@@ -748,3 +748,80 @@ samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --model-check
 
 - 队列没有持久化：进程退出时未完成的摘要会丢（行里留的是降级摘要，可接受）。
 - 没有"重新生成摘要"的入口。
+
+---
+
+## 2026-11-25 · API-1 主推理模型真配置 + 每日抓取
+
+### 1. 主推理模型（模型名 / 地址 / Key 真的生效）
+
+| 项 | 内容 |
+|---|---|
+| 保存 | 三个字段提交（Enter 或失焦）时，`ModelField.Committed` → `CloudSaveRequested` → `CloudModelService.UseCloud`：校验（模型名必填、地址必须是 http(s) 绝对地址）→ 落盘 `CloudModel/CloudBaseUrl/CloudApiKey` → **注册 provider**。 |
+| 生效顺序 | 云端 provider 用 `ModelRouter.AddFirst` 排在最前：配了就用云端，没配才轮到内置/Ollama，都没有则 standby。 |
+| 切到本地 | 切内置模型或 Ollama 时只 `Unregister`（把云端 provider 摘掉），**不删配置**——字段里的值还在，切回来即用。 |
+| 状态行 | 三个字段下面显示"已保存并生效 <模型>"或"未配置：由本地模型回答"。 |
+| 不泄漏 | `KeyHint` 只说"已填写"，任何地方都不回显 Key。 |
+
+### 2. 每日抓取（关键词 → 原始区 → 提议 → 确认后进主库）
+
+| 项 | 内容 |
+|---|---|
+| 来源 | `WebInfoSource`（配置的网址，HTML 去标签取正文与 `<title>`）+ `InboxInfoSource`（一个文件夹，一文件一封"邮件"）。两者都实现 `IInfoSource`，IMAP 以后照这个接口加即可。 |
+| 关键词 | `InfoKeywords`：考试/作业/截止/deadline/缴费/注册/选课/成绩/放假/会议/讲座/调课/重要/通知/变更，可替换。命中才算"重要变化"。 |
+| 日期 | 支持 `2027-04-06`、`4月6日`、`2027/4/6`；**`4月6日` 写在 11 月会被推到明年**（不然就成了过去的日期）。 |
+| 流程 | 每条都 `raw.Put`（原始区，R1 概括）→ 命中关键词的生成变更集：`tasks.add`（标题/截止）＋ 有日期时 `schedule.add`（那天 9:00–10:00），走审批门成为**待确认提议**。 |
+| 每日一次 | `LastFetchDate` 落盘；`InfoPoller.IsDue` / `MarkRan`；启动时 `rt.RunDailyFetchAsync()` 只在没跑过的当天跑。 |
+| 确认之后 | `Gate.Approve` 落库 → 任务出现在**当日提醒顶栏**（`Today()` 读 `Tasks` 里未完成、按截止排序），日程块出现在**日历**（`CalendarCard` 读 `Schedule`）。 |
+| 手动跑 | `CogniCustos.Sample.exe --fetch-now`：打印来源数、抓到几条、生成了哪些待确认提议。 |
+
+### 3. 实测
+
+```
+result : 抓到 1 条，其中 1 条像重要变化，已生成 1 个待确认提议
+  · 教务通知
+  → #p1795581300913-0a47 抓取：教务通知（待确认）
+```
+
+断言里确认后：`plan: task=教务通知 due=2027-04-06 blocks=1`——任务进了待办、日程进了 4 月 6 日那一天。
+
+### 4. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/CloudModelService.cs` | **新增**（含 `SetFactory`、`Unregister`、`ClearCloud`） |
+| `src/CogniCustos.Core/InfoPoller.cs` | **新增**（来源、关键词、日期、poller） |
+| `src/CogniCustos.Core/ModelRouter.cs` | `AddFirst` |
+| `src/CogniCustos.Core/SettingsAndReminders.cs` | `WebSources` / `InboxPath` / `LastFetchDate` |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | `CloudModels`、`Poller`、`RunDailyFetchAsync`；切本地时摘掉云端 |
+| `src/CogniCustos.Ui/ViewModels/ModelField.cs` | `Committed` 事件、`SetValue` |
+| `src/CogniCustos.Ui/ViewModels/ModelConfigurationViewModel.cs` | `CloudStatus`、`SetCloudValues`、`SetCloudStatus` |
+| `src/CogniCustos.Ui/ViewModels/{IShellDataSource,DemoShellDataSource,ShellViewModel}.cs` | 保存接缝与状态行 |
+| `src/CogniCustos.Ui/Views/SettingsPage.axaml` + Lang.* | 状态行 |
+| `samples/CogniCustos.Sample/{SampleWindow,FetchNow,Program}.cs` | 启动时抓取、`--fetch-now` |
+| `src/CogniCustos.Desktop/MainWindow.cs` | 注入真实 HTTP provider 工厂 |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 3 条（75 → 78） |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 1 条（62 → 63） |
+
+### 5. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug     # passed=78
+dotnet run --project tools/CogniCustos.Ui.Tests -c Debug   # ALL PASS（63）
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --fetch-now
+```
+
+### 6. 以后要改哪里
+
+- **抓取来源**：改 `state/settings.json` 里的 `WebSources`（网址数组）与 `InboxPath`（文件夹）；界面上的"邮件抓取配置/网页浏览配置"两节仍是占位。
+- **关键词**：`InfoKeywords.Defaults`，或构造时传入自己的词表。
+- **换成 IMAP**：实现 `IInfoSource`（`Kind = "email"`），在 `InfoSources.From` 里加进去即可，其余流程不动。
+- **抓取频率**：`IsDue` 现在按天；要改成每小时就把 `LastFetchDate` 换成时间戳。
+- **提议落点**：`InfoPoller.RunAsync` 里构造 `Change` 的两行——现在是"任务 + 日程"，要加"写入知识库"就在那里加一个 `kb.index`。
+- **API 配置**：`CloudModelService.UseCloud`；调试时可以把 `CloudBaseUrl` 指向本地 llama.cpp server。
+
+### 7. 已知未做
+
+- 抓取没有"订阅项"的界面（只有 settings.json），也没有增量判断（同一个页面每次都会重新入原始区；靠内容哈希去重）。
+- 邮件只支持"一文件一封"的文件夹，没有 IMAP 登录与未读标记。
+- 提议的"时间"是固定 9:00–10:00，没有从正文里抽时间段。

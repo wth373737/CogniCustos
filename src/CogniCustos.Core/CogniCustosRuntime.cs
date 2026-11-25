@@ -48,12 +48,38 @@ public sealed class CogniCustosRuntime
     /// <summary>Bundled local model ⇄ the user's Ollama; choosing Ollama frees the bundled model.</summary>
     public LocalModelService LocalModels { get; private init; } = null!;
 
+    /// <summary>The primary inference model from the settings page (OpenAI-compatible).</summary>
+    public CloudModelService CloudModels { get; private init; } = null!;
+
+    /// <summary>
+    /// Startup entry point: run today's fetch if it has not run yet. Silent about the
+    /// reasons a source may be unconfigured; the result says what happened.
+    /// </summary>
+    public async Task<PollResult?> RunDailyFetchAsync(DateTime? today = null,
+        CancellationToken ct = default)
+    {
+        var day = today ?? DateTime.Today;
+        if (!Poller.IsDue(day)) return null;
+
+        return await Poller.RunAsync(day, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The daily "look for changes" job: fetch, keep everything in the raw zone, turn
+    /// keyword hits into proposals. Nothing reaches the main database without confirmation.
+    /// </summary>
+    public InfoPoller Poller { get; private init; } = null!;
+
     /// <summary>
     /// Switch to the bundled model and, when it is actually registered, let the raw store
     /// use it for R1 summaries (docs/PARTITION-MODEL.md §6.9: fall back when absent).
     /// </summary>
     public (bool Ok, string Message) SwitchToBuiltIn()
     {
+        // an explicitly chosen local model takes over from the cloud one; the saved
+        // cloud configuration is kept so the user can switch back
+        CloudModels.Unregister();
+
         var (ok, message) = LocalModels.UseBuiltIn();
         if (!ok) return (ok, message);
 
@@ -81,6 +107,8 @@ public sealed class CogniCustosRuntime
     {
         var (ok, message) = LocalModels.UseOllama(model);
         if (!ok) return (ok, message);
+
+        CloudModels.Unregister();
 
         Raw.BackgroundSummaries = false;
         Raw.Summarizer = null;
@@ -116,6 +144,9 @@ public sealed class CogniCustosRuntime
         var registry = new ToolRegistry();
         var models = new ModelRouter();
         var localModels = new LocalModelService(models, Path.Combine(state, "settings.json"), Path.Combine(root, "models"));
+        var cloudModels = new CloudModelService(models, Path.Combine(state, "settings.json"));
+        var settingsPath = Path.Combine(state, "settings.json");
+        var poller = new InfoPoller(raw, gate, InfoSources.From(SettingsStore.Load(settingsPath)), settingsPath);
         var selfDocs = new SelfDocs(appRoot ?? CogniCustos.Core.SelfDocs.ResolveAppRoot());
         var checker = new SensitiveContentChecker(models);
         var audit = new OutboundAudit(Path.Combine(state, "outbound-audit.jsonl"));
@@ -123,6 +154,8 @@ public sealed class CogniCustosRuntime
         var rt = new CogniCustosRuntime(root, sandbox, gate, tasks, schedule, raw, knowledge, registry, models, selfDocs, checker, audit)
         {
             LocalModels = localModels,
+            CloudModels = cloudModels,
+            Poller = poller,
         };
         if (log is not null) rt.Log += log;
 
