@@ -1018,3 +1018,74 @@ samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --fetch-now
 
 - 列表只能勾选已发现的文件夹；如果雷鸟后来新加账号，需要点一次 `重新扫描`。
 - 没有"只读最近 N 天"的按文件夹设置（全局 `perFolder = 20`）。
+
+---
+
+## 2026-11-25 · TB-ADDR 选到"具体邮箱"而不是服务器目录
+
+### 1. 问题
+
+之前列表显示的是雷鸟的**目录名**（`imap.gmail-1.com`、`outlook.office365-1.com`），用户看到的是服务器，
+不是"我的哪个邮箱"。同一个服务器上挂多个邮箱时，光看目录根本分不清。
+
+### 2. 做法：从 `prefs.js` 把目录还原成邮箱
+
+Thunderbird 的 prefs 里有三张表可以串起来：
+
+```
+mail.account.accountN.server      → serverK
+mail.account.accountN.identities  → idM
+mail.identity.idM.useremail       → 真实邮箱地址
+mail.server.serverK.hostname      → 服务器主机名
+```
+
+目录名的规则是：**同一主机名的第 n 个账号**得到 `host`、`host-1`、`host-2`…（后缀插在最后一个点之前，
+例如 `imap.gmail.com` → `imap.gmail-1.com`）。实现按主机名分组计数还原，不是按 server 编号。
+
+补充：账号没有身份时退回 `mail.server.*.userName`（它常常就是邮箱地址），仍拿不到就保留目录名——不编造。
+
+### 3. 真实数据实测（本机）
+
+```
+0209560@student.uow.edu.my / INBOX     (outlook.office365-1.com)  943.5 MB
+wutianhao@student.usm.my   / INBOX     (outlook.office365.com)    282.3 MB
+wutianhao373737@gmail.com  / INBOX     (imap.gmail-1.com)         107.6 MB
+imap.gmail-2.com           / INBOX     (imap.gmail-2.com)          76.6 MB   ← 见下
+18916954605@163.com        / INBOX     (imap.163-1.com)            0.4 MB
+wutianhao@student.usm.my   / Trash     (outlook.office365.com)       0 MB
+```
+
+可见的 5 个真实邮箱里 4 个识别成功。`imap.gmail-2.com` 对应的雷鸟账号在 prefs 里已经没有身份、也没有
+`userName`，所以显示目录名——**没有凭据就不猜**。界面上邮箱是主行，服务器目录作为灰色小字留作参考。
+
+### 4. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/ThunderbirdMail.cs` | `ParseAccounts(prefs.js)`、按主机名编号的 `DirectoryName`、`ThunderbirdFolder.Label/Address/Hostname` |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | `MailFolderViews()` 多带 `Mailbox` / `Server` |
+| `src/CogniCustos.Ui/ViewModels/IShellDataSource.cs` | `MailFolderInfo` 记录 |
+| `src/CogniCustos.Ui/ViewModels/RetrievalViewModels.cs` | 行显示邮箱、灰色服务器行、`DirectoryNote` |
+| `src/CogniCustos.Ui/Views/SettingsPage.axaml` | 两行布局 |
+| `samples/CogniCustos.Sample/MailPeek.cs` | 打印 `Label / Folder (dir)` |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 1 条（85 → 86） |
+
+### 5. 怎么验证
+
+```bash
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --mail-peek
+dotnet run --project src/CogniCustos.Selftest -c Debug     # passed=86
+```
+
+断言用合成 profile：两个账号同一主机 → 目录 `host` / `host-1`，标签分别是两个邮箱地址。
+
+### 6. 以后要改哪里
+
+- **还认不出的账号**：`ParseAccounts` 里加别的线索（例如 `mail.identity.*.smtpServer` 或 `mail.server.*.realuserName`）。
+- **显示层次**：`MailFolderRow.Display` / `DirectoryNote`。
+- **Local Folders**：它不是账号（`Mail/Local Folders`），目前直接显示目录名。
+
+### 7. 已知未做
+
+- 一个 Gmail 目录（`imap.gmail-2.com`，76 MB）在 prefs 里查不到归属，仍显示目录名。
+- 勾选/取消仍以 `目录/文件夹` 作为键（稳定），改显示名不会破坏已保存的选择。

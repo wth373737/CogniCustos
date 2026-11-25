@@ -8,6 +8,10 @@ namespace CogniCustos.Ui.ViewModels;
 /// <summary>One email account as the settings page sees it (address, server, scope).</summary>
 public sealed record EmailAccountInfo(string Address, string Host, int Port, int LookbackDays, bool UnreadOnly);
 
+/// <summary>One mailbox folder as the settings page shows it.</summary>
+public sealed record MailFolderInfo(string Account, string Folder, string Mailbox, string Server,
+    double Megabytes, bool Enabled);
+
 public interface IShellDataSource
 {
     IReadOnlyList<ReminderItem> Today();
@@ -64,7 +68,7 @@ public interface IShellDataSource
     bool SetUseThunderbird(bool enabled);
 
     /// <summary>Mailbox folders found in Thunderbird, with the on/off state.</summary>
-    IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled)> MailFolders();
+    IReadOnlyList<MailFolderInfo> MailFolders();
 
     /// <summary>Read this folder from now on (or stop reading it).</summary>
     bool SetMailFolderEnabled(string account, string folder, bool enabled);

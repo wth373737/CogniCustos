@@ -9,18 +9,33 @@ public sealed class MailFolderRow : ObservableObject
 {
     private bool _enabled;
 
-    public MailFolderRow(string account, string folder, double megabytes, bool enabled)
+    public MailFolderRow(string account, string folder, string mailbox, string server,
+        double megabytes, bool enabled)
     {
         Account = account;
         Folder = folder;
+        Mailbox = mailbox.Length > 0 ? mailbox : account;
+        Server = server;
         SizeText = megabytes >= 1 ? $"{megabytes:0.#} MB" : "< 1 MB";
         _enabled = enabled;
     }
 
     public string Account { get; }
     public string Folder { get; }
+
+    /// <summary>The real mailbox address (falls back to the directory name).</summary>
+    public string Mailbox { get; }
+
+    public string Server { get; }
     public string SizeText { get; }
-    public string Display => $"{Account} / {Folder}";
+
+    /// <summary>Mailbox + folder: what the person recognises.</summary>
+    public string Display => $"{Mailbox} / {Folder}";
+
+    /// <summary>The server directory, only when it says something the address does not.</summary>
+    public string DirectoryNote => Server == Mailbox || Server.Length == 0 ? string.Empty : Server;
+
+    public bool HasDirectoryNote => DirectoryNote.Length > 0;
 
     /// <summary>Flipping this reads or ignores the folder from the next fetch on.</summary>
     public bool Enabled
@@ -162,12 +177,13 @@ public sealed class EmailRetrievalViewModel : ObservableObject
 
     public event Action<string, string, bool>? MailFolderToggleRequested;
 
-    public void SetMailFolders(IEnumerable<(string Account, string Folder, double Megabytes, bool Enabled)> folders)
+    public void SetMailFolders(IEnumerable<MailFolderInfo> folders)
     {
         MailFolders.Clear();
         foreach (var folder in folders)
         {
-            var row = new MailFolderRow(folder.Account, folder.Folder, folder.Megabytes, folder.Enabled);
+            var row = new MailFolderRow(folder.Account, folder.Folder, folder.Mailbox, folder.Server,
+                folder.Megabytes, folder.Enabled);
             row.Toggled += (r, enabled) => MailFolderToggleRequested?.Invoke(r.Account, r.Folder, enabled);
             MailFolders.Add(row);
         }

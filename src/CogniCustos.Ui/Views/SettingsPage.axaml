@@ -174,8 +174,13 @@
                         <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2,0,0">
                           <CheckBox Grid.Column="0" IsChecked="{Binding Enabled, Mode=TwoWay}"
                                     VerticalAlignment="Center" />
-                          <TextBlock Grid.Column="1" Text="{Binding Display}" FontSize="12.5"
-                                     Foreground="#FF2B2B32" VerticalAlignment="Center" />
+                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Display}" FontSize="12.5"
+                                       Foreground="#FF2B2B32" />
+                            <TextBlock Text="{Binding DirectoryNote}" FontSize="10.5"
+                                       Foreground="#FF93A29F"
+                                       IsVisible="{Binding HasDirectoryNote}" />
+                          </StackPanel>
                           <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="11.5"
                                      Foreground="#FF93A29F" VerticalAlignment="Center" />
                         </Grid>

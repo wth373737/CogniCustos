@@ -4,7 +4,17 @@ using System.Text.RegularExpressions;
 namespace CogniCustos.Core;
 
 /// <summary>One mail folder found in a Thunderbird profile.</summary>
-public sealed record ThunderbirdFolder(string Account, string Folder, string Path, long Bytes);
+/// <param name="Account">The directory name (stable key for the mute list).</param>
+/// <param name="Address">The mailbox it belongs to, e.g. wutianhao@student.usm.my.</param>
+public sealed record ThunderbirdFolder(string Account, string Folder, string Path, long Bytes,
+    string Address = "", string Hostname = "")
+{
+    /// <summary>What the settings page shows: the mailbox, not the server.</summary>
+    public string Label => Address.Length > 0 ? Address : Account;
+}
+
+/// <summary>One mail account as Thunderbird's prefs describe it.</summary>
+public sealed record ThunderbirdAccount(string Email, string Hostname, string UserName, string Directory);
 
 /// <summary>
 /// Reads mail the way the user already set it up: from Thunderbird's own local store.
@@ -39,6 +49,85 @@ public static class ThunderbirdMail
         return Directory.EnumerateDirectories(profilesRoot).ToList();
     }
 
+    /// <summary>
+    /// The accounts Thunderbird knows: prefs.js links an account to a server and to an
+    /// identity, which is how a folder directory becomes a real mailbox address.
+    /// </summary>
+    public static IReadOnlyList<ThunderbirdAccount> ParseAccounts(string profile)
+    {
+        var prefs = Path.Combine(profile, "prefs.js");
+        if (!File.Exists(prefs)) return [];
+
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in File.ReadLines(prefs))
+        {
+            var match = Regex.Match(line, "user_pref\\(\"(?<k>[^\"]+)\",\\s*\"(?<v>.*)\"\\);\\s*$");
+            if (match.Success) values[match.Groups["k"].Value] = match.Groups["v"].Value;
+        }
+
+        var accounts = new List<(int Order, string Server, string Email)>();
+        foreach (var (key, server) in values)
+        {
+            var account = Regex.Match(key, "^mail\\.account\\.account(?<n>\\d+)\\.server$");
+            if (!account.Success) continue;
+
+            var order = int.Parse(account.Groups["n"].Value);
+            var identities = values.GetValueOrDefault($"mail.account.account{order}.identities", "");
+            var email = "";
+
+            foreach (var id in identities.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var candidate = values.GetValueOrDefault($"mail.identity.{id}.useremail", "");
+                if (candidate.Length > 0)
+                {
+                    email = candidate;
+                    break;
+                }
+            }
+
+            accounts.Add((order, server, email));
+        }
+
+        // several accounts can share one hostname, each with its own server key, so the
+        // index has to count per hostname (not per server): the n-th account for a host
+        // gets imap.host-N.com, exactly the directory Thunderbird creates
+        var resolved = accounts
+            .OrderBy(a => a.Order)
+            .Select(a => (a.Order, Hostname: values.GetValueOrDefault($"mail.server.{a.Server}.hostname", ""),
+                a.Email, UserName: values.GetValueOrDefault($"mail.server.{a.Server}.userName", "")))
+            .Where(a => a.Hostname.Length > 0)
+            .ToList();
+
+        var counters = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<ThunderbirdAccount>();
+
+        foreach (var account in resolved)
+        {
+            counters.TryGetValue(account.Hostname, out var index);
+            counters[account.Hostname] = index + 1;
+
+            // an account without an identity still has a login name; when that looks like an
+            // address it is the mailbox, and an empty label would be worse than a guess
+            var email = account.Email.Length > 0
+                ? account.Email
+                : account.UserName.Contains('@') ? account.UserName : "";
+
+            result.Add(new ThunderbirdAccount(email, account.Hostname, account.UserName,
+                DirectoryName(account.Hostname, index)));
+        }
+
+        return result;
+    }
+
+    /// <summary>imap.gmail.com + 2 → imap.gmail-2.com (Thunderbird inserts before the last dot).</summary>
+    private static string DirectoryName(string hostname, int index)
+    {
+        if (index == 0) return hostname;
+
+        var dot = hostname.LastIndexOf('.');
+        return dot <= 0 ? $"{hostname}-{index}" : hostname[..dot] + $"-{index}" + hostname[dot..];
+    }
+
     /// <summary>Folders with mail in them (mbox files that are not the .msf index).</summary>
     public static IReadOnlyList<ThunderbirdFolder> DiscoverFolders(IEnumerable<string> profiles)
     {
@@ -46,6 +135,11 @@ public static class ThunderbirdMail
 
         foreach (var profile in profiles)
         {
+            // directory name → the mailbox it belongs to
+            var byDirectory = ParseAccounts(profile)
+                .GroupBy(a => a.Directory)
+                .ToDictionary(g => g.Key, g => g.First());
+
             foreach (var root in new[] { "ImapMail", "Mail" })
             {
                 var rootPath = Path.Combine(profile, root);
@@ -53,6 +147,9 @@ public static class ThunderbirdMail
 
                 foreach (var accountDir in Directory.EnumerateDirectories(rootPath))
                 {
+                    var directory = Path.GetFileName(accountDir);
+                    byDirectory.TryGetValue(directory, out var account);
+
                     foreach (var file in Directory.EnumerateFiles(accountDir))
                     {
                         var name = Path.GetFileName(file);
@@ -62,7 +159,8 @@ public static class ThunderbirdMail
                         var info = new FileInfo(file);
                         if (info.Length == 0) continue;
 
-                        folders.Add(new ThunderbirdFolder(Path.GetFileName(accountDir), name, file, info.Length));
+                        folders.Add(new ThunderbirdFolder(directory, name, file, info.Length,
+                            account?.Email ?? "", account?.Hostname ?? directory));
                     }
                 }
             }
@@ -368,7 +466,7 @@ public sealed class ThunderbirdMailSource : IInfoSource
 
             foreach (var message in ThunderbirdMail.ReadRecent(folder.Path, _perFolder))
             {
-                items.Add(new FetchedItem("email", $"Thunderbird · {folder.Account}/{folder.Folder}",
+                items.Add(new FetchedItem("email", $"Thunderbird · {folder.Label}/{folder.Folder}",
                     message.Subject, message.Body));
             }
         }

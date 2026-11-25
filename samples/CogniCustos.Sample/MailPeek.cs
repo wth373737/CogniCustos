@@ -17,7 +17,7 @@ internal static class MailPeek
         foreach (var folder in folders.Take(8))
         {
             Console.WriteLine();
-            Console.WriteLine($"{folder.Account}/{folder.Folder}  {Math.Round(folder.Bytes / 1024d / 1024d, 1)} MB");
+            Console.WriteLine($"{folder.Label} / {folder.Folder}  (dir: {folder.Account})  {Math.Round(folder.Bytes / 1024d / 1024d, 1)} MB");
 
             var messages = ThunderbirdMail.ReadRecent(folder.Path, 3);
             Console.WriteLine($"  newest {messages.Count}:");

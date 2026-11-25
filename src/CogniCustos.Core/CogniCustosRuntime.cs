@@ -90,12 +90,12 @@ public sealed class CogniCustosRuntime
     public ThunderbirdMailSource MailSource { get; private set; } = null!;
 
     /// <summary>Folders with their on/off state, for the settings page.</summary>
-    public IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled)> MailFolderViews()
+    public IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled, string Mailbox, string Server)> MailFolderViews()
     {
         var muted = SettingsStore.Load(SettingsPath).MutedMailFolders ?? [];
         return MailFolders
             .Select(f => (f.Account, f.Folder, Math.Round(f.Bytes / 1024d / 1024d, 1),
-                !muted.Contains($"{f.Account}/{f.Folder}")))
+                !muted.Contains($"{f.Account}/{f.Folder}"), f.Label, f.Hostname))
             .ToList();
     }
 

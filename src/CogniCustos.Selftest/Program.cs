@@ -1172,6 +1172,42 @@ internal static class Program
                    && items[0].Source.Contains("imap.keep.com");
         });
 
+        await Check("thunderbird: folders are labelled with the mailbox, not the server", async () =>
+        {
+            var profile = Path.Combine(root, "label-profile");
+            Directory.CreateDirectory(profile);
+
+            // two accounts on the same host: Thunderbird names the directories host and host-1
+            await File.WriteAllTextAsync(Path.Combine(profile, "prefs.js"),
+                "user_pref(\"mail.account.account1.server\", \"server1\");\n" +
+                "user_pref(\"mail.account.account1.identities\", \"id1\");\n" +
+                "user_pref(\"mail.account.account2.server\", \"server2\");\n" +
+                "user_pref(\"mail.account.account2.identities\", \"id2\");\n" +
+                "user_pref(\"mail.identity.id1.useremail\", \"first@student.usm.my\");\n" +
+                "user_pref(\"mail.identity.id2.useremail\", \"second@student.usm.my\");\n" +
+                "user_pref(\"mail.server.server1.hostname\", \"outlook.office365.com\");\n" +
+                "user_pref(\"mail.server.server2.hostname\", \"outlook.office365.com\");\n");
+
+            var accounts = ThunderbirdMail.ParseAccounts(profile);
+            var directories = accounts.Select(a => a.Directory).ToList();
+
+            foreach (var directory in new[] { "outlook.office365.com", "outlook.office365-1.com" })
+            {
+                var dir = Path.Combine(profile, "ImapMail", directory);
+                Directory.CreateDirectory(dir);
+                await File.WriteAllTextAsync(Path.Combine(dir, "INBOX"),
+                    "From - Mon Jan 01 10:00:00 2026\r\nSubject: x\r\nDate: 01 Jan 2026 10:00:00 +0800\r\n\r\nbody\r\n");
+            }
+
+            var folders = ThunderbirdMail.DiscoverFolders([profile]);
+            var labels = folders.Select(f => f.Label).OrderBy(l => l).ToList();
+
+            return accounts.Count == 2
+                   && directories.Contains("outlook.office365.com")
+                   && directories.Contains("outlook.office365-1.com")
+                   && labels.SequenceEqual(new[] { "first@student.usm.my", "second@student.usm.my" });
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

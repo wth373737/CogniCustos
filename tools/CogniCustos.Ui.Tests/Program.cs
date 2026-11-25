@@ -1351,18 +1351,18 @@ internal sealed class RecordingSource : IShellDataSource
         return true;
     }
 
-    public List<(string Account, string Folder, double Megabytes, bool Enabled)> Folders { get; } =
+    public List<MailFolderInfo> Folders { get; } =
     [
-        ("outlook.office365.com", "INBOX", 282.3, true),
-        ("imap.gmail-1.com", "INBOX", 107.6, true),
+        new("outlook.office365.com", "INBOX", "wutianhao@student.usm.my", "outlook.office365.com", 282.3, true),
+        new("imap.gmail-1.com", "INBOX", "wutianhao373737@gmail.com", "imap.gmail.com", 107.6, true),
     ];
 
-    public IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled)> MailFolders() => Folders;
+    public IReadOnlyList<MailFolderInfo> MailFolders() => Folders;
 
     public bool SetMailFolderEnabled(string account, string folder, bool enabled)
     {
         var index = Folders.FindIndex(f => f.Account == account && f.Folder == folder);
-        if (index >= 0) Folders[index] = (account, folder, Folders[index].Megabytes, enabled);
+        if (index >= 0) Folders[index] = Folders[index] with { Enabled = enabled };
         return true;
     }
 
@@ -1472,7 +1472,7 @@ internal sealed class RefusingSource : IShellDataSource
 
     public bool SetUseThunderbird(bool enabled) => false;
 
-    public IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled)> MailFolders() => [];
+    public IReadOnlyList<MailFolderInfo> MailFolders() => [];
 
     public bool SetMailFolderEnabled(string account, string folder, bool enabled) => false;
 
