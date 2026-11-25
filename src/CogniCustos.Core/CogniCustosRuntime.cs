@@ -80,8 +80,65 @@ public sealed class CogniCustosRuntime
     public string SettingsPath { get; private set; } = "";
 
     /// <summary>Re-scan Thunderbird after the user adds an account there.</summary>
-    public void RescanMail() =>
+    public void RescanMail()
+    {
         MailFolders = ThunderbirdMail.DiscoverFolders(ThunderbirdMail.DiscoverProfiles());
+        Poller.UseSources(BuildSources(SettingsPath, MailSource));
+    }
+
+    /// <summary>The Thunderbird source (the settings page switches folders on it).</summary>
+    public ThunderbirdMailSource MailSource { get; private set; } = null!;
+
+    /// <summary>Folders with their on/off state, for the settings page.</summary>
+    public IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled)> MailFolderViews()
+    {
+        var muted = SettingsStore.Load(SettingsPath).MutedMailFolders ?? [];
+        return MailFolders
+            .Select(f => (f.Account, f.Folder, Math.Round(f.Bytes / 1024d / 1024d, 1),
+                !muted.Contains($"{f.Account}/{f.Folder}")))
+            .ToList();
+    }
+
+    /// <summary>Turn one mailbox folder on or off; the next fetch only reads the kept ones.</summary>
+    public bool SetMailFolderEnabled(string account, string folder, bool enabled)
+    {
+        var settings = SettingsStore.Load(SettingsPath);
+        var muted = (settings.MutedMailFolders ?? []).ToList();
+        var key = $"{account}/{folder}";
+
+        if (enabled) muted.Remove(key);
+        else if (!muted.Contains(key)) muted.Add(key);
+
+        SettingsStore.Save(SettingsPath, settings with { MutedMailFolders = muted });
+        Poller.UseSources(BuildSources(SettingsPath, MailSource));
+        return true;
+    }
+
+    /// <summary>All discovered folders (the source asks this, then drops the muted ones).</summary>
+    private static IEnumerable<ThunderbirdFolder> Candidates(ThunderbirdMailSource source, string settingsPath) =>
+        source.Folders();
+
+    /// <summary>Sources for a run: Thunderbird (if on), configured pages, an inbox folder.</summary>
+    private static IReadOnlyList<IInfoSource> BuildSources(string settingsPath, ThunderbirdMailSource mail)
+    {
+        var settings = SettingsStore.Load(settingsPath);
+        var sources = new List<IInfoSource>();
+
+        if (settings.UseThunderbird)
+        {
+            mail.UseSelection(() =>
+            {
+                var muted = SettingsStore.Load(settingsPath).MutedMailFolders ?? [];
+                return mail.Folders().Where(f => !muted.Contains($"{f.Account}/{f.Folder}"));
+            });
+            sources.Add(mail);
+        }
+
+        if (settings.WebSources is { Count: > 0 }) sources.Add(new WebInfoSource(settings.WebSources));
+        if (!string.IsNullOrWhiteSpace(settings.InboxPath)) sources.Add(new InboxInfoSource(settings.InboxPath!));
+
+        return sources;
+    }
 
     /// <summary>The page list the daily fetch reads; edited from 网页浏览配置.</summary>
     public WebSourcesService WebSources { get; private init; } = null!;
@@ -162,7 +219,10 @@ public sealed class CogniCustosRuntime
         var localModels = new LocalModelService(models, Path.Combine(state, "settings.json"), Path.Combine(root, "models"));
         var cloudModels = new CloudModelService(models, Path.Combine(state, "settings.json"));
         var settingsPath = Path.Combine(state, "settings.json");
-        var poller = new InfoPoller(raw, gate, InfoSources.From(SettingsStore.Load(settingsPath)), settingsPath);
+        var mailSource = new ThunderbirdMailSource();
+        mailSource.UseSelection(() => Candidates(mailSource, settingsPath));
+
+        var poller = new InfoPoller(raw, gate, BuildSources(settingsPath, mailSource), settingsPath);
         var emailAccounts = new EmailAccountsService(settingsPath);
         var webSources = new WebSourcesService(settingsPath);
         var selfDocs = new SelfDocs(appRoot ?? CogniCustos.Core.SelfDocs.ResolveAppRoot());
@@ -178,6 +238,7 @@ public sealed class CogniCustosRuntime
             WebSources = webSources,
             MailFolders = ThunderbirdMail.DiscoverFolders(ThunderbirdMail.DiscoverProfiles()),
             SettingsPath = settingsPath,
+            MailSource = mailSource,
         };
         if (log is not null) rt.Log += log;
 

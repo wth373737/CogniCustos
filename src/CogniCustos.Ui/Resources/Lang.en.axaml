@@ -130,6 +130,8 @@
   <x:String x:Key="Settings.Email.Rescan">Scan again</x:String>
   <x:String x:Key="Settings.Email.Advanced">Advanced: configure a server by hand (not recommended)</x:String>
 
+  <x:String x:Key="Settings.Email.Folders">Mailboxes to read</x:String>
+
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.

@@ -4,6 +4,38 @@ using CogniCustos.Ui.Localization;
 
 namespace CogniCustos.Ui.ViewModels;
 
+/// <summary>One mailbox folder found in Thunderbird, with its read switch.</summary>
+public sealed class MailFolderRow : ObservableObject
+{
+    private bool _enabled;
+
+    public MailFolderRow(string account, string folder, double megabytes, bool enabled)
+    {
+        Account = account;
+        Folder = folder;
+        SizeText = megabytes >= 1 ? $"{megabytes:0.#} MB" : "< 1 MB";
+        _enabled = enabled;
+    }
+
+    public string Account { get; }
+    public string Folder { get; }
+    public string SizeText { get; }
+    public string Display => $"{Account} / {Folder}";
+
+    /// <summary>Flipping this reads or ignores the folder from the next fetch on.</summary>
+    public bool Enabled
+    {
+        get => _enabled;
+        set
+        {
+            if (!Set(ref _enabled, value)) return;
+            Toggled?.Invoke(this, value);
+        }
+    }
+
+    public event Action<MailFolderRow, bool>? Toggled;
+}
+
 /// <summary>One account row in 邮件抓取配置.</summary>
 public sealed class EmailAccountRow : ObservableObject
 {
@@ -124,6 +156,26 @@ public sealed class EmailRetrievalViewModel : ObservableObject
     }
 
     public ObservableCollection<EmailAccountRow> Accounts { get; } = [];
+
+    /// <summary>Mailbox folders discovered in Thunderbird, each with a switch.</summary>
+    public ObservableCollection<MailFolderRow> MailFolders { get; } = [];
+
+    public event Action<string, string, bool>? MailFolderToggleRequested;
+
+    public void SetMailFolders(IEnumerable<(string Account, string Folder, double Megabytes, bool Enabled)> folders)
+    {
+        MailFolders.Clear();
+        foreach (var folder in folders)
+        {
+            var row = new MailFolderRow(folder.Account, folder.Folder, folder.Megabytes, folder.Enabled);
+            row.Toggled += (r, enabled) => MailFolderToggleRequested?.Invoke(r.Account, r.Folder, enabled);
+            MailFolders.Add(row);
+        }
+
+        OnPropertyChanged(nameof(HasMailFolders));
+    }
+
+    public bool HasMailFolders => MailFolders.Count > 0;
 
     public RelayCommand AddCommand { get; }
     public RelayCommand ImportCommand { get; }

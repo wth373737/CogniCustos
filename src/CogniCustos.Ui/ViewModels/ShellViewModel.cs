@@ -333,6 +333,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.Model.SetLocalStatus(_source.LocalModelStatus());
         Settings.Model.SetGpuState(_source.GpuEnabled(), string.Empty);
 
+        Settings.EmailRetrieval.SetMailFolders(_source.MailFolders());
+
         var thunderbird = _source.ThunderbirdMail();
         Settings.EmailRetrieval.SetThunderbirdStatus(thunderbird.Status, thunderbird.Available, thunderbird.Enabled);
 
@@ -488,6 +490,14 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         SetToast(enabled ? "已开启：从 Thunderbird 读取邮件" : "已关闭 Thunderbird 读取");
     }
 
+    /// <summary>A switch on one mailbox folder: persist it and keep the list in sync.</summary>
+    private void ToggleMailFolder(string account, string folder, bool enabled)
+    {
+        _source.SetMailFolderEnabled(account, folder, enabled);
+        Settings.EmailRetrieval.SetMailFolders(_source.MailFolders());
+        SetToast($"{account} / {folder}：" + (enabled ? "会读取" : "不读取"));
+    }
+
     private void RefreshEmailAccounts() =>
         Settings.EmailRetrieval.SetAccounts(_source.EmailAccounts());
 
@@ -570,6 +580,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.EmailRetrieval.ImportRequested += ImportEmailAccounts;
         Settings.EmailRetrieval.RescanRequested += RefreshThunderbird;
         Settings.EmailRetrieval.UseThunderbirdRequested += ToggleThunderbird;
+        Settings.EmailRetrieval.MailFolderToggleRequested += ToggleMailFolder;
         Settings.WebBrowsing.AddRequested += AddWebSource;
         Settings.WebBrowsing.RemoveRequested += RemoveWebSource;
     }

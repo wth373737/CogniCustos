@@ -1141,6 +1141,37 @@ internal static class Program
                    && folders[0].Folder == "INBOX";
         });
 
+        await Check("thunderbird: muted mailbox folders are not read", async () =>
+        {
+            var profile = Path.Combine(root, "mute-profile");
+            foreach (var account in new[] { "imap.keep.com", "imap.muted.com" })
+            {
+                var dir = Path.Combine(profile, "ImapMail", account);
+                Directory.CreateDirectory(dir);
+                await File.WriteAllTextAsync(Path.Combine(dir, "INBOX"),
+                    "From - Mon Jan 01 10:00:00 2026\r\nSubject: " + account + "\r\nDate: 01 Jan 2026 10:00:00 +0800\r\n\r\nbody\r\n");
+            }
+
+            var settingsPath = Path.Combine(root, "state", "mute-settings.json");
+            SettingsStore.Save(settingsPath, SettingsStore.Load(settingsPath) with
+            {
+                MutedMailFolders = ["imap.muted.com/INBOX"],
+            });
+
+            var source = new ThunderbirdMailSource();
+            var folders = ThunderbirdMail.DiscoverFolders([profile]);
+            source.UseSelection(() =>
+            {
+                var muted = SettingsStore.Load(settingsPath).MutedMailFolders ?? [];
+                return ThunderbirdMail.DiscoverFolders([profile]).Where(f => !muted.Contains($"{f.Account}/{f.Folder}"));
+            });
+
+            var items = await source.FetchAsync(CancellationToken.None);
+            return folders.Count == 2
+                   && items.Count == 1
+                   && items[0].Source.Contains("imap.keep.com");
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

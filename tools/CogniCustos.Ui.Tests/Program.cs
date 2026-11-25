@@ -713,6 +713,24 @@ internal static class Program
             Check(!shell.Settings.EmailRetrieval.UseThunderbird, "the card did not follow the store");
         });
 
+        Test("mail_folder_switch_reaches_the_store", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            Check(shell.Settings.EmailRetrieval.MailFolders.Count == 2, "the folder list did not load");
+
+            var gmail = shell.Settings.EmailRetrieval.MailFolders[1];
+            Check(gmail.Enabled, "the folder started off");
+
+            gmail.Enabled = false;
+            Pump();
+
+            Check(source.Folders[1].Enabled == false, "the switch did not reach the store");
+            Check(!shell.Settings.EmailRetrieval.MailFolders[1].Enabled, "the row came back on");
+        });
+
         // ---- reasoning record list and thought trace (two independent entries) ----
         Test("reasoning_row_opens_the_record_list", (vm, _) =>
         {
@@ -1333,6 +1351,21 @@ internal sealed class RecordingSource : IShellDataSource
         return true;
     }
 
+    public List<(string Account, string Folder, double Megabytes, bool Enabled)> Folders { get; } =
+    [
+        ("outlook.office365.com", "INBOX", 282.3, true),
+        ("imap.gmail-1.com", "INBOX", 107.6, true),
+    ];
+
+    public IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled)> MailFolders() => Folders;
+
+    public bool SetMailFolderEnabled(string account, string folder, bool enabled)
+    {
+        var index = Folders.FindIndex(f => f.Account == account && f.Folder == folder);
+        if (index >= 0) Folders[index] = (account, folder, Folders[index].Megabytes, enabled);
+        return true;
+    }
+
     public void RescanMail()
     {
     }
@@ -1438,6 +1471,10 @@ internal sealed class RefusingSource : IShellDataSource
     public (string Status, bool Available, bool Enabled) ThunderbirdMail() => ("", false, false);
 
     public bool SetUseThunderbird(bool enabled) => false;
+
+    public IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled)> MailFolders() => [];
+
+    public bool SetMailFolderEnabled(string account, string folder, bool enabled) => false;
 
     public void RescanMail()
     {

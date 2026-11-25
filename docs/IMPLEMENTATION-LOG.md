@@ -971,3 +971,50 @@ dotnet run --project src/CogniCustos.Selftest -c Debug                          
 - 附件不解析；HTML 邮件只取文本。
 - 没有"已抓过就跳过"的增量标记：同一封邮件再次运行仍会入原始区（靠内容哈希去重，不会重复提议）。
 - 雷鸟开着时它可能正在写 mbox；已用 `FileShare.ReadWrite` 打开，但极端情况下最后一条可能不完整（会丢该条，不影响其它）。
+
+---
+
+## 2026-11-25 · TB-SEL 选择"读取哪些邮箱"
+
+### 1. 改了什么
+
+| 项 | 内容 |
+|---|---|
+| 选择 | 设置页 Thunderbird 卡片里新增 `要读取的邮箱` 列表：每个发现的文件夹一行（`账号 / 文件夹` + 大小 + 复选框），默认全开 |
+| 持久化 | 关掉的文件夹记进 `settings.json` 的 `MutedMailFolders`（`account/folder`）；保存时立刻重建抓取来源，下一次抓取只读勾上的 |
+| 发现 | 点 `重新扫描` 或改开关都会重扫 profile 并把列表刷新到界面 |
+| 语义 | 未配置（列表为空）= 全读，所以新装机器不需要先配；关掉某个 = 明确不读它 |
+
+### 2. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/SettingsAndReminders.cs` | `MutedMailFolders` |
+| `src/CogniCustos.Core/ThunderbirdMail.cs` | `Selected(settingsPath)` / `UseSelection(...)` / `_enabled` |
+| `src/CogniCustos.Core/InfoPoller.cs` | `UseSources(...)`（选择变化后重建来源） |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | `MailFolderViews()`、`SetMailFolderEnabled()`、`BuildSources()`、`MailSource` |
+| `src/CogniCustos.Ui/ViewModels/RetrievalViewModels.cs` | `MailFolderRow`（开关）、`SetMailFolders`、`MailFolderToggleRequested` |
+| `src/CogniCustos.Ui/ViewModels/{IShellDataSource,ShellViewModel,DemoShellDataSource}.cs`、`Views/SettingsPage.axaml`、`Lang.*` | 接缝、事件、列表 UI 与文案 |
+| `samples/CogniCustos.Sample/RuntimeShellDataSource.cs` | 接到 runtime |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 1 条（84 → 85） |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 1 条（66 → 67） |
+
+### 3. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug        # passed=85
+dotnet run --project tools/CogniCustos.Ui.Tests -c Debug      # ALL PASS（67）
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --fetch-now
+# 关掉某个邮箱后再跑，抓取数量应减少
+```
+
+### 4. 以后要改哪里
+
+- **默认全关**：把 `SetMailFolderEnabled` 的初始写入改成"全部 muted"即可。
+- **按文件夹细分（不只 INBOX）**：`ThunderbirdMail.DiscoverFolders` 已经在遍历所有 mbox，所以列表天然包含 Sent/Trash；要过滤就在那里挑。
+- **同时支持"选中的账号 + 网页 + 收件夹"**：`BuildSources` 是唯一装配点。
+
+### 5. 已知未做
+
+- 列表只能勾选已发现的文件夹；如果雷鸟后来新加账号，需要点一次 `重新扫描`。
+- 没有"只读最近 N 天"的按文件夹设置（全局 `perFolder = 20`）。

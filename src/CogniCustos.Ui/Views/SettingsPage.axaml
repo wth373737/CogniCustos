@@ -163,6 +163,25 @@
                              Foreground="#FF3C4A47" />
                   <TextBlock Text="{Binding Settings.EmailRetrieval.ThunderbirdNote}" FontSize="12"
                              Foreground="#FF6D7C79" TextWrapping="Wrap" />
+
+                  <TextBlock Text="{DynamicResource Settings.Email.Folders}" FontSize="12"
+                             Foreground="#FF6D7C79" Margin="0,4,0,0"
+                             IsVisible="{Binding Settings.EmailRetrieval.HasMailFolders}" />
+
+                  <ItemsControl ItemsSource="{Binding Settings.EmailRetrieval.MailFolders}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,2,0,0">
+                          <CheckBox Grid.Column="0" IsChecked="{Binding Enabled, Mode=TwoWay}"
+                                    VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="1" Text="{Binding Display}" FontSize="12.5"
+                                     Foreground="#FF2B2B32" VerticalAlignment="Center" />
+                          <TextBlock Grid.Column="2" Text="{Binding SizeText}" FontSize="11.5"
+                                     Foreground="#FF93A29F" VerticalAlignment="Center" />
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
                 </StackPanel>
               </Border>
 

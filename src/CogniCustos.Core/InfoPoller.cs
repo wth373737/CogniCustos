@@ -207,7 +207,7 @@ public sealed class InfoPoller
 {
     private readonly IRawStore _raw;
     private readonly IApprovalGate _gate;
-    private readonly IReadOnlyList<IInfoSource> _sources;
+    private IReadOnlyList<IInfoSource> _sources;
     private readonly InfoKeywords _keywords;
     private readonly string _settingsPath;
 
@@ -222,6 +222,9 @@ public sealed class InfoPoller
     }
 
     public InfoKeywords Keywords => _keywords;
+
+    /// <summary>Replace the sources (used when the user switches a mailbox on or off).</summary>
+    public void UseSources(IReadOnlyList<IInfoSource> sources) => _sources = sources;
 
     /// <summary>At most one automatic run per calendar day.</summary>
     public bool IsDue(DateTime today)

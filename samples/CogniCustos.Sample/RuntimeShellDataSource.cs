@@ -191,6 +191,12 @@ public sealed class RuntimeShellDataSource : IShellDataSource
 
     public void RescanMail() => _rt.RescanMail();
 
+    public IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled)> MailFolders() =>
+        _rt.MailFolderViews();
+
+    public bool SetMailFolderEnabled(string account, string folder, bool enabled) =>
+        _rt.SetMailFolderEnabled(account, folder, enabled);
+
     public IReadOnlyList<EmailAccountInfo> EmailAccounts() =>
         _rt.EmailAccounts.Accounts
             .Select(a => new EmailAccountInfo(a.Address, a.ImapHost, a.ImapPort, a.LookbackDays, a.UnreadOnly))

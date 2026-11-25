@@ -331,10 +331,27 @@ public static class ThunderbirdMail
 public sealed class ThunderbirdMailSource : IInfoSource
 {
     private readonly int _perFolder;
+    private readonly Func<bool> _enabled;
 
-    public ThunderbirdMailSource(int perFolder = 20) => _perFolder = perFolder;
+    public ThunderbirdMailSource(int perFolder = 20, Func<bool>? enabled = null)
+    {
+        _perFolder = perFolder;
+        _enabled = enabled ?? (() => true);
+    }
+
+    /// <summary>Only the folders the user kept switched on.</summary>
+    public IEnumerable<ThunderbirdFolder> Selected(string settingsPath)
+    {
+        var muted = SettingsStore.Load(settingsPath).MutedMailFolders ?? [];
+        return Folders().Where(f => !muted.Contains($"{f.Account}/{f.Folder}"));
+    }
 
     public string Kind => "email";
+
+    private Func<IEnumerable<ThunderbirdFolder>> _selected = () => ThunderbirdMail.DiscoverFolders(ThunderbirdMail.DiscoverProfiles());
+
+    /// <summary>How the source decides which folders to read (the runtime wires this to settings).</summary>
+    public void UseSelection(Func<IEnumerable<ThunderbirdFolder>> selection) => _selected = selection;
 
     /// <summary>Folders that would be read, for the settings page.</summary>
     public IReadOnlyList<ThunderbirdFolder> Folders() =>
@@ -343,8 +360,9 @@ public sealed class ThunderbirdMailSource : IInfoSource
     public Task<IReadOnlyList<FetchedItem>> FetchAsync(CancellationToken ct)
     {
         var items = new List<FetchedItem>();
+        if (!_enabled()) return Task.FromResult<IReadOnlyList<FetchedItem>>(items);
 
-        foreach (var folder in Folders())
+        foreach (var folder in _selected())
         {
             ct.ThrowIfCancellationRequested();
 

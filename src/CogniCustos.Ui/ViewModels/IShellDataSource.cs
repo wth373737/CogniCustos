@@ -63,6 +63,12 @@ public interface IShellDataSource
 
     bool SetUseThunderbird(bool enabled);
 
+    /// <summary>Mailbox folders found in Thunderbird, with the on/off state.</summary>
+    IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled)> MailFolders();
+
+    /// <summary>Read this folder from now on (or stop reading it).</summary>
+    bool SetMailFolderEnabled(string account, string folder, bool enabled);
+
     void RescanMail();
 
     IReadOnlyList<EmailAccountInfo> EmailAccounts();

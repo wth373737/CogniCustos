@@ -72,6 +72,15 @@ public sealed class DemoShellDataSource : IShellDataSource
 
     public bool SetUseThunderbird(bool enabled) => true;
 
+    public IReadOnlyList<(string Account, string Folder, double Megabytes, bool Enabled)> MailFolders() =>
+    [
+        ("outlook.office365.com", "INBOX", 282.3, true),
+        ("imap.gmail-1.com", "INBOX", 107.6, false),
+        ("imap.163-1.com", "INBOX", 0.4, true),
+    ];
+
+    public bool SetMailFolderEnabled(string account, string folder, bool enabled) => true;
+
     public void RescanMail()
     {
     }
