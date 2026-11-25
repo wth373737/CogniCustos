@@ -29,6 +29,11 @@ public sealed partial class SampleWindow : Window
         var vision = new CogniCustos.Adapters.OllamaVisionModel("http://127.0.0.1:11434", "qwen3-vl:4b");
         _source = new RuntimeShellDataSource(runtime, vision);
 
+        // Demo convenience: when nothing is configured yet, borrow a local Ollama model so the
+        // reader can actually explain something without a setup step. Anything the user
+        // configures in Settings outranks this, because it is registered last.
+        BorrowLocalModel(runtime);
+
         // today's fetch runs before the shell is built, so freshly proposed items are
         // already on the incoming card when the window opens
         if (runtime.Poller.IsDue(DateTime.Today))
@@ -45,6 +50,39 @@ public sealed partial class SampleWindow : Window
 
         DataContext = new ShellViewModel(_source);
         Title = $"CogniCustos — Sample · {_source.DataRoot}";
+    }
+
+    /// <summary>
+    /// Register a local Ollama model as the session's fallback, but only when nothing else is
+    /// available and only if one is already installed. This is what makes a fresh demo folder
+    /// able to answer questions without a configuration step; it changes no settings on disk.
+    /// </summary>
+    private static void BorrowLocalModel(CogniCustosRuntime runtime)
+    {
+        try
+        {
+            var already = runtime.Models.All.Any(p =>
+                p.Role == CogniCustos.Contracts.ModelRole.Reasoning && p.IsAvailable);
+            if (already) return;
+
+            const string url = "http://127.0.0.1:11434";
+            var probe = new CogniCustos.Adapters.OllamaModelProvider(url, "probe");
+            if (!probe.IsAvailable) return;
+
+            var installed = probe.ListModelsAsync().GetAwaiter().GetResult();
+            var pick = installed.FirstOrDefault(m => m.StartsWith("qwen2.5:7b", StringComparison.OrdinalIgnoreCase))
+                       ?? installed.FirstOrDefault(m => !m.Contains("vl", StringComparison.OrdinalIgnoreCase)
+                                                       && !m.Contains("coder", StringComparison.OrdinalIgnoreCase)
+                                                       && !m.Contains("r1", StringComparison.OrdinalIgnoreCase))
+                       ?? installed.FirstOrDefault();
+            if (string.IsNullOrWhiteSpace(pick)) return;
+
+            runtime.AddModel(new CogniCustos.Adapters.OllamaModelProvider(url, pick));
+        }
+        catch
+        {
+            // a demo without a model still works: the reader falls back to the plain text
+        }
     }
 
     /// <summary>Escape closes the dialog / the calendar / overlays, like the sandbox.</summary>
