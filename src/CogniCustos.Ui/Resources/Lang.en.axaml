@@ -136,6 +136,9 @@
 
   <x:String x:Key="Settings.Email.FolderUnit">folder(s)</x:String>
 
+  <x:String x:Key="Card.Tag.Mail">Important mail</x:String>
+  <x:String x:Key="Tile.CheckingMail">Reading mailboxes…</x:String>
+
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.

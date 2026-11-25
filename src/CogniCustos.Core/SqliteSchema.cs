@@ -14,7 +14,7 @@ namespace CogniCustos.Core;
 public static class SqliteSchema
 {
     /// <summary>Bump this and add a step below; never edit a released step.</summary>
-    public const int Version = 7;
+    public const int Version = 8;
 
     public static void EnsureUpgraded(SqliteConnection conn)
     {
@@ -34,6 +34,7 @@ public static class SqliteSchema
         if (version < 5) Step5Visibility(conn);
         if (version < 6) Step6IngestLedger(conn);
         if (version < 7) Step7Label(conn);
+        if (version < 8) Step8ProposalTag(conn);
 
         Exec(conn, $"PRAGMA user_version = {Version};");
         tx.Commit();
@@ -60,6 +61,16 @@ public static class SqliteSchema
     {
         if (!Columns(conn, "raw_artifacts").Contains("label"))
             Exec(conn, "ALTER TABLE raw_artifacts ADD COLUMN label TEXT;");
+    }
+
+    /// <summary>
+    /// A short tag on a proposal ("重要邮件"), so the pending card can show where an item
+    /// came from without parsing its text.
+    /// </summary>
+    private static void Step8ProposalTag(SqliteConnection conn)
+    {
+        if (!Columns(conn, "proposals").Contains("tag"))
+            Exec(conn, "ALTER TABLE proposals ADD COLUMN tag TEXT;");
     }
 
     public static int UserVersion(SqliteConnection conn)

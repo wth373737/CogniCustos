@@ -58,6 +58,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         ToggleLanguageMenuCommand = new RelayCommand(() => IsLanguageMenuOpen = !IsLanguageMenuOpen);
         GoHomeCommand = new RelayCommand(GoHome);
         SubmitInputCommand = new RelayCommand(SubmitInput);
+        CheckMailCommand = new RelayCommand(() => _ = CheckMailAsync());
 
         Cards =
         [
@@ -125,6 +126,9 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     public RelayCommand ToggleLanguageMenuCommand { get; }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand SubmitInputCommand { get; }
+
+    /// <summary>The drawer's mail tile: read the permitted mailboxes now, then relist.</summary>
+    public RelayCommand CheckMailCommand { get; }
 
     /// <summary>Short code shown on the language picker ("EN" / "中").</summary>
     public string CurrentLanguageCode => Localizer.Code(Localizer.Current);
@@ -547,6 +551,39 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         _source.RemoveWebSource(url);
         Settings.WebBrowsing.ShowStatus("已删除");
         Settings.WebBrowsing.SetSources(_source.WebSources());
+    }
+
+    /// <summary>
+    /// The manual fetch: the user clicks, the app reads every permitted mailbox, and whatever
+    /// the filters call important becomes a pending proposal. Reading is I/O, so it runs off
+    /// the UI thread; the cards are rebuilt afterwards, on the dispatcher.
+    /// </summary>
+    private async Task CheckMailAsync()
+    {
+        SetToast(Localizer.Get("Tile.CheckingMail"));
+
+        string summary;
+        try
+        {
+            summary = await Task.Run(() => _source.FetchNow());
+        }
+        catch (Exception ex)
+        {
+            SetToast(ex.Message);
+            return;
+        }
+
+        ReloadBoards();
+        SetToast(summary);
+    }
+
+    /// <summary>Rebuild everything the user can see from the data source.</summary>
+    public void ReloadBoards()
+    {
+        foreach (var card in Cards) card.Refresh();
+
+        // the reminder line is a seed list, so it is replaced wholesale
+        Today.ResetSeeds(_source.Today());
     }
 
     private void SaveCloud(string model, string url, string apiKey)

@@ -750,6 +750,23 @@ internal static class Program
                 "more than one mailbox stayed on");
         });
 
+        Test("drawer_mail_button_reads_and_relists", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.CheckMailCommand.Execute(null);
+            for (var i = 0; i < 10; i++)
+            {
+                Dispatcher.UIThread.RunJobs();
+                System.Threading.Thread.Sleep(16);
+            }
+
+            Check(source.FetchCalls == 1, $"the mail button did not fetch (calls={source.FetchCalls})");
+            Check(shell.Toast.Contains("fetched"), $"the result was not reported: '{shell.Toast}'");
+        });
+
         // ---- reasoning record list and thought trace (two independent entries) ----
         Test("reasoning_row_opens_the_record_list", (vm, _) =>
         {
@@ -1385,6 +1402,14 @@ internal sealed class RecordingSource : IShellDataSource
         return true;
     }
 
+    public int FetchCalls { get; private set; }
+
+    public string FetchNow()
+    {
+        FetchCalls++;
+        return "fetched 1, proposed 1";
+    }
+
     public string? OnlyMailbox { get; private set; }
 
     public bool SetOnlyMailbox(string mailbox)
@@ -1509,6 +1534,8 @@ internal sealed class RefusingSource : IShellDataSource
     public bool SetMailFolderEnabled(string account, string folder, bool enabled) => false;
 
     public bool SetOnlyMailbox(string mailbox) => false;
+
+    public string FetchNow() => "fetch refused";
 
     public void RescanMail()
     {

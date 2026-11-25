@@ -401,7 +401,7 @@ public sealed class InfoPoller
                 var description = $"重要邮件 · {_keywords.Bucket(item.Title, item.Text)}\n来源：{item.Source}\n\n" +
                                   (item.Text.Length > 240 ? item.Text[..240] + "…" : item.Text);
 
-                var proposal = _gate.ProposeSet(title, description, changes);
+                var proposal = _gate.ProposeSet(title, description, changes, tag: "重要邮件");
                 proposalIds.Add(proposal.Id);
                 titles.Add(item.Title);
             }

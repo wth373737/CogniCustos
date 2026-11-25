@@ -73,7 +73,8 @@ public sealed record Proposal(
     string Summary,
     IReadOnlyList<Change> Changes,
     ProposalStatus Status,
-    DateTimeOffset CreatedAt)
+    DateTimeOffset CreatedAt,
+    string? Tag = null)
 {
     /// <summary>Convenience for the single-change case (the card shows one line).</summary>
     public string Target => Changes.Count > 0 ? Changes[0].Target : string.Empty;
@@ -105,7 +106,8 @@ public interface IApprovalGate
     Proposal Propose(string title, string summary, string target, string payload);
 
     /// <summary>One card, several landing points, applied together or not at all.</summary>
-    Proposal ProposeSet(string title, string summary, IReadOnlyList<Change> changes);
+    Proposal ProposeSet(string title, string summary, IReadOnlyList<Change> changes,
+        string? tag = null);
 
     /// <summary>Dry run: render every change and check it can be applied, writing nothing.</summary>
     ProposalPreview Preview(string id);

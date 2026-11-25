@@ -61,7 +61,8 @@ public sealed class ApprovalGate : IApprovalGate
     public Proposal Propose(string title, string summary, string target, string payload) =>
         ProposeSet(title, summary, [new Change(target, payload)]);
 
-    public Proposal ProposeSet(string title, string summary, IReadOnlyList<Change> changes)
+    public Proposal ProposeSet(string title, string summary, IReadOnlyList<Change> changes,
+        string? tag = null)
     {
         if (changes.Count == 0) throw new ArgumentException("a proposal needs at least one change", nameof(changes));
 
@@ -71,7 +72,8 @@ public sealed class ApprovalGate : IApprovalGate
             Summary: summary,
             Changes: changes.ToList(),
             Status: ProposalStatus.Pending,
-            CreatedAt: DateTimeOffset.Now);
+            CreatedAt: DateTimeOffset.Now,
+            Tag: tag);
 
         lock (_sync)
         {
@@ -82,13 +84,14 @@ public sealed class ApprovalGate : IApprovalGate
             {
                 cmd.Transaction = tx;
                 cmd.CommandText = """
-                    INSERT INTO proposals(id, title, summary, status, created_at, decided_at)
-                    VALUES ($id, $t, $s, 'Pending', $c, NULL);
+                    INSERT INTO proposals(id, title, summary, status, created_at, decided_at, tag)
+                    VALUES ($id, $t, $s, 'Pending', $c, NULL, $tag);
                     """;
                 cmd.Parameters.AddWithValue("$id", proposal.Id);
                 cmd.Parameters.AddWithValue("$t", title);
                 cmd.Parameters.AddWithValue("$s", summary);
                 cmd.Parameters.AddWithValue("$c", proposal.CreatedAt.ToString("O"));
+                cmd.Parameters.AddWithValue("$tag", (object?)tag ?? DBNull.Value);
                 cmd.ExecuteNonQuery();
             }
 
@@ -291,7 +294,7 @@ public sealed class ApprovalGate : IApprovalGate
         using (var cmd = conn.CreateCommand())
         {
             cmd.CommandText = """
-                SELECT id, title, summary, status, created_at FROM proposals
+                SELECT id, title, summary, status, created_at, tag FROM proposals
                 WHERE ($s IS NULL OR status = $s) AND ($id IS NULL OR id = $id)
                 ORDER BY created_at DESC;
                 """;
@@ -308,7 +311,8 @@ public sealed class ApprovalGate : IApprovalGate
                     reader.GetString(2),
                     [],
                     Enum.TryParse<ProposalStatus>(reader.GetString(3), out var parsed) ? parsed : ProposalStatus.Pending,
-                    DateTimeOffset.TryParse(reader.GetString(4), out var at) ? at : DateTimeOffset.MinValue));
+                    DateTimeOffset.TryParse(reader.GetString(4), out var at) ? at : DateTimeOffset.MinValue,
+                    reader.IsDBNull(5) ? null : reader.GetString(5)));
                 changesByProposal[pid] = [];
             }
         }

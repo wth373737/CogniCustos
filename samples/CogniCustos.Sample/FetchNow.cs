@@ -39,7 +39,7 @@ internal static class FetchNow
         foreach (var id in result.ProposalIds)
         {
             var proposal = rt.Gate.Pending().FirstOrDefault(p => p.Id == id);
-            Console.WriteLine($"  → #{id} {proposal?.Title ?? ""}（待确认）");
+            Console.WriteLine($"  → #{id} [{proposal?.Tag ?? "-"}] {proposal?.Title ?? ""}（待确认）");
         }
 
         return 0;

@@ -8,13 +8,20 @@ namespace CogniCustos.Ui.ViewModels;
 /// </summary>
 public sealed class CardItem
 {
-    public CardItem(string title, string when = "", string? source = null, string? sourceFile = null)
+    public CardItem(string title, string when = "", string? source = null, string? sourceFile = null,
+        string? tag = null)
     {
         Title = title;
         When = when;
         Source = source;
         SourceFile = sourceFile;
+        Tag = tag;
     }
+
+    /// <summary>A short chip in front of the title: "重要邮件".</summary>
+    public string? Tag { get; set; }
+
+    public bool HasTag => !string.IsNullOrWhiteSpace(Tag);
 
     /// <summary>e.g. "AKP202w Organizational Behavior Test 1".</summary>
     public string Title { get; set; }

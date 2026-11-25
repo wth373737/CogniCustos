@@ -1157,3 +1157,69 @@ dotnet run --project tools/CogniCustos.Ui.Tests -c Debug                        
 - 标签还没有界面（只能从 `raw.list` / 数据库看）；"重要邮件"的模型精修仍待接（现在是确定性抽取）。
 - `Message-ID` 缺失时的退化键包含主题，主题改过的同一封邮件会被当成新的。
 - 时间只解析到分钟，不处理时区/跨天；"下周三 9 点"这类相对日期还不支持。
+
+---
+
+## 2026-11-25 · LOOP 标签上卡片 + 抽屉"读邮件"按钮（最小闭环打通）
+
+### 1. 标签显示
+
+| 项 | 内容 |
+|---|---|
+| 数据 | 数据库 v8 给 `proposals` 加 `tag`；`ProposeSet(..., tag)` 存，`Proposal.Tag` 读出 |
+| 写入 | 抓取生成提议时打 `重要邮件` |
+| 界面 | 待确认卡片每行在标题上方显示一个小胶囊（`重要邮件` / `Important mail`），`CardItem.Tag` + `HasTag` |
+| 实测 | 渲染 `home` 状态可见：卡片里 `Important mail` 胶囊贴在标题上 |
+
+### 2. 抽屉里的"读邮件"按钮
+
+| 项 | 内容 |
+|---|---|
+| 位置 | 打开抽屉后第三排左边的 mail tile（`Tile.CheckMail`），原来没有命令 |
+| 行为 | 点击 → 提示"正在读取邮箱…" → 后台读**被允许的邮箱**（`IShellDataSource.FetchNow()` → `rt.Poller.RunAsync`）→ 重建卡片/待办/日历 → 用结果行提示（"抓到 N 条…生成 M 个待确认提议" / "没有新内容：55 条都读过了"） |
+| 刷新 | `ShellViewModel.ReloadBoards()`：卡片 `Refresh()` + `Today.ResetSeeds(_source.Today())` |
+| 意义 | 不用等"每天自动跑"，用户点一下就能拿到最新待确认 |
+
+### 3. 用户的最小闭环（现在可以真的走一遍）
+
+```
+打开软件 → 设置里配置模型（模型名/地址/Key 保存即生效）
+        → 设置里选邮箱（只读 wutianhao@student.usm.my）
+        → 抽屉点"读邮件" → 后台读雷鸟本地邮件 → 重要邮件打标签 → 生成待确认（带日期/时间摘要）
+        → 点待确认里的行 → 确认 → 进入当日提醒 + 日历（时间块用邮件里写的时间）
+```
+
+### 4. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/SqliteSchema.cs` | v8 `proposals.tag` |
+| `src/CogniCustos.Contracts/Contracts.cs` | `Proposal.Tag`、`ProposeSet(..., tag)` |
+| `src/CogniCustos.Core/ApprovalGate.cs` | 存/读 tag |
+| `src/CogniCustos.Core/InfoPoller.cs` | 提议带 `重要邮件` 标签 |
+| `src/CogniCustos.Ui/ViewModels/CardItem.cs`、`Views/ShellView.axaml` | 胶囊样式行 |
+| `src/CogniCustos.Ui/ViewModels/ShellViewModel.cs` | `CheckMailCommand`、`ReloadBoards()` |
+| `src/CogniCustos.Ui/ViewModels/{IShellDataSource,DemoShellDataSource}.cs`、`samples/.../RuntimeShellDataSource.cs` | `FetchNow()` |
+| `samples/CogniCustos.Sample/FetchNow.cs` | 打印标签 |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 1 条（68 → 69） |
+
+### 5. 怎么验证
+
+```bash
+dotnet run --project tools/CogniCustos.Ui.Tests -c Debug     # ALL PASS（69）
+dotnet run --project src/CogniCustos.Selftest -c Debug       # passed=88
+samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --fetch-now
+dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720   # home 里能看到胶囊
+```
+
+### 6. 以后要改哪里
+
+- **按钮读哪些邮箱**：`RuntimeShellDataSource.FetchNow()` 用的是 `rt.Poller`（受设置页勾选控制）。
+- **标签文案**：`Lang.*` 的 `Card.Tag.Mail`，以及 `InfoPoller` 里的 `"重要邮件"`。
+- **想加"读取中"的转圈**：`Tile.CheckingMail` 文案已存在，接到 `IsBusy` 状态即可。
+
+### 7. 已知未做
+
+- 读邮件时界面没有进度条（只有一句提示），长邮箱会看起来"卡一下"；
+- 待确认卡片一次只显示提议的变更行，摘要（日期/时间那行）只在标题里；
+- 抽屉 mail tile 与"每日自动抓取"共用同一个 poller，所以点一次会让当天的自动抓取也跳过（`LastFetchDate` 同日）。

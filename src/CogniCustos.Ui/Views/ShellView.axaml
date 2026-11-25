@@ -16,6 +16,10 @@
         <StackPanel Spacing="1" Margin="0,2,0,6">
           <TextBlock Text="{Binding When}" FontSize="13"
                      Foreground="{StaticResource InkFaint}" IsVisible="{Binding HasWhen}" />
+          <Border Background="#FFE6F0EC" CornerRadius="4" Padding="6,1" HorizontalAlignment="Left"
+                  IsVisible="{Binding HasTag}">
+            <TextBlock Text="{Binding Tag}" FontSize="10.5" Foreground="#FF3C4A47" />
+          </Border>
           <TextBlock Text="{Binding Title}" FontSize="15.5"
                      Foreground="#FF45454F" TextWrapping="Wrap" />
           <TextBlock Text="{Binding Source}" FontSize="12.5"
@@ -392,6 +396,7 @@
               </Button>
               <Button Grid.Row="2" Grid.Column="0" Classes="tile" Width="100" Height="112"
                       Margin="0,0,0,18" HorizontalAlignment="Center"
+                      Command="{Binding CheckMailCommand}"
                       ToolTip.Tip="{DynamicResource Tile.CheckMail}">
                 <StackPanel Spacing="8" VerticalAlignment="Center">
                   <TextBlock Classes="glyph" Text="{StaticResource GlyphMail}" FontSize="30" HorizontalAlignment="Center" />

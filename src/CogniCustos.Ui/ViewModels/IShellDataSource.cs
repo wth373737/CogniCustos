@@ -76,6 +76,12 @@ public interface IShellDataSource
     /// <summary>Keep this mailbox and stop reading every other one.</summary>
     bool SetOnlyMailbox(string mailbox);
 
+    /// <summary>
+    /// Read the permitted mailboxes right now (the drawer's mail button) and report what
+    /// happened. This is the manual version of the daily run: the user asks, the app reads.
+    /// </summary>
+    string FetchNow();
+
     void RescanMail();
 
     IReadOnlyList<EmailAccountInfo> EmailAccounts();

@@ -95,7 +95,9 @@ public sealed class RuntimeShellDataSource : IShellDataSource
                     ? (count > 1 ? $"{proposal.Title} · 共 {count} 处写入" : proposal.Title)
                     : string.Empty;
 
-                items.Add(new CardItem(change.Line, head, change.Label, status) { Ref = proposal.Id });
+                items.Add(new CardItem(change.Line, head, change.Label, status,
+                    tag: proposal.Tag));
+                items[^1].Ref = proposal.Id;
             }
         }
 
@@ -200,6 +202,12 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         _rt.SetMailFolderEnabled(account, folder, enabled);
 
     public bool SetOnlyMailbox(string mailbox) => _rt.SetOnlyMailbox(mailbox);
+
+    public string FetchNow()
+    {
+        var result = _rt.Poller.RunAsync(DateTime.Today).GetAwaiter().GetResult();
+        return result.Summary;
+    }
 
     public IReadOnlyList<EmailAccountInfo> EmailAccounts() =>
         _rt.EmailAccounts.Accounts

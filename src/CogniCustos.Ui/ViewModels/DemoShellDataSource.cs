@@ -28,7 +28,8 @@ public sealed class DemoShellDataSource : IShellDataSource
         Localizer.Get("Card.Empty.Pending"),
         [
             new CardItem(Localizer.Get("Demo.Plan1.Title"), Localizer.Get("Demo.Plan1.When"),
-                Localizer.Get("Demo.Incoming.Source"), Localizer.Get("Demo.Incoming.File")),
+                Localizer.Get("Demo.Incoming.Source"), Localizer.Get("Demo.Incoming.File"),
+                tag: Localizer.Get("Card.Tag.Mail")),
             new CardItem(Localizer.Get("Demo.Plan2.Title"), Localizer.Get("Demo.Plan2.When")),
         ]);
 
@@ -83,6 +84,8 @@ public sealed class DemoShellDataSource : IShellDataSource
     public bool SetMailFolderEnabled(string account, string folder, bool enabled) => true;
 
     public bool SetOnlyMailbox(string mailbox) => true;
+
+    public string FetchNow() => "演示：抓到 1 条，生成 1 个待确认提议";
 
     public void RescanMail()
     {
