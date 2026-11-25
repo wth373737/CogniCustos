@@ -1448,6 +1448,34 @@ internal static class Program
             Check(result.Failure is not null, "the store accepted an edit to a locked segment");
         });
 
+        Test("cloud_test_button_reports_the_round_trip", (vm, _) =>
+        {
+            var model = vm.Settings.Model;
+            model.Url.SetValue("https://api.example.com");
+            model.ModelName.SetValue("gpt-test");
+
+            string? sent = null;
+            model.CloudTestRequested += (m, u, k) => sent = m + " | " + u;
+
+            model.TestCommand.Execute(null);
+
+            Check(sent is not null && sent.Contains("gpt-test"), "the form values did not reach the seam");
+            Check(model.IsTesting, "the row does not show that a test is running");
+            Check(!model.TestCommand.CanExecute(null), "the button stays clickable while testing");
+
+            // the host answers later; the line must show success and timing
+            model.ShowTestResult(new CloudTestResult(true, "connected deepseek", 42));
+            Check(!model.IsTesting, "the row is still marked as testing");
+            Check(model.HasTestStatus, "no result line");
+            Check(model.TestStatus.Contains("42 ms"), $"the line lost the timing: {model.TestStatus}");
+            Check(model.TestStatus.Contains("connected deepseek"), "the line lost the endpoint's words");
+
+            // and a failure must show the provider's own error, not a generic message
+            model.BeginTest();
+            model.ShowTestResult(new CloudTestResult(false, "云端 HTTP 401：invalid api key", 12));
+            Check(model.TestStatus.Contains("401"), $"the failure line hides the reason: {model.TestStatus}");
+        });
+
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }
@@ -1728,6 +1756,10 @@ internal sealed class RecordingSource : IShellDataSource
     public PromptEditResult ResetPromptOverride(string promptKey, string segmentId) =>
         new(null, "default text", false);
 
+    public Task<CloudTestResult> TestCloudAsync(string model, string url, string apiKey) =>
+        Task.FromResult(string.IsNullOrWhiteSpace(url)
+            ? new CloudTestResult(false, "no url", 1)
+            : new CloudTestResult(true, "connected " + model, 7));
     public Task<PromptTryResult> TryPromptAsync(string promptKey) =>
         Task.FromResult(new PromptTryResult(true, "prompt text", "reply text", 5, string.Empty));
     public AdvancedSnapshot AdvancedSnapshot() => new(
@@ -1834,6 +1866,10 @@ internal sealed class RefusingSource : IShellDataSource
     public PromptEditResult ResetPromptOverride(string promptKey, string segmentId) =>
         new(null, "default text", false);
 
+    public Task<CloudTestResult> TestCloudAsync(string model, string url, string apiKey) =>
+        Task.FromResult(string.IsNullOrWhiteSpace(url)
+            ? new CloudTestResult(false, "no url", 1)
+            : new CloudTestResult(true, "connected " + model, 7));
     public Task<PromptTryResult> TryPromptAsync(string promptKey) =>
         Task.FromResult(new PromptTryResult(true, "prompt text", "reply text", 5, string.Empty));
     public AdvancedSnapshot AdvancedSnapshot() => new(

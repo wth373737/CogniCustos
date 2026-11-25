@@ -45,7 +45,65 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         CheckCommand = new RelayCommand(() => CheckRequested?.Invoke());
         DeleteCommand = new RelayCommand(() => DeleteRequested?.Invoke());
         AddCommand = new RelayCommand(() => AddRequested?.Invoke());
+
+        // connection test: what is in the fields right now, not what was last saved
+        TestCommand = new RelayCommand(
+            () => CloudTestRequested?.Invoke(ModelName.Value, Url.Value, ApiKey.Value),
+            () => !IsTesting);
     }
+
+    // ---------- connection test ----------
+
+    private bool _isTesting;
+    private CloudTestResult? _testResult;
+
+    /// <summary>Raised with the three field values; the shell answers with a real round trip.</summary>
+    public event Action<string, string, string>? CloudTestRequested;
+
+    public RelayCommand TestCommand { get; }
+
+    public bool IsTesting
+    {
+        get => _isTesting;
+        private set
+        {
+            if (!Set(ref _isTesting, value)) return;
+            TestCommand.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(TestLabel));
+        }
+    }
+
+    public string TestLabel => Localizer.Get(IsTesting ? "Settings.Model.Testing" : "Settings.Model.Test");
+
+    public string TestHint => Localizer.Get("Settings.Model.TestHint");
+
+    public void BeginTest()
+    {
+        IsTesting = true;
+        _testResult = null;
+        OnPropertyChanged(nameof(TestStatus));
+        OnPropertyChanged(nameof(HasTestStatus));
+    }
+
+    public void ShowTestResult(CloudTestResult result)
+    {
+        _testResult = result;
+        IsTesting = false;
+        OnPropertyChanged(nameof(TestStatus));
+        OnPropertyChanged(nameof(HasTestStatus));
+        OnPropertyChanged(nameof(TestStatusBrush));
+    }
+
+    /// <summary>One line: what happened, how long it took, and the endpoint's own words on failure.</summary>
+    public string TestStatus => _testResult is null
+        ? string.Empty
+        : (_testResult.Ok ? Localizer.Get("Settings.Model.TestOk") + " · " : Localizer.Get("Settings.Model.TestFail") + " · ")
+          + _testResult.ElapsedMs + " ms · " + _testResult.Message;
+
+    public bool HasTestStatus => _testResult is not null || IsTesting;
+
+    /// <summary>Green when the round trip worked, red when it did not.</summary>
+    public string TestStatusBrush => _testResult is { Ok: true } ? "#FF2E6B5A" : "#FF8E1B1B";
 
     public ModelField ModelName { get; }
     public ModelField Url { get; }
@@ -277,6 +335,9 @@ public sealed class ModelConfigurationViewModel : ObservableObject
         OnPropertyChanged(nameof(DocsNote));
         OnPropertyChanged(nameof(AdvancedLabel));
         OnPropertyChanged(nameof(AdvancedNote));
+        OnPropertyChanged(nameof(TestLabel));
+        OnPropertyChanged(nameof(TestHint));
+        OnPropertyChanged(nameof(TestStatus));
         OnPropertyChanged(nameof(LocalModelHeader));
         OnPropertyChanged(nameof(LocalModelNote));
         OnPropertyChanged(nameof(GpuLabel));

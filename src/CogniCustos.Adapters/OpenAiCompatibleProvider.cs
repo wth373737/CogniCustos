@@ -17,7 +17,6 @@ public sealed class OpenAiCompatibleProvider : ICloudModelProvider
     private readonly HttpClient _http;
     private readonly string? _apiKey;
     private readonly string _model;
-    private bool? _available;
 
     public OpenAiCompatibleProvider(string baseUrl, string model, string? apiKey, double temperature = 0.2)
     {
@@ -37,24 +36,45 @@ public sealed class OpenAiCompatibleProvider : ICloudModelProvider
     public double Temperature { get; }
     public string Id => $"cloud:{_model}";
     public ModelRole Role => ModelRole.Reasoning;
-    public bool IsAvailable => _available ??= Probe();
 
-    public void ResetAvailability() => _available = null;
+    /// <summary>
+    /// A configured provider is *usable*; whether the key and the URL are right is the job of a
+    /// real request, not of a probe.
+    ///
+    /// This used to probe <c>GET /models</c> and cache the answer. Plenty of OpenAI-compatible
+    /// endpoints do not serve that path (or need a <c>/v1</c> prefix), so a perfectly good
+    /// configuration was declared unavailable and the router silently fell back to standby —
+    /// which the user saw as "配置完反而说找不到模型". A wrong key now surfaces as the provider's
+    /// own HTTP error on the first call, and the settings page's test button says so up front.
+    /// </summary>
+    public bool IsAvailable => true;
 
-    private bool Probe()
+    public void ResetAvailability()
     {
+        // kept for the callers that used to invalidate the probe cache
+    }
+
+    /// <summary>
+    /// One real round trip, for the settings page's "test" button: it reports what actually
+    /// happened (status, latency, or the endpoint's own error text) instead of a cached guess.
+    /// </summary>
+    public async Task<CloudTestResult> TestAsync(CancellationToken ct = default)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            var resp = _http.GetAsync("models", cts.Token).GetAwaiter().GetResult();
-            _available = resp.IsSuccessStatusCode;
+            var reply = await CompleteAsync("你是连通性测试器。", "只回复两个字：可以。", ct)
+                .ConfigureAwait(false);
+            return new CloudTestResult(true, Clock(reply, clock.ElapsedMilliseconds), clock.ElapsedMilliseconds);
         }
-        catch
+        catch (Exception ex)
         {
-            _available = false;
+            return new CloudTestResult(false, ex.Message, clock.ElapsedMilliseconds);
         }
-        return _available.Value;
     }
+
+    private static string Clock(string reply, long ms) =>
+        ms + " ms · " + (reply.Length > 60 ? reply[..60] + "…" : reply);
 
     public async Task<string> CompleteAsync(string system, string user, CancellationToken ct = default)
     {
@@ -63,10 +83,20 @@ public sealed class OpenAiCompatibleProvider : ICloudModelProvider
         messages.Add(new { role = "user", content = user });
 
         var body = new { model = _model, messages, stream = false, temperature = Temperature };
-        using var resp = await _http.PostAsJsonAsync("chat/completions", body, ct).ConfigureAwait(false);
-        var raw = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+
+        // Some endpoints expect the base URL to include /v1, others to exclude it. Instead of
+        // making the user guess, try the plain path and, on a 404 only, the /v1 one.
+        var (resp, raw) = await PostAsync("chat/completions", body, ct).ConfigureAwait(false);
+        if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            resp.Dispose();
+            (resp, raw) = await PostAsync("v1/chat/completions", body, ct).ConfigureAwait(false);
+        }
+
+        using var _ = resp;
         if (!resp.IsSuccessStatusCode)
-            throw new InvalidOperationException($"云端 HTTP {(int)resp.StatusCode}: {(raw.Length > 200 ? raw[..200] : raw)}");
+            throw new InvalidOperationException(
+                $"云端 HTTP {(int)resp.StatusCode}（{Endpoint}）：{(raw.Length > 200 ? raw[..200] : raw)}");
 
         using var doc = JsonDocument.Parse(raw);
         if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
@@ -75,7 +105,16 @@ public sealed class OpenAiCompatibleProvider : ICloudModelProvider
             if (first.TryGetProperty("message", out var msg) && msg.TryGetProperty("content", out var content))
                 return content.GetString() ?? "";
         }
+
         throw new InvalidOperationException("云端响应没有 choices[0].message.content");
+    }
+
+    private async Task<(HttpResponseMessage Response, string Raw)> PostAsync(string path, object body,
+        CancellationToken ct)
+    {
+        var response = await _http.PostAsJsonAsync(path, body, ct).ConfigureAwait(false);
+        var raw = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        return (response, raw);
     }
 
     public Task<float[]> EmbedAsync(string text, CancellationToken ct = default) => Task.FromResult(Array.Empty<float>());

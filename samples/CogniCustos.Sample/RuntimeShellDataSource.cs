@@ -482,6 +482,28 @@ public sealed class RuntimeShellDataSource : IShellDataSource
     /// Send one real request with the prompt as it stands. This is the only way to answer "did my
     /// edit help?" without guessing: it shows the exact text sent and the exact reply, timed.
     /// </summary>
+    /// <summary>
+    /// Test the endpoint described by the form. The key may be blank when one is already stored,
+    /// so a saved key does not have to be retyped to test a changed URL or model.
+    /// </summary>
+    public async Task<CogniCustos.Ui.ViewModels.CloudTestResult> TestCloudAsync(string model, string url, string apiKey)
+    {
+        model = (model ?? string.Empty).Trim();
+        url = (url ?? string.Empty).Trim();
+        apiKey = (apiKey ?? string.Empty).Trim();
+
+        if (model.Length == 0) return new CogniCustos.Ui.ViewModels.CloudTestResult(false, "请先填写模型名称。", 0);
+        if (url.Length == 0) return new CogniCustos.Ui.ViewModels.CloudTestResult(false, "请先填写接口地址。", 0);
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            return new CogniCustos.Ui.ViewModels.CloudTestResult(false, "接口地址必须是 http(s) 的绝对地址。", 0);
+
+        if (apiKey.Length == 0) apiKey = _rt.CloudModels.Settings.CloudApiKey ?? string.Empty;
+
+        var provider = new CogniCustos.Adapters.OpenAiCompatibleProvider(url, model, apiKey);
+        var result = await provider.TestAsync().ConfigureAwait(false);
+        return new CogniCustos.Ui.ViewModels.CloudTestResult(result.Ok, result.Message, result.ElapsedMs);
+    }
     public async Task<PromptTryResult> TryPromptAsync(string promptKey)
     {
         var variables = new Dictionary<string, string>

@@ -1543,6 +1543,43 @@ internal static class Program
                                    && found && text == "你是助教，说话简短。");
         });
 
+        await Check("cloud: a configured endpoint is usable even when /models is missing", async () =>
+        {
+            // A stub that behaves like a real OpenAI-compatible endpoint without /models: the
+            // old probe asked for it, got 404 and declared the (perfectly good) model unusable.
+            using var stub = new StubEndpoint(respondToModels: false);
+            var provider = new OpenAiCompatibleProvider(stub.BaseUrl, "stub-model", "test-key");
+
+            var usable = provider.IsAvailable;
+            var result = await provider.TestAsync();
+
+            Console.WriteLine($"      test: ok={result.Ok} {result.Message}");
+            return usable && result.Ok;
+        });
+
+        await Check("cloud: a base URL without /v1 falls back once on 404", async () =>
+        {
+            // endpoint only serves /v1/chat/completions; the first plain attempt 404s
+            using var stub = new StubEndpoint(respondToModels: false, onlyUnderV1: true);
+            var provider = new OpenAiCompatibleProvider(stub.BaseUrl, "stub-model", "test-key");
+
+            var reply = await provider.CompleteAsync("sys", "hello");
+
+            return stub.Paths.Count == 2
+                   && stub.Paths[0] == "/chat/completions"
+                   && stub.Paths[1] == "/v1/chat/completions"
+                   && reply.Contains("stub answer");
+        });
+
+        await Check("cloud: a wrong key surfaces as the endpoint's own error", async () =>
+        {
+            using var stub = new StubEndpoint(respondToModels: false, status: 401, body: "{\"error\":\"invalid api key\"}");
+            var provider = new OpenAiCompatibleProvider(stub.BaseUrl, "stub-model", "bad-key");
+
+            var result = await provider.TestAsync();
+            return !result.Ok && result.Message.Contains("401");
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;
@@ -1580,6 +1617,82 @@ internal static class Program
         second.AddText("PAGE TWO", 24, new UglyToad.PdfPig.Core.PdfPoint(60, 760), font);
 
         File.WriteAllBytes(path, builder.Build());
+    }
+
+    /// <summary>
+    /// A minimal HTTP endpoint over a raw socket, so the cloud adapter can be exercised without
+    /// a network, a certificate or a real provider. It records every path it was asked for, which
+    /// is how the /v1 fallback is proven.
+    /// </summary>
+    private sealed class StubEndpoint : IDisposable
+    {
+        private readonly System.Net.Sockets.TcpListener _listener;
+        private readonly CancellationTokenSource _cts = new();
+        private readonly bool _respondToModels;
+        private readonly bool _onlyUnderV1;
+        private readonly int _status;
+        private readonly string _body;
+
+        public StubEndpoint(bool respondToModels, bool onlyUnderV1 = false, int status = 200,
+            string body = "{\"choices\":[{\"message\":{\"content\":\"stub answer\"}}]}")
+        {
+            _respondToModels = respondToModels;
+            _onlyUnderV1 = onlyUnderV1;
+            _status = status;
+            _body = body;
+
+            _listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
+            _listener.Start();
+            var port = ((System.Net.IPEndPoint)_listener.LocalEndpoint).Port;
+            BaseUrl = $"http://127.0.0.1:{port}";
+            _ = Task.Run(ServeAsync);
+        }
+
+        public string BaseUrl { get; }
+
+        public List<string> Paths { get; } = [];
+
+        private async Task ServeAsync()
+        {
+            while (!_cts.IsCancellationRequested)
+            {
+                System.Net.Sockets.TcpClient client;
+                try { client = await _listener.AcceptTcpClientAsync(_cts.Token); }
+                catch { return; }
+
+                using (client)
+                using (var stream = client.GetStream())
+                {
+                    var buffer = new byte[8192];
+                    var read = await stream.ReadAsync(buffer, _cts.Token);
+                    var text = System.Text.Encoding.ASCII.GetString(buffer, 0, Math.Max(0, read));
+                    var path = text.Split(' ').ElementAtOrDefault(1) ?? "/";
+                    Paths.Add(path);
+
+                    var ok = path != "/models" || _respondToModels;
+                    if (_onlyUnderV1 && !path.StartsWith("/v1/", StringComparison.Ordinal)) ok = false;
+
+                    var status = ok ? _status : 404;
+                    var body = ok ? _body : "{\"error\":\"not found\"}";
+                    var payload = System.Text.Encoding.UTF8.GetBytes(body);
+                    var head = System.Text.Encoding.ASCII.GetBytes(
+                        $"HTTP/1.1 {status} {(status == 200 ? "OK" : "Not Found")}\r\n" +
+                        "Content-Type: application/json\r\n" +
+                        $"Content-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+
+                    await stream.WriteAsync(head, _cts.Token);
+                    await stream.WriteAsync(payload, _cts.Token);
+                    await stream.FlushAsync(_cts.Token);
+                }
+            }
+        }
+
+        public void Dispose()
+        {
+            _cts.Cancel();
+            try { _listener.Stop(); } catch { }
+            _cts.Dispose();
+        }
     }
 
     private static async Task Check(string name, Func<Task<bool>> body)    {

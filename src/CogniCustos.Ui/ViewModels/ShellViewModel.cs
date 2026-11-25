@@ -610,6 +610,31 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Today.ResetSeeds(_source.Today());
     }
 
+    /// <summary>
+    /// The connection test: one real request to what is typed in the form, off the UI thread.
+    /// The result line shows the endpoint's own error text when it fails — "找不到模型" is never
+    /// a verdict this method can produce.
+    /// </summary>
+    private void TestCloud(string model, string url, string apiKey)
+    {
+        Settings.Model.BeginTest();
+
+        _ = Task.Run(async () =>
+        {
+            CloudTestResult result;
+            try
+            {
+                result = await _source.TestCloudAsync(model, url, apiKey).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                result = new CloudTestResult(false, ex.Message, 0);
+            }
+
+            Dispatcher.UIThread.Post(() => Settings.Model.ShowTestResult(result));
+        });
+    }
+
     private void SaveCloud(string model, string url, string apiKey)
     {
         if (_source.SaveCloud(model, url, apiKey) is { } failure)
@@ -659,6 +684,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.Model.OllamaEnableRequested += EnableOllama;
         Settings.Model.GpuToggleRequested += ToggleGpu;
         Settings.Model.CloudSaveRequested += SaveCloud;
+        Settings.Model.CloudTestRequested += TestCloud;
 
         Settings.EmailRetrieval.AddRequested += AddEmailAccount;
         Settings.EmailRetrieval.RemoveRequested += RemoveEmailAccount;

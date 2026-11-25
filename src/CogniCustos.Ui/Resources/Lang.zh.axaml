@@ -65,7 +65,7 @@
   <x:String x:Key="Settings.Model.Api">API 密钥</x:String>
   <x:String x:Key="Settings.Model.DocsNote">以上信息的获取方式请参考官方文档。</x:String>
   <x:String x:Key="Settings.Model.Advanced">高级设置</x:String>
-  <x:String x:Key="Settings.Model.AdvancedNote">打开高级设置可以看到应用真正在发的每一条提示词与配套参数。本版只读，下一版开放编辑。</x:String>
+  <x:String x:Key="Settings.Model.AdvancedNote">打开高级设置可以查看并编辑应用真正在发的提示词与配套参数；标「代码固定」的段不可改。</x:String>
   <x:String x:Key="Settings.Model.AdvancedTitle">高级设置</x:String>
   <x:String x:Key="Settings.Model.AdvancedPending">参数配置窗口尚未实现。</x:String>
   <x:String x:Key="Settings.Model.LocalModel">本地小模型</x:String>
@@ -330,4 +330,9 @@
   <x:String x:Key="Advanced.TryPrompt">实际发送的内容</x:String>
   <x:String x:Key="Advanced.TryOk">回复</x:String>
   <x:String x:Key="Advanced.NoStore">这个构建没有接提示词存储。</x:String>
+  <x:String x:Key="Settings.Model.Test">测试连接</x:String>
+  <x:String x:Key="Settings.Model.Testing">测试中…</x:String>
+  <x:String x:Key="Settings.Model.TestHint">用上面三个字段真发一次请求，不用先保存。</x:String>
+  <x:String x:Key="Settings.Model.TestOk">已连通</x:String>
+  <x:String x:Key="Settings.Model.TestFail">连接失败</x:String>
 </ResourceDictionary>

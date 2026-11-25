@@ -195,6 +195,10 @@ public sealed class DemoShellDataSource : IShellDataSource
         return new PromptEditResult(null, text, false);
     }
 
+    public Task<CloudTestResult> TestCloudAsync(string model, string url, string apiKey) =>
+        Task.FromResult(string.IsNullOrWhiteSpace(url)
+            ? new CloudTestResult(false, "演示：接口地址为空。", 1)
+            : new CloudTestResult(true, "演示：已连通 " + model, 42));
     public Task<PromptTryResult> TryPromptAsync(string promptKey) =>
         Task.FromResult(new PromptTryResult(true,
             "演示：这段提示词会作为 system 消息发送。",

@@ -65,7 +65,7 @@
   <x:String x:Key="Settings.Model.Api">API</x:String>
   <x:String x:Key="Settings.Model.DocsNote">Please refer to the official documentation for the information above.</x:String>
   <x:String x:Key="Settings.Model.Advanced">Advanced settings</x:String>
-  <x:String x:Key="Settings.Model.AdvancedNote">Open advanced settings to see every prompt this app sends and the parameters it sends them with. Read-only for now; editing comes next.</x:String>
+  <x:String x:Key="Settings.Model.AdvancedNote">Open advanced settings to see and edit every prompt this app sends, with the parameters it sends them with. Segments marked "fixed by code" cannot be changed.</x:String>
   <x:String x:Key="Settings.Model.AdvancedTitle">Advanced settings</x:String>
   <x:String x:Key="Settings.Model.AdvancedPending">The parameter window is not implemented yet.</x:String>
   <x:String x:Key="Settings.Model.LocalModel">Small local model</x:String>
@@ -331,4 +331,9 @@ First, the sentence is defining the term before using it, so read it as a defini
   <x:String x:Key="Advanced.TryPrompt">what was sent</x:String>
   <x:String x:Key="Advanced.TryOk">reply</x:String>
   <x:String x:Key="Advanced.NoStore">This build has no prompt store attached.</x:String>
+  <x:String x:Key="Settings.Model.Test">Test connection</x:String>
+  <x:String x:Key="Settings.Model.Testing">Testing…</x:String>
+  <x:String x:Key="Settings.Model.TestHint">Sends one real request with the fields above, before anything is saved.</x:String>
+  <x:String x:Key="Settings.Model.TestOk">connected</x:String>
+  <x:String x:Key="Settings.Model.TestFail">failed</x:String>
 </ResourceDictionary>

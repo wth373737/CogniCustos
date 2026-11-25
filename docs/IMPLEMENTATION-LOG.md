@@ -1509,3 +1509,58 @@ dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720
 - 按用途分档的温度与能力声明（`InferenceProfile` + `Capabilities`），以及让 `num_ctx` 与点读预算联动；
 - 连接测试（对某个 profile 发 ping，显示首 token/总耗时）；
 - 结构化调用日志（现在错误要么进 Toast、要么被 catch 吞掉）。
+
+---
+
+## 2026-11-25 · 云端模型"配置完反而找不到模型" + 设置页连接测试
+
+### 1. 根因：可用性用探测代替了事实
+
+`OpenAiCompatibleProvider.IsAvailable` 以前是 `GET /models` 的结果并缓存：
+
+```csharp
+var resp = _http.GetAsync("models", 3s);   // 很多端点没有这个路径
+_available = resp.IsSuccessStatusCode;     // 于是"配好的模型"被判成不可用
+```
+
+`ModelRouter.Resolve` 只选 `IsAvailable` 的 provider，于是**填对了也被跳过**，回落到 standby，
+用户看到的就是"配置完反而说找不到模型"。没配置时反而能用，是因为那时借的是本地 Ollama。
+
+### 2. 修法
+
+1. **可用 = 已配置**：`IsAvailable => true`。对不对由真实请求回答；
+   错 key/错地址会以端点自己的 HTTP 错误出现在第一次调用里（比"找不到模型"有用得多）。
+2. **`/v1` 回退**：先 `chat/completions`，只在 **404** 时再试一次 `v1/chat/completions`。
+   有人说 base URL 带 `/v1`、有人说不带——不再让用户猜。
+3. **测试按钮**：设置页「主推理模型」三个字段下方 `测试连接`，
+   用**表单里当前的值**（未保存也可以）真发一次请求，结果显示一行：成功/失败 · 耗时 · 端点原话。
+
+### 3. 验证（新增 3 条自检，用本地 TCP 桩，不需要网络）
+
+- 一个**没有 /models** 的端点 → `IsAvailable=true` 且 `TestAsync` 成功（这正是原 bug 的复现）；
+- 只有 `/v1/chat/completions` 的端点 → 记录到的路径依次是 `/chat/completions`、`/v1/chat/completions`，拿到回答；
+- `401` 响应 → 测试返回失败且消息里带 `401`（端点的原话，不是"找不到模型"）。
+
+界面侧一条：表单值确实传到了接缝、测试中按钮不可点、结果行同时含耗时与端点原话、失败行含 401。
+
+### 4. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `Adapters/OpenAiCompatibleProvider.cs` | `IsAvailable` 恒真；`TestAsync`；9 行 `/v1` 回退；错误里带 Endpoint |
+| `Contracts/CloudTestResult.cs`（新） | 适配器的测试结果类型 |
+| `Ui/ViewModels/CloudTestResult.cs`（新） | 面板用的同名结构（UI 不引用 Contracts） |
+| `ModelConfigurationViewModel` | `TestCommand`/`IsTesting`/`TestStatus`/`CloudTestRequested` |
+| `SettingsPage.axaml` | 三个字段下面的「测试连接」+ 结果行 |
+| `IShellDataSource` / `ShellViewModel` / 演示源 / 小样 | `TestCloudAsync(model, url, key)`；小样用表单值建临时 provider |
+| `Lang.*` | 5 个键（`Settings.Model.Test*`），两侧 294 |
+
+### 5. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest   # passed=114（+3 云端）
+dotnet run --project tools/CogniCustos.Ui.Tests # ALL PASS（80）
+```
+
+手工：设置页填 `https://api.deepseek.com` + `deepseek-chat` + key → 点「测试连接」→
+应显示`已连通 · 1234 ms · 可以。`；换成错 key 应显示 `连接失败 · … 401 …`。
