@@ -67,6 +67,25 @@ public sealed class DemoShellDataSource : IShellDataSource
 
     public string? SwitchToBuiltIn() => null;
 
+    public IReadOnlyList<EmailAccountInfo> EmailAccounts() =>
+        [new EmailAccountInfo("student@usm.my", "outlook.office365.com", 993, 7, true)];
+
+    public string? AddEmailAccount(string address, string host, int port, string secret, int lookbackDays,
+        bool unreadOnly) => null;
+
+    public bool RemoveEmailAccount(string address) => true;
+
+    public string ImportEmailAccounts() => "演示：没有找到 Thunderbird 配置";
+
+    public (bool Ok, string Message) TestEmailAccount(string address) =>
+        (true, "已连接 outlook.office365.com（演示）");
+
+    public IReadOnlyList<string> WebSources() => ["https://elearning.usm.my/notices"];
+
+    public string? AddWebSource(string url) => null;
+
+    public bool RemoveWebSource(string url) => true;
+
     public (string Model, string Url, bool Configured) CloudSettings() =>
         ("deepseek-flash", "https://api.deepseek.com", true);
 

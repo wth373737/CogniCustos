@@ -33,7 +33,15 @@ public sealed class SettingsViewModel : ObservableObject
 
         _selected = Sections[0];
         Model = new ModelConfigurationViewModel();
+        EmailRetrieval = new EmailRetrievalViewModel();
+        WebBrowsing = new WebBrowsingViewModel();
     }
+
+    /// <summary>The content of 邮件抓取配置.</summary>
+    public EmailRetrievalViewModel EmailRetrieval { get; }
+
+    /// <summary>The content of 网页浏览配置.</summary>
+    public WebBrowsingViewModel WebBrowsing { get; }
 
     /// <summary>The content of the Model Configuration section.</summary>
     public ModelConfigurationViewModel Model { get; }
@@ -53,6 +61,8 @@ public sealed class SettingsViewModel : ObservableObject
             OnPropertyChanged(nameof(SelectedTitle));
             OnPropertyChanged(nameof(ShowPreviewGallery));
             OnPropertyChanged(nameof(ShowModelConfiguration));
+            OnPropertyChanged(nameof(ShowEmailRetrieval));
+            OnPropertyChanged(nameof(ShowWebBrowsing));
             OnPropertyChanged(nameof(ShowPlaceholder));
         }
     }
@@ -65,8 +75,15 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Model Configuration owns the only real form so far.</summary>
     public bool ShowModelConfiguration => _selected?.Key == "Section.Model";
 
-    /// <summary>The generic placeholder only shows for sections with neither form nor gallery.</summary>
-    public bool ShowPlaceholder => !ShowPreviewGallery && !ShowModelConfiguration;
+    /// <summary>邮件抓取配置 owns the account list.</summary>
+    public bool ShowEmailRetrieval => _selected?.Key == "Section.EmailRetrieval";
+
+    /// <summary>网页浏览配置 owns the page list.</summary>
+    public bool ShowWebBrowsing => _selected?.Key == "Section.WebsiteBrowsing";
+
+    /// <summary>The generic placeholder only shows for sections with no form at all.</summary>
+    public bool ShowPlaceholder =>
+        !ShowPreviewGallery && !ShowModelConfiguration && !ShowEmailRetrieval && !ShowWebBrowsing;
 
     public void RefreshTitles()
     {
@@ -74,6 +91,8 @@ public sealed class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedTitle));
         OnPropertyChanged(nameof(ShowPreviewGallery));
         OnPropertyChanged(nameof(ShowModelConfiguration));
+        OnPropertyChanged(nameof(ShowEmailRetrieval));
+        OnPropertyChanged(nameof(ShowWebBrowsing));
         OnPropertyChanged(nameof(ShowPlaceholder));
         Model.RefreshText();
     }

@@ -136,6 +136,136 @@
               </WrapPanel>
             </StackPanel>
           </ScrollViewer>
+          <!-- 邮件抓取配置: accounts, a form, and a real connection test -->
+          <ScrollViewer Grid.Row="2" Margin="0,14,0,0" VerticalScrollBarVisibility="Auto"
+                        IsVisible="{Binding Settings.ShowEmailRetrieval}">
+            <StackPanel Spacing="12">
+              <TextBlock Text="{DynamicResource Settings.Email.Header}" FontSize="16.5" FontWeight="SemiBold"
+                         Foreground="{StaticResource Ink}" />
+              <TextBlock Text="{DynamicResource Settings.Email.Note}" FontSize="12.5"
+                         Foreground="#FF6D7C79" TextWrapping="Wrap" />
+
+              <ItemsControl ItemsSource="{Binding Settings.EmailRetrieval.Accounts}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,6,0,0">
+                      <StackPanel Grid.Column="0" Spacing="1">
+                        <TextBlock Text="{Binding Address}" FontSize="13" Foreground="#FF2B2B32" />
+                        <TextBlock Text="{Binding Server}" FontSize="11.5" Foreground="#FF6D7C79" />
+                        <TextBlock Text="{Binding Scope}" FontSize="11.5" Foreground="#FF93A29F" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Text="{Binding Status}" FontSize="12"
+                                 Foreground="#FF6D7C79" VerticalAlignment="Center" Margin="0,0,10,0" />
+                      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                        <Button Classes="chip" Content="{DynamicResource Settings.Email.Test}"
+                                Command="{Binding TestCommand}" />
+                        <Button Classes="danger" Content="{DynamicResource Settings.Email.Remove}"
+                                Command="{Binding DeleteCommand}" />
+                      </StackPanel>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <TextBlock Text="{Binding Settings.EmailRetrieval.EmptyNote}" FontSize="12.5"
+                         Foreground="#FF93A29F" TextWrapping="Wrap"
+                         IsVisible="{Binding !Settings.EmailRetrieval.HasAccounts}" />
+
+              <Border Background="#FFF7FAF9" CornerRadius="8" Padding="14,12" Margin="0,6,0,0">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{DynamicResource Settings.Email.Add}" FontSize="13.5" FontWeight="SemiBold"
+                             Foreground="#FF2B2B32" />
+                  <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{DynamicResource Settings.Email.Address}"
+                               FontSize="12.5" Foreground="#FF6D7C79" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="0" Grid.Column="1" Height="28" FontSize="12.5"
+                             Text="{Binding Settings.EmailRetrieval.Address, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{DynamicResource Settings.Email.Server}"
+                               FontSize="12.5" Foreground="#FF6D7C79" VerticalAlignment="Center" />
+                    <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="*,90" ColumnSpacing="6">
+                      <TextBox Grid.Column="0" Height="28" FontSize="12.5"
+                               Text="{Binding Settings.EmailRetrieval.Host, Mode=TwoWay}" />
+                      <TextBox Grid.Column="1" Height="28" FontSize="12.5"
+                               Text="{Binding Settings.EmailRetrieval.Port, Mode=TwoWay}" />
+                    </Grid>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{DynamicResource Settings.Email.Secret}"
+                               FontSize="12.5" Foreground="#FF6D7C79" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="2" Grid.Column="1" Height="28" FontSize="12.5"
+                             PasswordChar="•"
+                             Text="{Binding Settings.EmailRetrieval.Secret, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="{DynamicResource Settings.Email.Days}"
+                               FontSize="12.5" Foreground="#FF6D7C79" VerticalAlignment="Center" />
+                    <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                      <TextBox Width="70" Height="28" FontSize="12.5"
+                               Text="{Binding Settings.EmailRetrieval.Days, Mode=TwoWay}" />
+                      <CheckBox Content="{DynamicResource Settings.Email.UnreadOnly}" FontSize="12.5"
+                                IsChecked="{Binding Settings.EmailRetrieval.UnreadOnly, Mode=TwoWay}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                      <Button Classes="chipGhost" Content="{DynamicResource Settings.Email.Import}"
+                              Command="{Binding Settings.EmailRetrieval.ImportCommand}" />
+                      <Button Classes="dialog primary" Content="{DynamicResource Settings.Email.AddButton}"
+                              Command="{Binding Settings.EmailRetrieval.AddCommand}" />
+                    </StackPanel>
+                  </Grid>
+
+                  <TextBlock Text="{Binding Settings.EmailRetrieval.AddStatus}" FontSize="12"
+                             Foreground="#FF3C4A47" TextWrapping="Wrap"
+                             IsVisible="{Binding Settings.EmailRetrieval.HasAddStatus}" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
+
+          <!-- 网页浏览配置: the pages the daily fetch reads -->
+          <ScrollViewer Grid.Row="2" Margin="0,14,0,0" VerticalScrollBarVisibility="Auto"
+                        IsVisible="{Binding Settings.ShowWebBrowsing}">
+            <StackPanel Spacing="12">
+              <TextBlock Text="{DynamicResource Settings.Web.Header}" FontSize="16.5" FontWeight="SemiBold"
+                         Foreground="{StaticResource Ink}" />
+              <TextBlock Text="{DynamicResource Settings.Web.Note}" FontSize="12.5"
+                         Foreground="#FF6D7C79" TextWrapping="Wrap" />
+
+              <ItemsControl ItemsSource="{Binding Settings.WebBrowsing.Sources}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                      <StackPanel Grid.Column="0" Spacing="1">
+                        <TextBlock Text="{Binding Host}" FontSize="13" Foreground="#FF2B2B32" />
+                        <TextBlock Text="{Binding Url}" FontSize="11.5" Foreground="#FF93A29F"
+                                   TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Access}" FontSize="11.5" Foreground="#FF6D7C79" />
+                      </StackPanel>
+                      <Button Grid.Column="1" Classes="danger" VerticalAlignment="Center"
+                              Content="{DynamicResource Settings.Web.Remove}"
+                              Command="{Binding DeleteCommand}" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <TextBlock Text="{Binding Settings.WebBrowsing.EmptyNote}" FontSize="12.5"
+                         Foreground="#FF93A29F" TextWrapping="Wrap"
+                         IsVisible="{Binding !Settings.WebBrowsing.HasSources}" />
+
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,6,0,0">
+                <TextBox Grid.Column="0" Height="30" FontSize="12.5"
+                         Watermark="{DynamicResource Settings.Web.Watermark}"
+                         Text="{Binding Settings.WebBrowsing.NewUrl, Mode=TwoWay}" />
+                <Button Grid.Column="1" Classes="dialog primary" Content="{DynamicResource Settings.Web.Add}"
+                        Command="{Binding Settings.WebBrowsing.AddCommand}" />
+              </Grid>
+
+              <TextBlock Text="{Binding Settings.WebBrowsing.Status}" FontSize="12"
+                         Foreground="#FF3C4A47" TextWrapping="Wrap"
+                         IsVisible="{Binding Settings.WebBrowsing.HasStatus}" />
+            </StackPanel>
+          </ScrollViewer>
+
           <!-- Model Configuration: the first real settings form -->
           <ScrollViewer Grid.Row="2" Margin="0,14,0,0" VerticalScrollBarVisibility="Auto"
                         IsVisible="{Binding Settings.ShowModelConfiguration}">

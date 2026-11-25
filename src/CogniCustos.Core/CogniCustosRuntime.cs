@@ -70,6 +70,12 @@ public sealed class CogniCustosRuntime
     /// </summary>
     public InfoPoller Poller { get; private init; } = null!;
 
+    /// <summary>Email accounts for the fetch: add / remove / really test the server.</summary>
+    public EmailAccountsService EmailAccounts { get; private init; } = null!;
+
+    /// <summary>The page list the daily fetch reads; edited from 网页浏览配置.</summary>
+    public WebSourcesService WebSources { get; private init; } = null!;
+
     /// <summary>
     /// Switch to the bundled model and, when it is actually registered, let the raw store
     /// use it for R1 summaries (docs/PARTITION-MODEL.md §6.9: fall back when absent).
@@ -147,6 +153,8 @@ public sealed class CogniCustosRuntime
         var cloudModels = new CloudModelService(models, Path.Combine(state, "settings.json"));
         var settingsPath = Path.Combine(state, "settings.json");
         var poller = new InfoPoller(raw, gate, InfoSources.From(SettingsStore.Load(settingsPath)), settingsPath);
+        var emailAccounts = new EmailAccountsService(settingsPath);
+        var webSources = new WebSourcesService(settingsPath);
         var selfDocs = new SelfDocs(appRoot ?? CogniCustos.Core.SelfDocs.ResolveAppRoot());
         var checker = new SensitiveContentChecker(models);
         var audit = new OutboundAudit(Path.Combine(state, "outbound-audit.jsonl"));
@@ -156,6 +164,8 @@ public sealed class CogniCustosRuntime
             LocalModels = localModels,
             CloudModels = cloudModels,
             Poller = poller,
+            EmailAccounts = emailAccounts,
+            WebSources = webSources,
         };
         if (log is not null) rt.Log += log;
 

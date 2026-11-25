@@ -333,6 +333,9 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.Model.SetLocalStatus(_source.LocalModelStatus());
         Settings.Model.SetGpuState(_source.GpuEnabled(), string.Empty);
 
+        Settings.EmailRetrieval.SetAccounts(_source.EmailAccounts());
+        Settings.WebBrowsing.SetSources(_source.WebSources());
+
         var cloud = _source.CloudSettings();
         Settings.Model.SetCloudValues(cloud.Model, cloud.Url, cloud.Configured);
         Settings.Model.SetCloudStatus(cloud.Configured
@@ -423,6 +426,73 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     /// The primary model: saving it registers the provider immediately, so the next answer
     /// comes from the endpoint the fields describe.
     /// </summary>
+    // ---------- retrieval: email accounts ----------
+
+    private void AddEmailAccount(string address, string host, int port, string secret, int days, bool unread)
+    {
+        if (_source.AddEmailAccount(address, host, port, secret, days, unread) is { } failure)
+        {
+            Settings.EmailRetrieval.ShowStatus(failure);
+            return;
+        }
+
+        Settings.EmailRetrieval.ClearForm();
+        Settings.EmailRetrieval.ShowStatus($"已添加 {address}");
+        RefreshEmailAccounts();
+    }
+
+    private void RemoveEmailAccount(string address)
+    {
+        _source.RemoveEmailAccount(address);
+        Settings.EmailRetrieval.ShowStatus($"已删除 {address}");
+        RefreshEmailAccounts();
+    }
+
+    private void TestEmailAccount(string address)
+    {
+        var (ok, message) = _source.TestEmailAccount(address);
+        Settings.EmailRetrieval.ShowStatus((ok ? "✓ " : "✗ ") + message);
+
+        var row = Settings.EmailRetrieval.Accounts.FirstOrDefault(a => a.Address == address);
+        if (row is not null) row.Status = message;
+    }
+
+    /// <summary>
+    /// "Import from Thunderbird" reads the accounts the user already has, so nobody has to
+    /// type a server twice. It reports what it found instead of silently doing nothing.
+    /// </summary>
+    private void ImportEmailAccounts()
+    {
+        var imported = _source.ImportEmailAccounts();
+        Settings.EmailRetrieval.ShowStatus(imported);
+        RefreshEmailAccounts();
+    }
+
+    private void RefreshEmailAccounts() =>
+        Settings.EmailRetrieval.SetAccounts(_source.EmailAccounts());
+
+    // ---------- retrieval: web pages ----------
+
+    private void AddWebSource(string url)
+    {
+        if (_source.AddWebSource(url) is { } failure)
+        {
+            Settings.WebBrowsing.ShowStatus(failure);
+            return;
+        }
+
+        Settings.WebBrowsing.NewUrl = string.Empty;
+        Settings.WebBrowsing.ShowStatus("已添加");
+        Settings.WebBrowsing.SetSources(_source.WebSources());
+    }
+
+    private void RemoveWebSource(string url)
+    {
+        _source.RemoveWebSource(url);
+        Settings.WebBrowsing.ShowStatus("已删除");
+        Settings.WebBrowsing.SetSources(_source.WebSources());
+    }
+
     private void SaveCloud(string model, string url, string apiKey)
     {
         if (_source.SaveCloud(model, url, apiKey) is { } failure)
@@ -473,6 +543,13 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.Model.OllamaEnableRequested += EnableOllama;
         Settings.Model.GpuToggleRequested += ToggleGpu;
         Settings.Model.CloudSaveRequested += SaveCloud;
+
+        Settings.EmailRetrieval.AddRequested += AddEmailAccount;
+        Settings.EmailRetrieval.RemoveRequested += RemoveEmailAccount;
+        Settings.EmailRetrieval.TestRequested += TestEmailAccount;
+        Settings.EmailRetrieval.ImportRequested += ImportEmailAccounts;
+        Settings.WebBrowsing.AddRequested += AddWebSource;
+        Settings.WebBrowsing.RemoveRequested += RemoveWebSource;
     }
 
     private void SetToast(string text)

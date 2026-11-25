@@ -825,3 +825,70 @@ samples/CogniCustos.Sample/bin/Debug/net8.0/CogniCustos.Sample.exe --fetch-now
 - 抓取没有"订阅项"的界面（只有 settings.json），也没有增量判断（同一个页面每次都会重新入原始区；靠内容哈希去重）。
 - 邮件只支持"一文件一封"的文件夹，没有 IMAP 登录与未读标记。
 - 提议的"时间"是固定 9:00–10:00，没有从正文里抽时间段。
+
+---
+
+## 2026-11-25 · CFG 邮件抓取配置 / 网页浏览配置（照两个插件的写法）
+
+照本机两个插件（cookie 白名单、邮件整理）的配置界面来组织：**列表行 + 状态 + 单项操作 + 一个添加表单 + 一行说明**，
+不新造交互。
+
+### 1. 邮件抓取配置
+
+| 项 | 内容 |
+|---|---|
+| 账号行 | 地址 / `host:port` / 抓取范围（最近 N 天 · 只抓未读）/ 状态（未验证 → 测试后变成服务器回应） |
+| 单项操作 | `测试`（真的连 IMAP 端口，读服务器问候语：`* OK` 才算通，超时 8 秒）、`删除` |
+| 添加表单 | 地址、IMAP 服务器/端口（默认 993）、应用密码（密码框，保存后不回显）、回溯天数、"只抓未读" |
+| 导入 | `从 Thunderbird 导入`：读 `%APPDATA%\Thunderbird\Profiles\*\prefs.js` 里的 hostname 与邮箱地址，配成账号；**密码读不出来**（Thunderbird 加密存储），提示逐个补 |
+| 凭据 | 应用密码写 `state/secrets.json`（本机文件；**诚实地说明现在还没有凭据库**），账号元数据进 `settings.json` |
+
+### 2. 网页浏览配置
+
+| 项 | 内容 |
+|---|---|
+| 网址行 | 域名 / 完整 URL / 访问方式（`只读 GET · 表单提交被禁止`）/ `删除` |
+| 添加 | 校验必须是 http(s) 绝对地址，重复添加不产生重复项 |
+| 说明 | 明确写："需要登录的站点，Cookie 由浏览器插件提供，并按域名逐个向你确认"——和 cookie 插件同一套语义 |
+
+### 3. 层次约定（踩坑记录）
+
+`CogniCustos.Ui` 不引用 `CogniCustos.Core`。第一次实现直接把 `Core.EmailAccount` 放进接缝，编译立刻失败；
+改成 UI 侧的 `EmailAccountInfo` 记录，由示例负责在边界上映射。这条规则以后照办。
+
+### 4. 涉及文件
+
+| 文件 | 变化 |
+|---|---|
+| `src/CogniCustos.Core/EmailAccounts.cs` | **新增**：账号、预设服务商、`secrets.json`、Thunderbird 导入、真实端口测试 |
+| `src/CogniCustos.Core/InfoPoller.cs` | `WebSourcesService`（校验/去重） |
+| `src/CogniCustos.Core/SettingsAndReminders.cs` | `EmailAccounts` 列表 |
+| `src/CogniCustos.Core/CogniCustosRuntime.cs` | 暴露 `EmailAccounts` / `WebSources` |
+| `src/CogniCustos.Ui/ViewModels/RetrievalViewModels.cs` | **新增**：两节的行与表单 |
+| `src/CogniCustos.Ui/ViewModels/{IShellDataSource,DemoShellDataSource,ShellViewModel,SettingsViewModel}.cs` | 接缝、事件转发、小节可见性 |
+| `src/CogniCustos.Ui/Views/SettingsPage.axaml` + `Lang.*` | 两节内容与文案 |
+| `samples/CogniCustos.Sample/RuntimeShellDataSource.cs` | 映射到 Core |
+| `src/CogniCustos.Selftest/Program.cs` | 新增 4 条（78 → 82） |
+| `tools/CogniCustos.Ui.Tests/Program.cs` | 新增 2 条（63 → 65） |
+| `tools/CogniCustos.Ui.Shots/Program.cs`、`ShellScenarios.cs` | 两个新状态 `settings-email` / `settings-web` |
+
+### 5. 怎么验证
+
+```bash
+dotnet run --project src/CogniCustos.Selftest -c Debug       # passed=82
+dotnet run --project tools/CogniCustos.Ui.Tests -c Debug     # ALL PASS（65）
+dotnet run --project tools/CogniCustos.Ui.Shots -- artifacts/ui 1280 720   # settings-email / settings-web
+```
+
+### 6. 以后要改哪里
+
+- **服务商预设**：`EmailAccountsService.Presets`（Outlook / Gmail / QQ / 163 / 自填）。
+- **测试的严格程度**：`TestAsync` 现在只读问候语；接 IMAP 后可以改成登录验证（那时用它读 `SecretFor`）。
+- **凭据换成真正的库**：`SaveSecret` / `SecretFor` 一处替换即可，界面不感知。
+- **网页抓取的规则**（关键词、只读、Cookie 来源）：`InfoKeywords` 与 `WebInfoSource`；这一节只是列表。
+
+### 7. 已知未做
+
+- **IMAP 读取还没接**：现在能配账号、能测端口、能导入，但每日抓取只读收件夹（`InboxPath`）里的文件。
+- 邮件正文解析（MIME/HTML）与已读标记没有做。
+- 网页这一节没有"需要登录"的域名授权流程——那是 cookie 插件的职责，我们只读。

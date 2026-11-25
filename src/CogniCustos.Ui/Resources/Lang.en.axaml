@@ -106,6 +106,24 @@
   <x:String x:Key="Settings.Model.CloudSavedShort">Primary model saved</x:String>
   <x:String x:Key="Settings.Model.CloudNotConfigured">Not configured: the local model answers</x:String>
 
+  <x:String x:Key="Settings.Email.Header">Email retrieval</x:String>
+  <x:String x:Key="Settings.Email.Note">Accounts are read locally by the daily fetch. The password is stored on this machine and never shown again; use an app password, not your login password.</x:String>
+  <x:String x:Key="Settings.Email.Add">Add an account</x:String>
+  <x:String x:Key="Settings.Email.Address">Address</x:String>
+  <x:String x:Key="Settings.Email.Server">IMAP server / port</x:String>
+  <x:String x:Key="Settings.Email.Secret">App password</x:String>
+  <x:String x:Key="Settings.Email.Days">Look back</x:String>
+  <x:String x:Key="Settings.Email.UnreadOnly">Unread only</x:String>
+  <x:String x:Key="Settings.Email.AddButton">Add</x:String>
+  <x:String x:Key="Settings.Email.Import">Import from Thunderbird</x:String>
+  <x:String x:Key="Settings.Email.Test">Test</x:String>
+  <x:String x:Key="Settings.Email.Remove">Remove</x:String>
+  <x:String x:Key="Settings.Web.Header">Website browsing</x:String>
+  <x:String x:Key="Settings.Web.Note">Pages the daily fetch reads. Only GET is used; forms are never submitted. Cookies for signed-in sites come from the browser cookie plugin, which asks for each domain separately.</x:String>
+  <x:String x:Key="Settings.Web.Add">Add page</x:String>
+  <x:String x:Key="Settings.Web.Remove">Remove</x:String>
+  <x:String x:Key="Settings.Web.Watermark">https://…</x:String>
+
   <!--
     English UI text. Every key here must also exist in Lang.zh.axaml —
     tools/CogniCustos.Ui.Tests compares the two files and fails on a mismatch.

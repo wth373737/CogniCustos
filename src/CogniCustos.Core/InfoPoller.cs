@@ -286,6 +286,43 @@ public sealed class InfoPoller
     }
 }
 
+/// <summary>
+/// The web list as the settings page edits it: add and remove pages, each just a URL.
+/// The poller reads the same list, so a change takes effect on the next run.
+/// </summary>
+public sealed class WebSourcesService
+{
+    private readonly string _settingsPath;
+
+    public WebSourcesService(string settingsPath) => _settingsPath = settingsPath;
+
+    public IReadOnlyList<string> Urls => SettingsStore.Load(_settingsPath).WebSources ?? [];
+
+    public (bool Ok, string Message) Add(string url)
+    {
+        url = (url ?? "").Trim();
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+            return (false, "请填写 http(s) 开头的网址。");
+
+        var settings = SettingsStore.Load(_settingsPath);
+        var urls = (settings.WebSources ?? []).ToList();
+        if (urls.Contains(url)) return (true, "这个网址已经在列表里了");
+
+        urls.Add(url);
+        SettingsStore.Save(_settingsPath, settings with { WebSources = urls });
+        return (true, $"已添加 {uri.Host}");
+    }
+
+    public bool Remove(string url)
+    {
+        var settings = SettingsStore.Load(_settingsPath);
+        var urls = (settings.WebSources ?? []).Where(u => u != url).ToList();
+        SettingsStore.Save(_settingsPath, settings with { WebSources = urls });
+        return true;
+    }
+}
+
 /// <summary>Default sources built from settings: configured pages plus an inbox folder.</summary>
 public static class InfoSources
 {

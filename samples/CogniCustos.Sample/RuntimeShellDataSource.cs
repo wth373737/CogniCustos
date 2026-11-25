@@ -172,6 +172,40 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         return ok ? null : message;
     }
 
+    public IReadOnlyList<EmailAccountInfo> EmailAccounts() =>
+        _rt.EmailAccounts.Accounts
+            .Select(a => new EmailAccountInfo(a.Address, a.ImapHost, a.ImapPort, a.LookbackDays, a.UnreadOnly))
+            .ToList();
+
+    public string? AddEmailAccount(string address, string host, int port, string secret, int lookbackDays,
+        bool unreadOnly)
+    {
+        var (ok, message) = _rt.EmailAccounts.Add(address, host, port, secret, lookbackDays, unreadOnly);
+        return ok ? null : message;
+    }
+
+    public bool RemoveEmailAccount(string address) => _rt.EmailAccounts.Remove(address);
+
+    public (bool Ok, string Message) TestEmailAccount(string address)
+    {
+        var account = _rt.EmailAccounts.Accounts.FirstOrDefault(a => a.Address == address);
+        return account is null
+            ? (false, "没有这个账号")
+            : _rt.EmailAccounts.TestAsync(account).GetAwaiter().GetResult();
+    }
+
+    public string ImportEmailAccounts() => _rt.EmailAccounts.ImportFromThunderbird().Message;
+
+    public IReadOnlyList<string> WebSources() => _rt.WebSources.Urls;
+
+    public string? AddWebSource(string url)
+    {
+        var (ok, message) = _rt.WebSources.Add(url);
+        return ok ? null : message;
+    }
+
+    public bool RemoveWebSource(string url) => _rt.WebSources.Remove(url);
+
     public bool GpuEnabled() => _rt.LocalModels.UseGpu;
 
     public string? SetGpu(bool enabled)

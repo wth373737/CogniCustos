@@ -654,6 +654,46 @@ internal static class Program
             Check(shell.Settings.Model.CloudStatus.Length > 0, "the status line stayed empty");
         });
 
+        Test("email_account_add_and_remove_reach_the_store", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Settings.EmailRetrieval.Address = "me@usm.my";
+            shell.Settings.EmailRetrieval.Host = "imap.usm.my";
+            shell.Settings.EmailRetrieval.Port = "993";
+            shell.Settings.EmailRetrieval.Secret = "app-password";
+            shell.Settings.EmailRetrieval.AddCommand.Execute(null);
+            Pump();
+
+            Check(source.Mail.Count == 1, $"the account did not reach the store ({source.Mail.Count})");
+            Check(shell.Settings.EmailRetrieval.Accounts.Count == 1, "the list did not refresh");
+            Check(shell.Settings.EmailRetrieval.Secret.Length == 0, "the password box was not cleared");
+
+            shell.Settings.EmailRetrieval.Accounts[0].DeleteCommand.Execute(null);
+            Pump();
+            Check(source.Mail.Count == 0, "removing the account did not reach the store");
+        });
+
+        Test("web_source_add_and_remove_reach_the_store", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Settings.WebBrowsing.NewUrl = "https://elearning.usm.my/notices";
+            shell.Settings.WebBrowsing.AddCommand.Execute(null);
+            Pump();
+
+            Check(source.Pages.Count == 1, $"the page did not reach the store ({source.Pages.Count})");
+            Check(shell.Settings.WebBrowsing.Sources.Count == 1, "the list did not refresh");
+
+            shell.Settings.WebBrowsing.Sources[0].DeleteCommand.Execute(null);
+            Pump();
+            Check(source.Pages.Count == 0, "removing the page did not reach the store");
+        });
+
         // ---- reasoning record list and thought trace (two independent entries) ----
         Test("reasoning_row_opens_the_record_list", (vm, _) =>
         {
@@ -1257,6 +1297,43 @@ internal sealed class RecordingSource : IShellDataSource
         return null;
     }
 
+    public List<EmailAccountInfo> Mail { get; } = [];
+
+    public IReadOnlyList<EmailAccountInfo> EmailAccounts() => Mail;
+
+    public string? AddEmailAccount(string address, string host, int port, string secret, int lookbackDays,
+        bool unreadOnly)
+    {
+        Mail.Add(new EmailAccountInfo(address, host, port, lookbackDays, unreadOnly));
+        return null;
+    }
+
+    public bool RemoveEmailAccount(string address)
+    {
+        Mail.RemoveAll(a => a.Address == address);
+        return true;
+    }
+
+    public (bool Ok, string Message) TestEmailAccount(string address) => (true, "connected (fake)");
+
+    public string ImportEmailAccounts() => "imported 1";
+
+    public List<string> Pages { get; } = [];
+
+    public IReadOnlyList<string> WebSources() => Pages;
+
+    public string? AddWebSource(string url)
+    {
+        Pages.Add(url);
+        return null;
+    }
+
+    public bool RemoveWebSource(string url)
+    {
+        Pages.Remove(url);
+        return true;
+    }
+
     public bool GpuEnabled() => Gpu;
 
     public string? SetGpu(bool enabled)
@@ -1319,4 +1396,21 @@ internal sealed class RefusingSource : IShellDataSource
     public (string Model, string Url, bool Configured) CloudSettings() => ("", "", false);
 
     public string? SaveCloud(string model, string url, string apiKey) => "cloud refused";
+
+    public IReadOnlyList<EmailAccountInfo> EmailAccounts() => [];
+
+    public string? AddEmailAccount(string address, string host, int port, string secret, int lookbackDays,
+        bool unreadOnly) => "mail refused";
+
+    public bool RemoveEmailAccount(string address) => false;
+
+    public (bool Ok, string Message) TestEmailAccount(string address) => (false, "refused");
+
+    public string ImportEmailAccounts() => "refused";
+
+    public IReadOnlyList<string> WebSources() => [];
+
+    public string? AddWebSource(string url) => "page refused";
+
+    public bool RemoveWebSource(string url) => false;
 }

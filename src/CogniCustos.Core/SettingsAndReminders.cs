@@ -18,6 +18,9 @@ public sealed record AppSettings
     /// <summary>Pages the daily poll reads (empty = nothing to fetch from the web).</summary>
     public System.Collections.Generic.List<string>? WebSources { get; init; }
 
+    /// <summary>Email accounts the daily fetch may read (see <see cref="EmailAccount"/>).</summary>
+    public System.Collections.Generic.List<EmailAccount>? EmailAccounts { get; init; }
+
     /// <summary>Folder of one-file-per-message inbox items (empty = no mail source).</summary>
     public string? InboxPath { get; init; }
 

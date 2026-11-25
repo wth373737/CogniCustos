@@ -1019,6 +1019,61 @@ internal static class Program
             return dueAfterYesterday && !dueAgain;
         });
 
+        // ---------- retrieval configuration: accounts, secrets, pages ----------
+
+        await Check("email: an account is saved, its secret kept out of the account list", async () =>
+        {
+            var settingsPath = Path.Combine(root, "state", "settings.json");
+            var service = new EmailAccountsService(settingsPath);
+
+            var (ok, _) = service.Add("student@usm.my", "outlook.office365.com", 993, "app-password", 7, true);
+            var accounts = service.Accounts;
+            var secret = service.SecretFor("student@usm.my");
+
+            return ok
+                   && accounts.Any(a => a.Address == "student@usm.my" && a.ImapHost == "outlook.office365.com")
+                   && secret == "app-password"
+                   && File.Exists(service.SecretsPath);
+        });
+
+        await Check("email: a bad account is refused with a reason", async () =>
+        {
+            var service = new EmailAccountsService(Path.Combine(root, "state", "settings.json"));
+            var noAddress = service.Add("", "imap.usm.my", 993, "x", 7, true);
+            var noHost = service.Add("a@b.c", "", 993, "x", 7, true);
+            var noSecret = service.Add("a@b.c", "imap.usm.my", 993, "", 7, true);
+
+            return !noAddress.Ok && !noHost.Ok && !noSecret.Ok;
+        });
+
+        await Check("email: Thunderbird accounts are imported without their passwords", async () =>
+        {
+            var profiles = Path.Combine(root, "thunderbird", "Profiles", "abc.default");
+            Directory.CreateDirectory(profiles);
+            File.WriteAllText(Path.Combine(profiles, "prefs.js"),
+                "user_pref(\"mail.server.server1.hostname\", \"imap.usm.my\");\n" +
+                "user_pref(\"mail.identity.id1.useremail\", \"imported@usm.my\");\n");
+
+            var service = new EmailAccountsService(Path.Combine(root, "state", "settings.json"));
+            var (imported, message) = service.ImportFromThunderbird(Path.Combine(root, "thunderbird", "Profiles"));
+
+            return imported == 1
+                   && service.Accounts.Any(a => a.Address == "imported@usm.my" && a.ImapHost == "imap.usm.my")
+                   && message.Contains("密码");
+        });
+
+        await Check("web: pages are validated and not duplicated", async () =>
+        {
+            var settingsPath = Path.Combine(root, "state", "web-settings.json");
+            var service = new WebSourcesService(settingsPath);
+
+            var bad = service.Add("not a url");
+            var good = service.Add("https://elearning.usm.my/notices");
+            var again = service.Add("https://elearning.usm.my/notices");
+
+            return !bad.Ok && good.Ok && again.Ok && service.Urls.Count == 1;
+        });
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;

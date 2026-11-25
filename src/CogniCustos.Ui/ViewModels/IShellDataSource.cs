@@ -5,6 +5,9 @@ namespace CogniCustos.Ui.ViewModels;
 /// implementation is the demo data used by the tests and the screenshots; the
 /// runnable sample passes one backed by CogniCustosRuntime.
 /// </summary>
+/// <summary>One email account as the settings page sees it (address, server, scope).</summary>
+public sealed record EmailAccountInfo(string Address, string Host, int Port, int LookbackDays, bool UnreadOnly);
+
 public interface IShellDataSource
 {
     IReadOnlyList<ReminderItem> Today();
@@ -52,6 +55,28 @@ public interface IShellDataSource
 
     /// <summary>Save and apply the primary model. Null on success, else the reason.</summary>
     string? SaveCloud(string model, string url, string apiKey);
+
+    // ---------- retrieval: email accounts and web pages ----------
+
+    IReadOnlyList<EmailAccountInfo> EmailAccounts();
+
+    /// <summary>Add an account. Null on success, else the reason.</summary>
+    string? AddEmailAccount(string address, string host, int port, string secret, int lookbackDays,
+        bool unreadOnly);
+
+    bool RemoveEmailAccount(string address);
+
+    /// <summary>Import accounts Thunderbird already knows. Returns a status line.</summary>
+    string ImportEmailAccounts();
+
+    /// <summary>Really connect to the IMAP server; returns a status line.</summary>
+    (bool Ok, string Message) TestEmailAccount(string address);
+
+    IReadOnlyList<string> WebSources();
+
+    string? AddWebSource(string url);
+
+    bool RemoveWebSource(string url);
 
     /// <summary>Is the bundled model running on the GPU?</summary>
     bool GpuEnabled();

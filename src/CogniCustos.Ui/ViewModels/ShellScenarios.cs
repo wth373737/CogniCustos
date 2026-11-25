@@ -44,6 +44,12 @@ public static class ShellScenarios
             case "settings-model":
                 OpenModelSection(vm);
                 break;
+            case "settings-email":
+                OpenSettingsAt(vm, "Section.EmailRetrieval");
+                break;
+            case "settings-web":
+                OpenSettingsAt(vm, "Section.WebsiteBrowsing");
+                break;
             case "settings-ollama":
                 OpenModelSection(vm);
                 vm.Settings.Model.OpenOllamaCommand.Execute(null);
@@ -93,6 +99,12 @@ public static class ShellScenarios
                 vm.SubmitInputCommand.Execute(null);
                 break;
         }
+    }
+
+    private static void OpenSettingsAt(ShellViewModel vm, string key)
+    {
+        vm.ToggleSettingsCommand.Execute(null);
+        Select(vm, key);
     }
 
     private static void OpenModelSection(ShellViewModel vm)
