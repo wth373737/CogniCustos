@@ -11,11 +11,15 @@ namespace CogniCustos.Adapters;
 /// server, a few milliseconds to start. It picks the acoustic model that matches the interface
 /// language, and says plainly when there is no microphone or no recogniser installed — a button
 /// that silently does nothing is worse than one that explains itself.
+///
+/// Capture ends for exactly three reasons, and the caller can tell which: the person stopped it
+/// (cancellation), the person stopped speaking (the recogniser finished), or the time box ran out.
 /// </summary>
 public sealed class SystemSpeechRecognizer : ISpeechRecognizer
 {
     private string? _detail;
     private bool _probed;
+    private bool _available;
 
     public string Id => "system";
     public string Engine => "Windows speech";
@@ -28,8 +32,6 @@ public sealed class SystemSpeechRecognizer : ISpeechRecognizer
             return _available;
         }
     }
-
-    private bool _available;
 
     public string Detail
     {
@@ -67,8 +69,7 @@ public sealed class SystemSpeechRecognizer : ISpeechRecognizer
         catch (Exception ex)
         {
             _available = false;
-            _detail = "没有可用的麦克风或语音识别引擎：" + ex.Message
-                      + NonAsciiPathHint();
+            _detail = "没有可用的麦克风或语音识别引擎：" + ex.Message + NonAsciiPathHint();
         }
     }
 
@@ -87,37 +88,64 @@ public sealed class SystemSpeechRecognizer : ISpeechRecognizer
 
     public Task<SpeechResult> ListenAsync(string culture, TimeSpan timeout, CancellationToken ct = default)
     {
-        return Task.Run(() =>
+        return Task.Run(async () =>
         {
             var clock = Stopwatch.StartNew();
+            SpeechRecognitionEngine? engine = null;
+
             try
             {
-                using var engine = new SpeechRecognitionEngine(Pick(culture));
+                engine = new SpeechRecognitionEngine(Pick(culture));
                 engine.SetInputToDefaultAudioDevice();
                 engine.LoadGrammar(new DictationGrammar());
 
-                // Recognize() blocks until the person speaks or the timeout expires; that is the
-                // whole feature: press, speak, text appears.
-                var result = engine.Recognize(timeout);
-                if (result is null)
-                    return new SpeechResult(false, string.Empty,
-                        "没有听到内容（" + (int)timeout.TotalSeconds + " 秒内静音）。", clock.ElapsedMilliseconds, Id);
+                var completion = new TaskCompletionSource<RecognitionResult?>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
 
-                var text = result.Text?.Trim() ?? string.Empty;
-                return text.Length == 0
-                    ? new SpeechResult(false, string.Empty, "识别结果为空。", clock.ElapsedMilliseconds, Id)
-                    : SpeechResult.Said(text, clock.ElapsedMilliseconds, Id);
-            }
-            catch (OperationCanceledException)
-            {
-                return new SpeechResult(false, string.Empty, "已取消。", clock.ElapsedMilliseconds, Id);
+                // keep the newest hypothesis so "press again to stop" can still return words that
+                // were already spoken but not yet finalised
+                string? hypothesis = null;
+                engine.SpeechHypothesized += (_, e) => hypothesis = e.Result?.Text;
+                engine.SpeechRecognized += (_, e) => hypothesis = e.Result?.Text ?? hypothesis;
+                engine.RecognizeCompleted += (_, e) => completion.TrySetResult(e.Result);
+
+                engine.RecognizeAsync(RecognizeMode.Single);
+
+                using var deadline = new CancellationTokenSource(timeout);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, deadline.Token);
+                using var stop = linked.Token.Register(() =>
+                {
+                    try { engine.RecognizeAsyncCancel(); } catch { /* already gone */ }
+                });
+
+                var result = await completion.Task.ConfigureAwait(false);
+                var elapsed = clock.ElapsedMilliseconds;
+                var text = (result?.Text ?? hypothesis ?? string.Empty).Trim();
+                var stoppedByUser = ct.IsCancellationRequested;
+                var timedOut = deadline.IsCancellationRequested;
+
+                if (text.Length == 0)
+                {
+                    var reason = stoppedByUser
+                        ? "已停止，没有听到内容。"
+                        : timedOut
+                            ? $"没有听到内容（已等 {(int)timeout.TotalSeconds} 秒）。"
+                            : "没有听到内容。";
+                    return new SpeechResult(false, string.Empty, reason, elapsed, Id);
+                }
+
+                return SpeechResult.Said(text, elapsed, Id);
             }
             catch (Exception ex)
             {
-                return new SpeechResult(false, string.Empty, "语音识别失败：" + ex.Message,
-                    clock.ElapsedMilliseconds, Id);
+                return new SpeechResult(false, string.Empty,
+                    "语音识别失败：" + ex.Message + NonAsciiPathHint(), clock.ElapsedMilliseconds, Id);
             }
-        }, ct);
+            finally
+            {
+                engine?.Dispose();
+            }
+        });
     }
 
     /// <summary>The recogniser whose culture matches the interface language, else the neutral one.</summary>

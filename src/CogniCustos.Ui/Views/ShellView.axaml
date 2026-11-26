@@ -207,7 +207,7 @@
                 <Button Grid.Column="0" Width="38" Height="38" CornerRadius="19"
                         Background="{Binding MicBackground}" BorderThickness="0"
                         Command="{Binding MicCommand}" ToolTip.Tip="{Binding MicTooltip}">
-                  <TextBlock Classes="glyph" Text="{StaticResource GlyphMic}" FontSize="17"
+                  <TextBlock Classes="glyph" Text="{Binding MicGlyph}" FontSize="17"
                              Foreground="{StaticResource InkSoft}" />
                 </Button>
                 <TextBox x:Name="InputBox" Grid.Column="1" Classes="pill" Margin="8,0,0,0"

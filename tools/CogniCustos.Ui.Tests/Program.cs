@@ -1555,6 +1555,34 @@ internal static class Program
             Check(shell.InputText.Length == 0, "the box changed although nothing was heard");
         });
 
+        Test("microphone_is_a_toggle_and_the_second_press_stops_it", (_, _) =>
+        {
+            var source = new RecordingSource { VoiceBlocks = true, VoiceText = "半句话" };
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            // first press: capture starts and the button says so
+            shell.MicCommand.Execute(null);
+            Pump();
+            Check(shell.IsListening, "the first press did not start listening");
+            Check(shell.MicGlyph == "\uE71A", "the button does not look like a stop button");
+            Check(shell.MicBackground.Contains("D9534F"), "the button did not change colour");
+            Check(shell.MicCommand.CanExecute(null), "a listening button must stay clickable to stop");
+            Check(SaysStop(shell.VoiceHint), $"the hint does not say how to stop: {shell.VoiceHint}");
+
+            // second press: capture stops, and the recogniser is really cancelled
+            shell.MicCommand.Execute(null);
+            Thread.Sleep(120);
+            Pump();
+
+            Check(!shell.IsListening, "the second press did not stop listening");
+            Check(source.VoiceCancelled, "the recogniser was never cancelled");
+            Check(shell.MicGlyph == "\uE720", "the button did not go back to the microphone");
+            Check(shell.MicBackground.Contains("CFCFD8"), "the colour did not go back");
+            Check(SaysStop(shell.VoiceHint), $"stopping left no trace: {shell.VoiceHint}");
+            Check(shell.InputText.Length == 0, "a stopped capture added text anyway");
+        });
+
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }
@@ -1642,6 +1670,11 @@ internal static class Program
     }
 
     private static void Pump() => Dispatcher.UIThread.RunJobs();
+
+    /// <summary>The hint is localised; assert on the meaning, not one language.</summary>
+    private static bool SaysStop(string text) =>
+        text.Contains("停止", StringComparison.Ordinal) ||
+        text.Contains("stop", StringComparison.OrdinalIgnoreCase);
     private static TextBox InputBox(ShellWindow window)
         => window.GetVisualDescendants().OfType<TextBox>().First(t => t.Name == "InputBox");
 
@@ -1844,8 +1877,31 @@ internal sealed class RecordingSource : IShellDataSource
     public bool VoiceOk { get; set; } = true;
     public string VoiceText { get; set; } = "recorded words";
 
-    public Task<VoiceResult> ListenAsync(CancellationToken ct = default) =>
-        Task.FromResult(new VoiceResult(true, VoiceText, "", 8, "system"));
+    /// <summary>When set, listening only ends when the caller cancels — as a real microphone does.</summary>
+    public bool VoiceBlocks { get; set; }
+    public bool VoiceCancelled { get; private set; }
+
+    public Task<VoiceResult> ListenAsync(CancellationToken ct = default)
+    {
+        if (!VoiceBlocks) return Task.FromResult(new VoiceResult(true, VoiceText, "", 8, "system"));
+
+        return BlockAsync(ct);
+    }
+
+    private async Task<VoiceResult> BlockAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(Timeout.Infinite, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            VoiceCancelled = true;
+            throw;
+        }
+
+        return new VoiceResult(true, VoiceText, "", 8, "system");
+    }
 
     public string? UseModelSpeech(bool useModel) => null;
 
@@ -1968,8 +2024,31 @@ internal sealed class RefusingSource : IShellDataSource
     public bool VoiceOk { get; set; } = true;
     public string VoiceText { get; set; } = "recorded words";
 
-    public Task<VoiceResult> ListenAsync(CancellationToken ct = default) =>
-        Task.FromResult(new VoiceResult(true, VoiceText, "", 8, "system"));
+    /// <summary>When set, listening only ends when the caller cancels — as a real microphone does.</summary>
+    public bool VoiceBlocks { get; set; }
+    public bool VoiceCancelled { get; private set; }
+
+    public Task<VoiceResult> ListenAsync(CancellationToken ct = default)
+    {
+        if (!VoiceBlocks) return Task.FromResult(new VoiceResult(true, VoiceText, "", 8, "system"));
+
+        return BlockAsync(ct);
+    }
+
+    private async Task<VoiceResult> BlockAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(Timeout.Infinite, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            VoiceCancelled = true;
+            throw;
+        }
+
+        return new VoiceResult(true, VoiceText, "", 8, "system");
+    }
 
     public string? UseModelSpeech(bool useModel) => null;
 

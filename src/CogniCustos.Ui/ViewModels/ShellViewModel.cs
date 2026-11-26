@@ -74,7 +74,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         ToggleLanguageMenuCommand = new RelayCommand(() => IsLanguageMenuOpen = !IsLanguageMenuOpen);
         GoHomeCommand = new RelayCommand(GoHome);
         SubmitInputCommand = new RelayCommand(SubmitInput);
-        MicCommand = new RelayCommand(() => _ = ListenAsync(), () => !IsListening);
+        MicCommand = new RelayCommand(ToggleListening);   // press to start, press again to stop
         CheckMailCommand = new RelayCommand(() => _ = CheckMailAsync());
 
         Cards =
@@ -168,12 +168,12 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     }
 
     /// <summary>Listening uses a filled microphone so the state is visible without a spinner.</summary>
-    public string MicGlyph => IsListening ? "&#xE720;" : "&#xE720;";
+    public string MicGlyph => IsListening ? "\uE71A" : "\uE720";
 
     public string MicTooltip => Localizer.Get(IsListening ? "Composer.Listening" : "Composer.Mic");
 
     /// <summary>The button turns accent-coloured while it is capturing.</summary>
-    public string MicBackground => IsListening ? "#FF5B8C7E" : "#FFCFCFD8";
+    public string MicBackground => IsListening ? "#FFD9534F" : "#FFCFCFD8";
 
     public string VoiceHint
     {
@@ -187,9 +187,38 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     public bool HasVoiceHint => _voiceHint.Length > 0;
 
+    /// <summary>How long one press may keep listening, shown to the person so stopping is predictable.</summary>
+    public const int ListenSeconds = 15;
+
+    private CancellationTokenSource? _listenCts;
+
     /// <summary>
-    /// Press the microphone: capture one utterance and put it in the input box. A failure is
-    /// reported where the person is looking (the hint under the pill), not only as a toast.
+    /// Press to start, press again to stop. The three ways capture ends are all visible: the
+    /// person stopping it, the recogniser deciding the sentence is finished, and the time box.
+    /// </summary>
+    private void ToggleListening()
+    {
+        if (IsListening)
+        {
+            StopListening();
+            return;
+        }
+
+        _ = ListenAsync();
+    }
+
+    /// <summary>Stop capturing now; whatever was heard so far is kept.</summary>
+    private void StopListening()
+    {
+        if (_listenCts is null) return;
+
+        VoiceHint = Localizer.Get("Composer.Stopping");
+        try { _listenCts.Cancel(); } catch { /* already finished */ }
+    }
+
+    /// <summary>
+    /// Capture one utterance and put it in the input box. A failure is reported where the person
+    /// is looking (the hint under the pill), not only as a toast.
     /// </summary>
     private async Task ListenAsync()
     {
@@ -203,15 +232,16 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
             return;
         }
 
+        using var cts = new CancellationTokenSource();
+        _listenCts = cts;
         IsListening = true;
-        VoiceHint = Localizer.Get("Composer.Listening");
+        VoiceHint = string.Format(Localizer.Get("Composer.Listening"), ListenSeconds);
         try
         {
-            var result = await _source.ListenAsync().ConfigureAwait(true);
+            var result = await _source.ListenAsync(cts.Token).ConfigureAwait(true);
             if (!result.Ok)
             {
                 VoiceHint = result.Error;
-                SetToast(result.Error);
                 return;
             }
 
@@ -220,6 +250,10 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
                 : InputText.TrimEnd() + " " + result.Text;
             VoiceHint = Localizer.Get("Composer.Heard") + " · " + result.Engine + " · " + result.ElapsedMs + " ms";
         }
+        catch (OperationCanceledException)
+        {
+            VoiceHint = Localizer.Get("Composer.Stopped");
+        }
         catch (Exception ex)
         {
             VoiceHint = ex.Message;
@@ -227,6 +261,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         }
         finally
         {
+            _listenCts = null;
             IsListening = false;
         }
     }

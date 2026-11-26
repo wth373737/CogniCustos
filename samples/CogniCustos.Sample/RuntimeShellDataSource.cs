@@ -519,7 +519,7 @@ public sealed class RuntimeShellDataSource : IShellDataSource
     public async Task<VoiceResult> ListenAsync(CancellationToken ct = default)
     {
         var culture = CogniCustos.Ui.Localization.Localizer.Current;
-        var result = await Voice.ListenAsync(culture, TimeSpan.FromSeconds(6), ct).ConfigureAwait(false);
+        var result = await Voice.ListenAsync(culture, TimeSpan.FromSeconds(CogniCustos.Ui.ViewModels.ShellViewModel.ListenSeconds), ct).ConfigureAwait(false);
         return new VoiceResult(result.Ok, result.Text, result.Error, result.ElapsedMs, result.Engine);
     }
 

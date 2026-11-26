@@ -350,7 +350,9 @@
   <x:String x:Key="Settings.Web.EmptyNote">还没有网址：添加通知页或教务页后，每日抓取只读取正文，不做任何写操作。</x:String>
   <x:String x:Key="Prompt.Language.Label">回答语言（跟随界面语言）</x:String>
   <x:String x:Key="Composer.Mic">按住说话，代替打字</x:String>
-  <x:String x:Key="Composer.Listening">正在听…请说话</x:String>
+  <x:String x:Key="Composer.Listening">正在听…再按一次停止；最多 {0} 秒</x:String>
   <x:String x:Key="Composer.Heard">听到</x:String>
   <x:String x:Key="Composer.MicUnavailable">麦克风不可用。</x:String>
+  <x:String x:Key="Composer.Stopping">正在停止…</x:String>
+  <x:String x:Key="Composer.Stopped">已停止，没有添加内容。</x:String>
 </ResourceDictionary>
