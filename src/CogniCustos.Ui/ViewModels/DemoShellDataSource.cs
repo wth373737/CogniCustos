@@ -195,6 +195,14 @@ public sealed class DemoShellDataSource : IShellDataSource
         return new PromptEditResult(null, text, false);
     }
 
+    public VoiceInfo SpeechStatus() => new(true, "system", "演示：系统语音识别");
+
+    public Task<VoiceResult> ListenAsync(CancellationToken ct = default) =>
+        Task.FromResult(new VoiceResult(true, "演示的语音输入", "", 12, "system"));
+
+    public string? UseModelSpeech(bool useModel) =>
+        useModel ? "演示没有接语音识别模型。" : null;
+
     public void LanguageChanged(string culture)
     {
         // the demo has no runtime behind it; the labels already follow the localiser

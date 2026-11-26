@@ -498,6 +498,33 @@ public sealed class RuntimeShellDataSource : IShellDataSource
     /// <summary>The UI language decides the language the model answers in.</summary>
     public void LanguageChanged(string culture) => PromptCatalog.ConfigureLanguage(culture);
 
+    // ---------- microphone ----------
+
+    /// <summary>
+    /// The system recogniser is the default; the local ASR model is the switch that becomes
+    /// available once a model is actually installed.
+    /// </summary>
+    private VoiceInput? _voice;
+
+    private VoiceInput Voice => _voice ??= new VoiceInput(
+        new CogniCustos.Adapters.SystemSpeechRecognizer(),
+        new CogniCustos.Adapters.ModelSpeechRecognizer());
+
+    public VoiceInfo SpeechStatus()
+    {
+        var status = Voice.Status();
+        return new VoiceInfo(status.Available, status.Engine, status.Detail);
+    }
+
+    public async Task<VoiceResult> ListenAsync(CancellationToken ct = default)
+    {
+        var culture = CogniCustos.Ui.Localization.Localizer.Current;
+        var result = await Voice.ListenAsync(culture, TimeSpan.FromSeconds(6), ct).ConfigureAwait(false);
+        return new VoiceResult(result.Ok, result.Text, result.Error, result.ElapsedMs, result.Engine);
+    }
+
+    public string? UseModelSpeech(bool useModel) => Voice.UseModel(useModel);
+
     public async Task<CogniCustos.Ui.ViewModels.CloudTestResult> TestCloudAsync(string model, string url, string apiKey)
     {
         model = (model ?? string.Empty).Trim();

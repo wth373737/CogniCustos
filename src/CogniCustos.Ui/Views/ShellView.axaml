@@ -199,23 +199,31 @@
 
         <!-- input -->
         <Grid Grid.Row="2" VerticalAlignment="Bottom" Margin="0,0,-88,19">
-          <Border Width="220" Height="48" CornerRadius="24"
-                  Background="#FFE9E9EE"
-                  HorizontalAlignment="Center">
-            <Grid ColumnDefinitions="Auto,*" Margin="6,0,14,0">
-              <Border Grid.Column="0" Width="38" Height="38" CornerRadius="19"
-                      Background="#FFCFCFD8" VerticalAlignment="Center">
-                <TextBlock Classes="glyph" Text="{StaticResource GlyphMic}" FontSize="17"
-                           Foreground="{StaticResource InkSoft}" />
-              </Border>
-              <TextBox x:Name="InputBox" Grid.Column="1" Classes="pill" Margin="8,0,0,0"
-                       PlaceholderText="{DynamicResource App.EnterText}" Text="{Binding InputText}">
-                <TextBox.KeyBindings>
-                  <KeyBinding Gesture="Enter" Command="{Binding SubmitInputCommand}" />
-                </TextBox.KeyBindings>
-              </TextBox>
-            </Grid>
-          </Border>
+          <StackPanel HorizontalAlignment="Center" Spacing="4">
+            <Border Width="220" Height="48" CornerRadius="24"
+                    Background="#FFE9E9EE">
+              <Grid ColumnDefinitions="Auto,*" Margin="6,0,14,0">
+                <!-- the microphone: one press, one utterance, text lands in the box -->
+                <Button Grid.Column="0" Width="38" Height="38" CornerRadius="19"
+                        Background="{Binding MicBackground}" BorderThickness="0"
+                        Command="{Binding MicCommand}" ToolTip.Tip="{Binding MicTooltip}">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphMic}" FontSize="17"
+                             Foreground="{StaticResource InkSoft}" />
+                </Button>
+                <TextBox x:Name="InputBox" Grid.Column="1" Classes="pill" Margin="8,0,0,0"
+                         PlaceholderText="{DynamicResource App.EnterText}" Text="{Binding InputText}">
+                  <TextBox.KeyBindings>
+                    <KeyBinding Gesture="Enter" Command="{Binding SubmitInputCommand}" />
+                  </TextBox.KeyBindings>
+                </TextBox>
+              </Grid>
+            </Border>
+
+            <!-- what the microphone is doing, or why it refused -->
+            <TextBlock Text="{Binding VoiceHint}" IsVisible="{Binding HasVoiceHint}"
+                       FontSize="10.5" Foreground="#FF6D7C79" HorizontalAlignment="Center"
+                       MaxWidth="420" TextWrapping="Wrap" TextAlignment="Center" />
+          </StackPanel>
         </Grid>
       </Grid>
 

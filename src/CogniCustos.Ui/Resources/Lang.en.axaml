@@ -350,4 +350,8 @@ First, the sentence is defining the term before using it, so read it as a defini
   <x:String x:Key="Settings.Web.Removed">removed</x:String>
   <x:String x:Key="Settings.Web.EmptyNote">No sites yet: add an announcements or course page and the daily fetch reads its text only, never writing anything back.</x:String>
   <x:String x:Key="Prompt.Language.Label">Response language (follows the UI language)</x:String>
+  <x:String x:Key="Composer.Mic">Speak instead of typing</x:String>
+  <x:String x:Key="Composer.Listening">Listening… speak now</x:String>
+  <x:String x:Key="Composer.Heard">heard</x:String>
+  <x:String x:Key="Composer.MicUnavailable">The microphone is not available.</x:String>
 </ResourceDictionary>

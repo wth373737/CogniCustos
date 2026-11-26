@@ -1524,6 +1524,37 @@ internal static class Program
                 "the mail section lost its label after the switch");
         });
 
+        Test("microphone_puts_the_spoken_words_in_the_input_box", (_, _) =>
+        {
+            var source = new RecordingSource { VoiceText = "明天下午三点开会" };
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            Check(shell.InputText.Length == 0, "the box was not empty to begin with");
+            shell.MicCommand.Execute(null);
+            Pump();
+            Pump();
+
+            Check(shell.InputText == "明天下午三点开会", $"the words did not land: '{shell.InputText}'");
+            Check(shell.HasVoiceHint, "the press left no trace of what happened");
+            Check(!shell.IsListening, "the button is still capturing after the result arrived");
+        });
+
+        Test("microphone_explains_itself_when_there_is_no_device", (_, _) =>
+        {
+            var source = new RecordingSource { VoiceOk = false };
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.MicCommand.Execute(null);
+            Pump();
+
+            Check(!shell.IsListening, "it claims to be listening without a recogniser");
+            Check(shell.HasVoiceHint, "no reason was given");
+            Check(shell.VoiceHint.Contains("麦克风"), $"the reason is not the device: {shell.VoiceHint}");
+            Check(shell.InputText.Length == 0, "the box changed although nothing was heard");
+        });
+
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }
@@ -1808,6 +1839,16 @@ internal sealed class RecordingSource : IShellDataSource
 
     public void LanguageChanged(string culture) => Languages.Add(culture);
 
+    public VoiceInfo SpeechStatus() => new(VoiceOk, "system", VoiceOk ? "ok" : "没有可用的麦克风");
+
+    public bool VoiceOk { get; set; } = true;
+    public string VoiceText { get; set; } = "recorded words";
+
+    public Task<VoiceResult> ListenAsync(CancellationToken ct = default) =>
+        Task.FromResult(new VoiceResult(true, VoiceText, "", 8, "system"));
+
+    public string? UseModelSpeech(bool useModel) => null;
+
     public Task<CloudTestResult> TestCloudAsync(string model, string url, string apiKey) =>
         Task.FromResult(string.IsNullOrWhiteSpace(url)
             ? new CloudTestResult(false, "no url", 1)
@@ -1921,6 +1962,16 @@ internal sealed class RefusingSource : IShellDataSource
     public List<string> Languages { get; } = [];
 
     public void LanguageChanged(string culture) => Languages.Add(culture);
+
+    public VoiceInfo SpeechStatus() => new(VoiceOk, "system", VoiceOk ? "ok" : "没有可用的麦克风");
+
+    public bool VoiceOk { get; set; } = true;
+    public string VoiceText { get; set; } = "recorded words";
+
+    public Task<VoiceResult> ListenAsync(CancellationToken ct = default) =>
+        Task.FromResult(new VoiceResult(true, VoiceText, "", 8, "system"));
+
+    public string? UseModelSpeech(bool useModel) => null;
 
     public Task<CloudTestResult> TestCloudAsync(string model, string url, string apiKey) =>
         Task.FromResult(string.IsNullOrWhiteSpace(url)

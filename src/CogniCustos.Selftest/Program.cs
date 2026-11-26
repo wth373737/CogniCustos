@@ -1694,6 +1694,35 @@ internal static class Program
             return ok;
         });
 
+        await Check("voice: an installed model is only used when it is asked for", async () =>
+        {
+            var system = new FakeSpeech("system", true, "system ok", "from system");
+            var model = new FakeSpeech("model", true, "model ok", "from model");
+            var voice = new VoiceInput(system, model);
+
+            var before = voice.Status().Engine;
+            var refused = voice.UseModel(false);
+            var switched = voice.UseModel(true);
+            var heard = await voice.ListenAsync("zh", TimeSpan.FromSeconds(1));
+
+            return before == "system" && refused is null && switched is null
+                   && voice.Status().Engine == "model"
+                   && heard.Text == "from model";
+        });
+
+        await Check("voice: a missing model is refused with its own reason", async () =>
+        {
+            var model = new FakeSpeech("model", false, "没有安装模型", "never");
+            var voice = new VoiceInput(new FakeSpeech("system", true, "system ok", "from system"), model);
+
+            var reason = voice.UseModel(true);
+            var heard = await voice.ListenAsync("zh", TimeSpan.FromSeconds(1));
+
+            return reason == "没有安装模型"
+                   && !voice.PreferModel
+                   && voice.Status().Engine == "system"
+                   && heard.Text == "from system";
+        });
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;
@@ -1850,6 +1879,27 @@ internal static class Program
             => Task.FromResult(Array.Empty<float>());
     }
 
+    /// <summary>A recogniser that answers from a string, so the choice logic can be tested.</summary>
+    private sealed class FakeSpeech : ISpeechRecognizer
+    {
+        private readonly string _text;
+
+        public FakeSpeech(string id, bool available, string detail, string text)
+        {
+            Id = id;
+            IsAvailable = available;
+            Detail = detail;
+            _text = text;
+        }
+
+        public string Id { get; }
+        public string Engine => Id;
+        public bool IsAvailable { get; }
+        public string Detail { get; }
+
+        public Task<SpeechResult> ListenAsync(string culture, TimeSpan timeout, CancellationToken ct = default) =>
+            Task.FromResult(SpeechResult.Said(_text, 1, Id));
+    }
     private static string Tail(string text) =>
         text.Length > 60 ? "…" + text[^60..].Replace("\n", " ") : text.Replace("\n", " ");
 

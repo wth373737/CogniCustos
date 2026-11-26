@@ -74,6 +74,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         ToggleLanguageMenuCommand = new RelayCommand(() => IsLanguageMenuOpen = !IsLanguageMenuOpen);
         GoHomeCommand = new RelayCommand(GoHome);
         SubmitInputCommand = new RelayCommand(SubmitInput);
+        MicCommand = new RelayCommand(() => _ = ListenAsync(), () => !IsListening);
         CheckMailCommand = new RelayCommand(() => _ = CheckMailAsync());
 
         Cards =
@@ -148,6 +149,87 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     public RelayCommand ToggleLanguageMenuCommand { get; }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand SubmitInputCommand { get; }
+
+    /// <summary>The microphone in the composer: one press, one utterance, text in the box.</summary>
+    public RelayCommand MicCommand { get; }
+
+    private bool _isListening;
+    private string _voiceHint = string.Empty;
+
+    public bool IsListening
+    {
+        get => _isListening;
+        private set
+        {
+            if (!Set(ref _isListening, value)) return;
+            MicCommand.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(MicGlyph));
+        }
+    }
+
+    /// <summary>Listening uses a filled microphone so the state is visible without a spinner.</summary>
+    public string MicGlyph => IsListening ? "&#xE720;" : "&#xE720;";
+
+    public string MicTooltip => Localizer.Get(IsListening ? "Composer.Listening" : "Composer.Mic");
+
+    /// <summary>The button turns accent-coloured while it is capturing.</summary>
+    public string MicBackground => IsListening ? "#FF5B8C7E" : "#FFCFCFD8";
+
+    public string VoiceHint
+    {
+        get => _voiceHint;
+        private set
+        {
+            if (!Set(ref _voiceHint, value)) return;
+            OnPropertyChanged(nameof(HasVoiceHint));
+        }
+    }
+
+    public bool HasVoiceHint => _voiceHint.Length > 0;
+
+    /// <summary>
+    /// Press the microphone: capture one utterance and put it in the input box. A failure is
+    /// reported where the person is looking (the hint under the pill), not only as a toast.
+    /// </summary>
+    private async Task ListenAsync()
+    {
+        if (IsListening) return;
+
+        var status = _source.SpeechStatus();
+        if (!status.Available)
+        {
+            VoiceHint = status.Detail.Length > 0 ? status.Detail : Localizer.Get("Composer.MicUnavailable");
+            SetToast(VoiceHint);
+            return;
+        }
+
+        IsListening = true;
+        VoiceHint = Localizer.Get("Composer.Listening");
+        try
+        {
+            var result = await _source.ListenAsync().ConfigureAwait(true);
+            if (!result.Ok)
+            {
+                VoiceHint = result.Error;
+                SetToast(result.Error);
+                return;
+            }
+
+            InputText = InputText.Trim().Length == 0
+                ? result.Text
+                : InputText.TrimEnd() + " " + result.Text;
+            VoiceHint = Localizer.Get("Composer.Heard") + " · " + result.Engine + " · " + result.ElapsedMs + " ms";
+        }
+        catch (Exception ex)
+        {
+            VoiceHint = ex.Message;
+            SetToast(ex.Message);
+        }
+        finally
+        {
+            IsListening = false;
+        }
+    }
 
     /// <summary>The drawer's mail tile: read the permitted mailboxes now, then relist.</summary>
     public RelayCommand CheckMailCommand { get; }

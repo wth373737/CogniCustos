@@ -36,6 +36,8 @@ internal static class Program
 
         if (Array.IndexOf(args, "--model-status") >= 0) return ModelStatus.Run(args);
 
+        if (Array.IndexOf(args, "--voice-check") >= 0) return VoiceCheck.Run(args.Skip(Array.IndexOf(args, "--voice-check")).ToArray());
+
         var askIndex = Array.IndexOf(args, "--reader-ask");
         if (askIndex >= 0)
         {

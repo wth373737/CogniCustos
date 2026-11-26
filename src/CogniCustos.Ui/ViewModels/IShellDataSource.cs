@@ -143,4 +143,19 @@ public interface IShellDataSource
     /// or key is visible as the endpoint's own words instead of a silent fallback.
     /// </summary>
     Task<CloudTestResult> TestCloudAsync(string model, string url, string apiKey);
+
+    /// <summary>Which speech recogniser the microphone button would use, and why not when not.</summary>
+    VoiceInfo SpeechStatus();
+
+    /// <summary>
+    /// Capture one utterance and return the text. Blocks until the person speaks or the timeout
+    /// expires; the caller keeps the UI responsive.
+    /// </summary>
+    Task<VoiceResult> ListenAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Switch between the system recogniser and a local ASR model. Null on success, else the
+    /// reason the switch was refused (for example "no model installed").
+    /// </summary>
+    string? UseModelSpeech(bool useModel);
 }

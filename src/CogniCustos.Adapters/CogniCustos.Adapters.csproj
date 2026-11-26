@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -11,6 +12,7 @@
     <ProjectReference Include="..\CogniCustos.Core\CogniCustos.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="System.Speech" />
     <PackageReference Include="LLamaSharp" />
     <PackageReference Include="LLamaSharp.Backend.Cpu" />
   </ItemGroup>

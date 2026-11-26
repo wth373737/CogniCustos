@@ -1734,3 +1734,77 @@ Ui.Shots   → ALL OK
 - Core 里仍有**中文硬编码的诊断文案**（提示词校验、云端校验、模型注册原因等）。它们会出现在
   英文界面里。要彻底解决需要 Core 输出**消息码**、由宿主翻译——这是下一步，不是这一轮。
 - 演示数据源（`DemoShellDataSource`）里的示例文本仍是中文：那是"数据"，不是界面文案。
+
+---
+
+## 2026-11-26 · 首页语音输入：一个接口，两个引擎
+
+### 1. 接口先行
+
+```csharp
+public interface ISpeechRecognizer        // Core/VoiceInput.cs
+{
+    string Id { get; }                    // "system" / "model:asr"
+    string Engine { get; }                // 显示名
+    bool IsAvailable { get; }
+    string Detail { get; }                // 不能用的具体原因（永远不是"出错"）
+    Task<SpeechResult> ListenAsync(string culture, TimeSpan timeout, CancellationToken ct);
+}
+```
+
+`VoiceInput` 负责**选**哪个引擎：默认系统引擎；只有"用户确实想用"且"模型确实装了"才切过去。
+切换失败返回原因（"没有安装模型"），而不是等到按下麦克风才失败。
+
+### 2. 两个实现
+
+| 引擎 | 实现 | 状态 |
+|---|---|---|
+| 系统（默认） | `Adapters/SystemSpeechRecognizer.cs`：System.Speech（SAPI）+ `DictationGrammar`，按界面语言挑 zh-CN / en-US 声学模型 | **可用**，实测能听出中文 |
+| 本地模型 | `Adapters/ModelSpeechRecognizer.cs`：`COGNI_ASR_MODEL` 指向模型目录才算"装了" | **只留接口**：可用性探测真实，识别明确回"接口已预留，还没接推理进程" |
+
+### 3. 界面
+
+首页底部那个圆按钮以前是个装饰性的 `Border`，现在是真的 `Button`：
+
+- 按下 → `IsListening`：按钮变绿、提示"正在听…请说话"；
+- 识别到的文字**追加**到输入框（不会覆盖你已经打了一半的内容）；
+- 成功提示：`听到 · system · 1541 ms`；失败提示：具体原因（静音 / 没有设备 / 路径问题）；
+- 不可用时**不假装在听**：直接说明原因。
+
+### 4. 实测：本机上 SAPI 需要纯英文安装路径
+
+同一份程序：
+
+| 路径 | `SetInputToDefaultAudioDevice` | 结果 |
+|---|---|---|
+| `I:\agent统筹规划\003\…` | 0x80070005 E_ACCESSDENIED（UI 线程上甚至是 PlatformNotSupported） | 不可用 |
+| `C:\CogniCustos\voice-test` | OK | **可用，`--voice-check 3` 听到"说"** |
+
+所以提示里直接写清楚："程序所在路径含非 ASCII 字符，Windows 语音识别会被拒绝（0x80070005），
+放到纯英文路径（如 C:\CogniCustos）再试"。这不是我们的 bug，但不说清楚就等于 bug。
+
+另外：`Recognize(timeout)` 的 timeout 是"多久没听到话就不等"，一旦开始说话会等到这句说完
+（实测 3 秒参数跑了 15 秒）——所以界面文案不再承诺"6 秒内"。
+
+### 5. 命令行
+
+```
+CogniCustos.Sample.exe --voice-check          两个引擎的可用性与原因
+CogniCustos.Sample.exe --voice-check 4        真录一次，打印听到的文字与耗时
+```
+
+### 6. 验证
+
+```bash
+Selftest   → passed=120（+2：模型引擎只在"已装且被要求"时使用；缺失时拒绝并给出原因）
+Ui.Tests   → ALL PASS（+2：语音文字落到输入框；没有设备时说明原因）
+Ui.Shots   → ALL OK
+--check / --voice-check 均 OK
+```
+
+### 7. 下一步（接口已就位）
+
+1. `ModelSpeechRecognizer.ListenAsync`：接本地 ASR 进程（Qwen3-ASR / whisper.cpp），把 6 秒音频
+   写成 wav 交给它，返回文本；其余代码不动。
+2. 设置页加一个"语音引擎"下拉（现在只有命令行/代码可切），以及"试听 3 秒"按钮。
+3. 连续识别（现在是一次一句）与标点恢复。
