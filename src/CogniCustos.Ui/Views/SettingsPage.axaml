@@ -456,6 +456,20 @@
                         <TextBlock Text="{Binding Verdict}" FontSize="11"
                                    Foreground="#FF3C4A47" TextWrapping="Wrap"
                                    IsVisible="{Binding HasVerdict}" />
+
+                        <!-- 会话 Cookie：只在这个进程的内存里，关掉即失效 -->
+                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,4,0,0"
+                                    IsVisible="{Binding Approved}">
+                          <TextBox Width="430" Height="26" FontSize="11.5" PasswordChar="•"
+                                   Watermark="{DynamicResource Settings.Web.CookieWatermark}"
+                                   Text="{Binding CookieText, Mode=TwoWay}" />
+                          <Button Classes="dialog" Content="{DynamicResource Settings.Web.CookieSave}"
+                                  Command="{Binding SaveCookieCommand}" />
+                          <Button Classes="dialog" Content="{DynamicResource Settings.Web.CookieClear}"
+                                  Command="{Binding ClearCookieCommand}" />
+                          <TextBlock Text="{Binding CookieLabel}" FontSize="10.5"
+                                     Foreground="{Binding CookieBrush}" VerticalAlignment="Center" />
+                        </StackPanel>
                       </StackPanel>
                       <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                                   VerticalAlignment="Center">

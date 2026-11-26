@@ -392,6 +392,9 @@ public sealed class WebSourceRow : ObservableObject
         AllowCommand = new RelayCommand(() => AllowRequested?.Invoke(this));
         RevokeCommand = new RelayCommand(() => RevokeRequested?.Invoke(this), () => Approved);
         ReadOnceCommand = new RelayCommand(() => ReadOnceRequested?.Invoke(this));
+        SaveCookieCommand = new RelayCommand(() => CookieSaveRequested?.Invoke(this),
+            () => CookieText.Trim().Length > 0);
+        ClearCookieCommand = new RelayCommand(() => CookieClearRequested?.Invoke(this));
     }
 
     public string Url { get; }
@@ -434,6 +437,42 @@ public sealed class WebSourceRow : ObservableObject
 
     public void SetApproved(bool approved) => Approved = approved;
 
+    // ---------- session cookie ----------
+
+    private string _cookieText = string.Empty;
+    private bool _hasCookie;
+
+    /// <summary>Typed here, held in memory by the host, and never read back to the UI.</summary>
+    public string CookieText
+    {
+        get => _cookieText;
+        set
+        {
+            if (!Set(ref _cookieText, value)) return;
+            SaveCookieCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public bool HasCookie
+    {
+        get => _hasCookie;
+        private set
+        {
+            if (!Set(ref _hasCookie, value)) return;
+            OnPropertyChanged(nameof(CookieLabel));
+            OnPropertyChanged(nameof(CookieBrush));
+        }
+    }
+
+    public string CookieLabel => Localizer.Get(HasCookie ? "Settings.Web.CookieSet" : "Settings.Web.CookieUnset");
+
+    public string CookieBrush => HasCookie ? "#FF2E6B5A" : "#FF93A29F";
+
+    public void SetCookieState(bool hasCookie) => HasCookie = hasCookie;
+
+    public RelayCommand SaveCookieCommand { get; private set; } = null!;
+    public RelayCommand ClearCookieCommand { get; private set; } = null!;
+
     public void ShowVerdict(string verdict) => Verdict = verdict;
 
     public RelayCommand DeleteCommand { get; }
@@ -445,6 +484,8 @@ public sealed class WebSourceRow : ObservableObject
     public event Action<WebSourceRow>? AllowRequested;
     public event Action<WebSourceRow>? RevokeRequested;
     public event Action<WebSourceRow>? ReadOnceRequested;
+    public event Action<WebSourceRow>? CookieSaveRequested;
+    public event Action<WebSourceRow>? CookieClearRequested;
 
     public void RefreshText()
     {
@@ -477,6 +518,8 @@ public sealed class WebBrowsingViewModel : ObservableObject
     public event Action<WebSourceRow>? AllowRequested;
     public event Action<WebSourceRow>? RevokeRequested;
     public event Action<WebSourceRow>? ReadOnceRequested;
+    public event Action<WebSourceRow>? CookieSaveRequested;
+    public event Action<WebSourceRow>? CookieClearRequested;
 
     public string NewUrl
     {
@@ -524,6 +567,8 @@ public sealed class WebBrowsingViewModel : ObservableObject
             row.AllowRequested += r => AllowRequested?.Invoke(r);
             row.RevokeRequested += r => RevokeRequested?.Invoke(r);
             row.ReadOnceRequested += r => ReadOnceRequested?.Invoke(r);
+            row.CookieSaveRequested += r => CookieSaveRequested?.Invoke(r);
+            row.CookieClearRequested += r => CookieClearRequested?.Invoke(r);
             Sources.Add(row);
         }
 

@@ -514,10 +514,31 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         return ok ? null : message;
     }
 
+    /// <summary>Store a session cookie for one approved domain (memory only, never written).</summary>
+    public string? SetWebCookie(string host, string cookieHeader)
+    {
+        if (!_rt.WebSources.IsAllowed("https://" + host + "/"))
+            return "请先允许这个域名，再设置它的 Cookie。";
+
+        var (ok, message) = _rt.WebCookies.Set(host, cookieHeader);
+        return ok ? null : message;
+    }
+
+    public string? ClearWebCookie(string host)
+    {
+        _rt.WebCookies.Clear(host);
+        return null;
+    }
+
+    public bool WebCookieSet(string host) => _rt.WebCookies.Has(host);
+
     /// <summary>Read one page now and report the verdict in one line.</summary>
     public async Task<string> ReadWebOnceAsync(string url)
     {
-        var reader = new WebReader(new HttpWebFetcher(), () => _rt.WebSources.AllowedDomains);
+        var reader = new WebReader(
+            new HttpWebFetcher(),
+            () => _rt.WebSources.AllowedDomains,
+            host => _rt.WebCookies.TryGet(host, out var header) ? header : null);
         var page = await reader.ReadAsync(url).ConfigureAwait(false);
 
         return page.Verdict switch

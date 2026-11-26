@@ -364,4 +364,11 @@ First, the sentence is defining the term before using it, so read it as a defini
   <x:String x:Key="Settings.Web.AllowOk">allowed</x:String>
   <x:String x:Key="Settings.Web.RevokeOk">withdrawn</x:String>
   <x:String x:Key="Settings.Web.Note">A domain is only read after you allow it, and only with a GET: no form is ever submitted. Pages that need a login come back as "needs a login" instead of an empty article.</x:String>
+  <x:String x:Key="Settings.Web.CookieWatermark">session cookie, e.g. MoodleSession=abc…</x:String>
+  <x:String x:Key="Settings.Web.CookieSave">Use cookie</x:String>
+  <x:String x:Key="Settings.Web.CookieClear">Forget</x:String>
+  <x:String x:Key="Settings.Web.CookieSet">cookie set (this run only)</x:String>
+  <x:String x:Key="Settings.Web.CookieUnset">no cookie</x:String>
+  <x:String x:Key="Settings.Web.CookieSaved">cookie set for</x:String>
+  <x:String x:Key="Settings.Web.CookieCleared">cookie forgotten for</x:String>
 </ResourceDictionary>

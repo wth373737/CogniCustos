@@ -207,6 +207,19 @@ public sealed class DemoShellDataSource : IShellDataSource
 
     public string? RevokeWebDomain(string domain) { _demoAllowed.Remove(domain); return null; }
 
+    private readonly HashSet<string> _demoCookies = [];
+
+    public string? SetWebCookie(string host, string cookieHeader)
+    {
+        if (string.IsNullOrWhiteSpace(cookieHeader)) return "Cookie 内容为空。";
+        _demoCookies.Add(host);
+        return null;
+    }
+
+    public string? ClearWebCookie(string host) { _demoCookies.Remove(host); return null; }
+
+    public bool WebCookieSet(string host) => _demoCookies.Contains(host);
+
     public Task<string> ReadWebOnceAsync(string url) =>
         Task.FromResult("演示：读到 6631 字 · Universiti Sains Malaysia");
 

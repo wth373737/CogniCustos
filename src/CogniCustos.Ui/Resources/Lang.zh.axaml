@@ -363,4 +363,11 @@
   <x:String x:Key="Settings.Web.AllowOk">已允许</x:String>
   <x:String x:Key="Settings.Web.RevokeOk">已撤销</x:String>
   <x:String x:Key="Settings.Web.Note">只有当您允许某个域名后才会去读它，而且只用 GET：永远不提交表单。需要登录的页面会如实返回"需要登录"，而不是把登录页当成正文存下来。</x:String>
+  <x:String x:Key="Settings.Web.CookieWatermark">会话 Cookie，例如 MoodleSession=abc…</x:String>
+  <x:String x:Key="Settings.Web.CookieSave">使用此 Cookie</x:String>
+  <x:String x:Key="Settings.Web.CookieClear">清除</x:String>
+  <x:String x:Key="Settings.Web.CookieSet">已设置（仅本次运行）</x:String>
+  <x:String x:Key="Settings.Web.CookieUnset">未设置</x:String>
+  <x:String x:Key="Settings.Web.CookieSaved">已为该域名设置 Cookie：</x:String>
+  <x:String x:Key="Settings.Web.CookieCleared">已清除该域名的 Cookie：</x:String>
 </ResourceDictionary>

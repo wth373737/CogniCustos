@@ -86,7 +86,7 @@ public sealed class CogniCustosRuntime
     public void RescanMail()
     {
         MailFolders = ThunderbirdMail.DiscoverFolders(ThunderbirdMail.DiscoverProfiles());
-        Poller.UseSources(BuildSources(SettingsPath, MailSource));
+        Poller.UseSources(BuildSources(SettingsPath, MailSource, WebCookies));
     }
 
     /// <summary>The Thunderbird source (the settings page switches folders on it).</summary>
@@ -113,7 +113,7 @@ public sealed class CogniCustosRuntime
         else if (!muted.Contains(key)) muted.Add(key);
 
         SettingsStore.Save(SettingsPath, settings with { MutedMailFolders = muted });
-        Poller.UseSources(BuildSources(SettingsPath, MailSource));
+        Poller.UseSources(BuildSources(SettingsPath, MailSource, WebCookies));
         return true;
     }
 
@@ -128,7 +128,7 @@ public sealed class CogniCustosRuntime
             .ToList();
 
         SettingsStore.Save(SettingsPath, settings with { MutedMailFolders = muted });
-        Poller.UseSources(BuildSources(SettingsPath, MailSource));
+        Poller.UseSources(BuildSources(SettingsPath, MailSource, WebCookies));
         return true;
     }
 
@@ -137,7 +137,8 @@ public sealed class CogniCustosRuntime
         source.Folders();
 
     /// <summary>Sources for a run: Thunderbird (if on), configured pages, an inbox folder.</summary>
-    private static IReadOnlyList<IInfoSource> BuildSources(string settingsPath, ThunderbirdMailSource mail)
+    private static IReadOnlyList<IInfoSource> BuildSources(string settingsPath, ThunderbirdMailSource mail,
+        WebSessionCookies cookies)
     {
         var settings = SettingsStore.Load(settingsPath);
         var sources = new List<IInfoSource>();
@@ -152,7 +153,16 @@ public sealed class CogniCustosRuntime
             sources.Add(mail);
         }
 
-        if (settings.WebSources is { Count: > 0 }) sources.Add(new WebInfoSource(settings.WebSources));
+        if (settings.WebSources is { Count: > 0 })
+        {
+            // the same gate as the settings page, plus any session cookie the person pasted
+            var allowed = settings.WebAllowedDomains ?? [];
+            var reader = new WebReader(
+                new HttpWebFetcher(),
+                () => allowed,
+                host => cookies.TryGet(host, out var header) ? header : null);
+            sources.Add(new WebInfoSource(settings.WebSources, reader));
+        }
         if (!string.IsNullOrWhiteSpace(settings.InboxPath)) sources.Add(new InboxInfoSource(settings.InboxPath!));
 
         return sources;
@@ -160,6 +170,9 @@ public sealed class CogniCustosRuntime
 
     /// <summary>The page list the daily fetch reads; edited from 网页浏览配置.</summary>
     public WebSourcesService WebSources { get; private init; } = null!;
+
+    /// <summary>Session cookies for approved web domains: memory only, gone when the app closes.</summary>
+    public WebSessionCookies WebCookies { get; private init; } = new();
 
     /// <summary>
     /// Switch to the bundled model and, when it is actually registered, let the raw store
@@ -243,7 +256,8 @@ public sealed class CogniCustosRuntime
         var mailSource = new ThunderbirdMailSource();
         mailSource.UseSelection(() => Candidates(mailSource, settingsPath));
 
-        var poller = new InfoPoller(raw, gate, BuildSources(settingsPath, mailSource), settingsPath);
+        var webCookies = new WebSessionCookies();
+        var poller = new InfoPoller(raw, gate, BuildSources(settingsPath, mailSource, webCookies), settingsPath);
         var emailAccounts = new EmailAccountsService(settingsPath);
         var webSources = new WebSourcesService(settingsPath);
         var selfDocs = new SelfDocs(appRoot ?? CogniCustos.Core.SelfDocs.ResolveAppRoot());
@@ -257,6 +271,7 @@ public sealed class CogniCustosRuntime
             Poller = poller,
             EmailAccounts = emailAccounts,
             WebSources = webSources,
+        WebCookies = webCookies,
             MailFolders = ThunderbirdMail.DiscoverFolders(ThunderbirdMail.DiscoverProfiles()),
             SettingsPath = settingsPath,
             MailSource = mailSource,

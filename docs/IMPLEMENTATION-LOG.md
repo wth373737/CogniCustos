@@ -1920,3 +1920,50 @@ Ui.Tests   → ALL PASS（86，+1：允许域名落到存储并翻转行状态�
 Ui.Shots   → ALL OK
 --web-check 真实站点：见上表
 ```
+
+---
+
+## 2026-11-26 · 登录后的页面（路线一）：会话 Cookie，只在内存里
+
+### 1. 设计取舍
+
+粘贴的 Cookie 是**活凭据**。所以：
+
+- **只存内存**：`WebSessionCookies` 是一个进程内字典，不写 settings.json、不落盘、不进日志；
+  关掉程序即失效（这也让"忘记清除"这件事不再危险）。
+- **界面永不回显**：设置页的输入框用 `PasswordChar`，保存后立刻清空；状态只显示
+  「已设置（仅本次运行）」/「未设置」——`Describe()` 里没有值可漏。
+- **域名关系**：为父域设置的 Cookie 覆盖子域（等同 `Domain=.usm.my`），子域不覆盖父域；
+  精确匹配优先，其次取最长的父域。
+- **先允许再给 Cookie**：没有允许的域名不允许设置 Cookie，接口直接拒绝（顺序不会搞反）。
+
+### 2. 接进读取链路
+
+```
+设置页 ──粘贴──► WebSessionCookies ──► WebReader(cookieFor: host => …) ──► HttpWebFetcher
+                                          └─ 轮询的 WebInfoSource 用同一个 reader
+```
+
+`CogniCustosRuntime` 里只有一个 `WebSessionCookies` 实例，界面、`WebReader`、轮询器共用它——
+不存在"界面设了、轮询没用到"的分叉。
+
+### 3. 界面
+
+网页浏览配置的每一行：允许之后出现
+`[•••••••• 会话 Cookie 输入框] [使用此 Cookie] [清除] 未设置/已设置（仅本次运行）`。
+
+### 4. 验证
+
+```bash
+Selftest  → passed=126（+2：有 Cookie 时请求头真的带上它；父域覆盖子域、非法值被拒、Describe 不回显）
+Ui.Tests  → ALL PASS（87，+1：保存后宿主收到、输入框被清空、行状态变「已设置」；清除后两者都复位）
+Ui.Shots  → ALL OK
+```
+
+（自检里的断言直接看 `handler.Requests[0].Headers["Cookie"]`，不是看状态字符串。）
+
+### 5. 边界（如实）
+
+- **不做登录自动化**：不驱动浏览器、不提交表单、不模拟点击；只把已有的会话 Cookie 用在 GET 上。
+- **不做持久化**：重启就要重贴。以后若要持久化，必须用 DPAPI 之类保护，并明确告知。
+- **Cookie 过期**：服务端失效后，页面会变回 `NeedsLogin`，界面如实显示——不会假装读到了。

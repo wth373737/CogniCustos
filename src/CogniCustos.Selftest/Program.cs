@@ -1774,6 +1774,29 @@ internal static class Program
 
             return page.Verdict == WebVerdict.NotHtml && page.ContentType.Contains("pdf");
         });
+        await Check("web: a session cookie is sent for the host that holds one", async () =>
+        {
+            var handler = new StubWebHandler(
+                "<html><title>Course notes</title><body>Week 12 material: the assignment is due on 27 November.</body></html>");
+            var cookies = new WebSessionCookies();
+            cookies.Set("elearning.usm.my", "MoodleSession=abc123");
+
+            var reader = new WebReader(new HttpWebFetcher(handler), () => ["usm.my"],
+                host => cookies.TryGet(host, out var header) ? header : null);
+
+            var page = await reader.ReadAsync("https://elearning.usm.my/my/");
+            var sent = handler.Requests[0].Headers.TryGetValues("Cookie", out var values)
+                ? string.Join(";", values)
+                : string.Empty;
+
+            Console.WriteLine($"      verdict={page.Verdict} cookieSent={sent.Contains("MoodleSession")}");
+            return page.Verdict == WebVerdict.Read
+                   && sent.Contains("MoodleSession=abc123", StringComparison.Ordinal)
+                   && page.Text.Contains("the assignment is due on 27 November");
+        });
+
+        await Check("web: a parent-domain cookie reaches its subdomains, and nothing else", () => Task.FromResult(ParentCookieCase()));
+
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;
@@ -1978,6 +2001,22 @@ internal static class Program
             };
             return Task.FromResult(response);
         }
+    }
+    /// <summary>The parent-domain rule, in one place so the check stays readable.</summary>
+    private static bool ParentCookieCase()
+    {
+        var cookies = new WebSessionCookies();
+        var rejected = cookies.Set("elearning.usm.my", "no-equals-sign");
+        cookies.Set("usm.my", "session=parent");
+
+        var reachesSub = cookies.TryGet("elearning.usm.my", out var sub);
+        var reachesOther = cookies.TryGet("example.com", out _);
+
+        return !rejected.Ok
+               && reachesSub && sub == "session=parent"
+               && !reachesOther
+               && cookies.Describe("elearning.usm.my").Contains("已设置")
+               && !cookies.Describe("elearning.usm.my").Contains("parent");
     }
     private static string Trim(string text) =>
         text.Length > 40 ? text[..40].Replace("\n", " ") + "…" : text.Replace("\n", " ");

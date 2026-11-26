@@ -1610,6 +1610,34 @@ internal static class Program
             Check(row.Verdict.Contains("12"), $"the verdict lost the result: {row.Verdict}");
         });
 
+        Test("web_cookie_is_held_for_the_run_and_cleared_on_demand", (_, _) =>
+        {
+            var source = new RecordingSource();
+            source.Pages.Add("https://elearning.usm.my/notices");
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.Settings.WebBrowsing.Sources.First().AllowCommand.Execute(null);
+            Pump();
+
+            // approving rebuilds the rows; work with the live instance from here on
+            var row = shell.Settings.WebBrowsing.Sources.First();
+            Check(!row.HasCookie, "a fresh domain claims to hold a cookie");
+
+            row.CookieText = "MoodleSession=abc123";
+            row.SaveCookieCommand.Execute(null);
+            Pump();
+
+            Check(source.CookieHosts.Contains("elearning.usm.my"), "the cookie did not reach the host");
+            Check(shell.Settings.WebBrowsing.Sources.First().HasCookie, "the row does not show a cookie");
+            Check(shell.Settings.WebBrowsing.Sources.First().CookieText.Length == 0,
+                "the credential stayed on screen after saving");
+
+            shell.Settings.WebBrowsing.Sources.First().ClearCookieCommand.Execute(null);
+            Pump();
+            Check(!shell.Settings.WebBrowsing.Sources.First().HasCookie, "clearing did not take effect");
+            Check(!source.CookieHosts.Contains("elearning.usm.my"), "the host still holds the cookie");
+        });
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }
@@ -1904,6 +1932,11 @@ internal sealed class RecordingSource : IShellDataSource
     public string? RevokeWebDomain(string domain) { WebDomains.Remove(domain); return null; }
     public Task<string> ReadWebOnceAsync(string url) => Task.FromResult("read 12 chars");
 
+    public HashSet<string> CookieHosts { get; } = [];
+    public string? SetWebCookie(string host, string cookieHeader) { CookieHosts.Add(host); return null; }
+    public string? ClearWebCookie(string host) { CookieHosts.Remove(host); return null; }
+    public bool WebCookieSet(string host) => CookieHosts.Contains(host);
+
     public VoiceInfo SpeechStatus() => new(VoiceOk, "system", VoiceOk ? "ok" : "没有可用的麦克风");
 
     public bool VoiceOk { get; set; } = true;
@@ -2055,6 +2088,11 @@ internal sealed class RefusingSource : IShellDataSource
     public string? AllowWebDomain(string domain) { WebDomains.Add(domain); return null; }
     public string? RevokeWebDomain(string domain) { WebDomains.Remove(domain); return null; }
     public Task<string> ReadWebOnceAsync(string url) => Task.FromResult("read 12 chars");
+
+    public HashSet<string> CookieHosts { get; } = [];
+    public string? SetWebCookie(string host, string cookieHeader) { CookieHosts.Add(host); return null; }
+    public string? ClearWebCookie(string host) { CookieHosts.Remove(host); return null; }
+    public bool WebCookieSet(string host) => CookieHosts.Contains(host);
 
     public VoiceInfo SpeechStatus() => new(VoiceOk, "system", VoiceOk ? "ok" : "没有可用的麦克风");
 

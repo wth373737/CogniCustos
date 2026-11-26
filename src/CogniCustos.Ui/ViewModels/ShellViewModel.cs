@@ -485,6 +485,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
         Settings.EmailRetrieval.SetAccounts(_source.EmailAccounts());
         Settings.WebBrowsing.SetSources(_source.WebSources());
+        foreach (var row in Settings.WebBrowsing.Sources)
+            row.SetCookieState(_source.WebCookieSet(row.Host));
 
         var cloud = _source.CloudSettings();
         Settings.Model.SetCloudValues(cloud.Model, cloud.Url, cloud.Configured);
@@ -680,6 +682,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     {
         Settings.WebBrowsing.SetAllowedDomains(_source.WebAllowedDomains());
         Settings.WebBrowsing.SetSources(_source.WebSources());
+        foreach (var row in Settings.WebBrowsing.Sources)
+            row.SetCookieState(_source.WebCookieSet(row.Host));
     }
 
     /// <summary>Read one page now and put the verdict on its row; never opens a login form.</summary>
@@ -707,6 +711,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.WebBrowsing.NewUrl = string.Empty;
         Settings.WebBrowsing.ShowStatus(Localizer.Get("Settings.Web.Added"));
         Settings.WebBrowsing.SetSources(_source.WebSources());
+        foreach (var row in Settings.WebBrowsing.Sources)
+            row.SetCookieState(_source.WebCookieSet(row.Host));
     }
 
     private void RemoveWebSource(string url)
@@ -714,6 +720,8 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         _source.RemoveWebSource(url);
         Settings.WebBrowsing.ShowStatus(Localizer.Get("Settings.Web.Removed"));
         Settings.WebBrowsing.SetSources(_source.WebSources());
+        foreach (var row in Settings.WebBrowsing.Sources)
+            row.SetCookieState(_source.WebCookieSet(row.Host));
     }
 
     /// <summary>
@@ -852,6 +860,22 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
             RefreshWebSources();
         };
         Settings.WebBrowsing.ReadOnceRequested += row => _ = ReadWebOnceAsync(row);
+        Settings.WebBrowsing.CookieSaveRequested += row =>
+        {
+            var failure = _source.SetWebCookie(row.Host, row.CookieText.Trim());
+            if (failure is null)
+            {
+                row.CookieText = string.Empty;      // never keep the credential on screen
+                row.SetCookieState(true);
+            }
+            Settings.WebBrowsing.ShowStatus(failure ?? Localizer.Get("Settings.Web.CookieSaved") + " " + row.Host);
+        };
+        Settings.WebBrowsing.CookieClearRequested += row =>
+        {
+            var failure = _source.ClearWebCookie(row.Host);
+            if (failure is null) row.SetCookieState(false);
+            Settings.WebBrowsing.ShowStatus(failure ?? Localizer.Get("Settings.Web.CookieCleared") + " " + row.Host);
+        };
         Settings.WebBrowsing.RemoveRequested += RemoveWebSource;
     }
 

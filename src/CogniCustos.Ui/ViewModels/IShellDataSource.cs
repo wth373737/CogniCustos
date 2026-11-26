@@ -156,6 +156,15 @@ public interface IShellDataSource
     /// <summary>Fetch exactly the configured pages that an approved domain covers.</summary>
     Task<string> ReadWebOnceAsync(string url);
 
+    /// <summary>Store a session cookie for one approved domain (memory only, never written).</summary>
+    string? SetWebCookie(string host, string cookieHeader);
+
+    /// <summary>Forget the session cookie for a domain.</summary>
+    string? ClearWebCookie(string host);
+
+    /// <summary>Whether a session cookie is currently held for that domain.</summary>
+    bool WebCookieSet(string host);
+
     /// <summary>Which speech recogniser the microphone button would use, and why not when not.</summary>
     VoiceInfo SpeechStatus();
 

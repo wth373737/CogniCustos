@@ -488,7 +488,8 @@ public sealed class WebSourcesService
 /// <summary>Default sources built from settings: configured pages plus an inbox folder.</summary>
 public static class InfoSources
 {
-    public static IReadOnlyList<IInfoSource> From(AppSettings settings, HttpMessageHandler? handler = null)
+    public static IReadOnlyList<IInfoSource> From(AppSettings settings, HttpMessageHandler? handler = null,
+        Func<string, string?>? cookieFor = null)
     {
         var sources = new List<IInfoSource>();
 
@@ -503,7 +504,8 @@ public static class InfoSources
             var allowed = settings.WebAllowedDomains ?? [];
             var reader = new WebReader(
                 handler is null ? new HttpWebFetcher() : new HttpWebFetcher(handler),
-                () => allowed);
+                () => allowed,
+                cookieFor);
             sources.Add(new WebInfoSource(settings.WebSources, reader));
         }
 
