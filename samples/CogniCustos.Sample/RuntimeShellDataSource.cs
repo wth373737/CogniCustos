@@ -215,6 +215,15 @@ public sealed class RuntimeShellDataSource : IShellDataSource
         return result.Summary;
     }
 
+    /// <summary>The drawer's web tile: read the pages now, proposals land in 待确认.</summary>
+    public string FetchWebNow()
+    {
+        var result = _rt.RunWebFetchAsync().GetAwaiter().GetResult();
+        return result is null
+            ? "没有可读的网页：先在设置里添加网址并允许那个域名。"
+            : result.Summary;
+    }
+
     public IReadOnlyList<EmailAccountInfo> EmailAccounts() =>
         _rt.EmailAccounts.Accounts
             .Select(a => new EmailAccountInfo(a.Address, a.ImapHost, a.ImapPort, a.LookbackDays, a.UnreadOnly))

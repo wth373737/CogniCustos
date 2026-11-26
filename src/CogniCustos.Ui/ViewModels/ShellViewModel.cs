@@ -73,10 +73,10 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         });
         ToggleLanguageMenuCommand = new RelayCommand(() => IsLanguageMenuOpen = !IsLanguageMenuOpen);
         GoHomeCommand = new RelayCommand(GoHome);
-        OpenWebReadingCommand = new RelayCommand(OpenWebReading);
         SubmitInputCommand = new RelayCommand(SubmitInput);
         MicCommand = new RelayCommand(ToggleListening);   // press to start, press again to stop
         CheckMailCommand = new RelayCommand(() => _ = CheckMailAsync());
+        CheckWebCommand = new RelayCommand(() => _ = CheckWebAsync());
 
         Cards =
         [
@@ -151,15 +151,31 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand SubmitInputCommand { get; }
 
-    /// <summary>The drawer's web tile: open the page list, where a domain is allowed and read.</summary>
-    public RelayCommand OpenWebReadingCommand { get; }
+    /// <summary>The drawer's web tile: read the pages now, exactly like Check email reads mail.</summary>
+    public RelayCommand CheckWebCommand { get; }
 
-    private void OpenWebReading()
+    /// <summary>
+    /// Press the web tile: fetch, extract what matters into 待确认, and say what happened. Same
+    /// shape as Check email, because it is the same kind of action.
+    /// </summary>
+    private async Task CheckWebAsync()
     {
-        Settings.Selected = Settings.Sections.FirstOrDefault(s => s.Key == "Section.WebsiteBrowsing")
-                            ?? Settings.Selected;
+        SetToast(Localizer.Get("Tile.ReadingWeb"));
         MenuOpen = false;
-        SettingsOpen = true;
+
+        string summary;
+        try
+        {
+            summary = await Task.Run(() => _source.FetchWebNow());
+        }
+        catch (Exception ex)
+        {
+            SetToast(ex.Message);
+            return;
+        }
+
+        ReloadBoards();
+        SetToast(summary);
     }
 
     /// <summary>The microphone in the composer: one press, one utterance, text in the box.</summary>

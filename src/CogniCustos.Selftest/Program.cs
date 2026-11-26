@@ -1797,6 +1797,27 @@ internal static class Program
 
         await Check("web: a parent-domain cookie reaches its subdomains, and nothing else", () => Task.FromResult(ParentCookieCase()));
 
+        await Check("web: reading a page with a keyword produces a pending proposal", async () =>
+        {
+            var root = Path.Combine(AppContext.BaseDirectory, "webrun-" + Guid.NewGuid().ToString("N")[..6]);
+            var runtime = CogniCustosRuntime.Create(root);
+            runtime.WebSources.Add("https://test.example/notices");
+            runtime.WebSources.Allow("test.example");
+            runtime.WebFetcher = new StubPageFetcher(
+                "<html><title>Notices</title><body>期末考试安排：deadline 2026-12-10，地点 A301。</body></html>");
+            var result = await runtime.RunWebFetchAsync();
+
+            var dueStillPending = runtime.Poller.IsDue(DateTime.Today);
+
+            try { Directory.Delete(root, true); } catch { }
+
+            Console.WriteLine($"      summary='{result?.Summary}'");
+
+            return result is not null
+                   && result.ProposalIds.Count >= 1
+                   && result.Titles.Count >= 1
+                   && dueStillPending;         // a manual press must not eat today's scheduled run
+        });
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;
@@ -1977,6 +1998,18 @@ internal static class Program
     private static string Tail(string text) =>
         text.Length > 60 ? "…" + text[^60..].Replace("\n", " ") : text.Replace("\n", " ");
 
+    /// <summary>A page that is always the same, so the web → proposal chain can be tested offline.</summary>
+    private sealed class StubPageFetcher : IWebFetcher
+    {
+        private readonly string _html;
+
+        public StubPageFetcher(string html) => _html = html;
+
+        public Task<WebPage> GetAsync(Uri url, string? cookieHeader, CancellationToken ct = default) =>
+            Task.FromResult(new WebPage(url.ToString(), url.Host, 200, "text/html",
+                HttpWebFetcher.TitleOf(_html), HttpWebFetcher.ReadableText(_html),
+                WebVerdict.Read, string.Empty));
+    }
     /// <summary>A handler that answers with one canned body, and records what it was asked for.</summary>
     private sealed class StubWebHandler : HttpMessageHandler
     {

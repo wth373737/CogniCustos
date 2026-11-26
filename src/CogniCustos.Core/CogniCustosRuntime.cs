@@ -68,6 +68,24 @@ public sealed class CogniCustosRuntime
     }
 
     /// <summary>
+    /// The drawer's web tile: read the configured pages now and turn what matters into pending
+    /// proposals. Same pipeline as the daily run, but only the web sources and without consuming
+    /// today's scheduled run — a manual press is not the schedule.
+    /// </summary>
+    public async Task<PollResult?> RunWebFetchAsync(CancellationToken ct = default)
+    {
+        var settings = SettingsStore.Load(SettingsPath);
+        if (settings.WebSources is not { Count: > 0 }) return null;
+
+        var web = BuildSources(SettingsPath, MailSource, WebCookies, WebFetcher)
+            .Where(s => s.Kind == "web")
+            .ToList();
+        if (web.Count == 0) return null;
+
+        return await Poller.RunSourcesAsync(web, DateTime.Today, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// The daily "look for changes" job: fetch, keep everything in the raw zone, turn
     /// keyword hits into proposals. Nothing reaches the main database without confirmation.
     /// </summary>
@@ -86,7 +104,7 @@ public sealed class CogniCustosRuntime
     public void RescanMail()
     {
         MailFolders = ThunderbirdMail.DiscoverFolders(ThunderbirdMail.DiscoverProfiles());
-        Poller.UseSources(BuildSources(SettingsPath, MailSource, WebCookies));
+        Poller.UseSources(BuildSources(SettingsPath, MailSource, WebCookies, WebFetcher));
     }
 
     /// <summary>The Thunderbird source (the settings page switches folders on it).</summary>
@@ -113,7 +131,7 @@ public sealed class CogniCustosRuntime
         else if (!muted.Contains(key)) muted.Add(key);
 
         SettingsStore.Save(SettingsPath, settings with { MutedMailFolders = muted });
-        Poller.UseSources(BuildSources(SettingsPath, MailSource, WebCookies));
+        Poller.UseSources(BuildSources(SettingsPath, MailSource, WebCookies, WebFetcher));
         return true;
     }
 
@@ -128,7 +146,7 @@ public sealed class CogniCustosRuntime
             .ToList();
 
         SettingsStore.Save(SettingsPath, settings with { MutedMailFolders = muted });
-        Poller.UseSources(BuildSources(SettingsPath, MailSource, WebCookies));
+        Poller.UseSources(BuildSources(SettingsPath, MailSource, WebCookies, WebFetcher));
         return true;
     }
 
@@ -138,7 +156,7 @@ public sealed class CogniCustosRuntime
 
     /// <summary>Sources for a run: Thunderbird (if on), configured pages, an inbox folder.</summary>
     private static IReadOnlyList<IInfoSource> BuildSources(string settingsPath, ThunderbirdMailSource mail,
-        WebSessionCookies cookies)
+        WebSessionCookies cookies, IWebFetcher fetcher)
     {
         var settings = SettingsStore.Load(settingsPath);
         var sources = new List<IInfoSource>();
@@ -158,7 +176,7 @@ public sealed class CogniCustosRuntime
             // the same gate as the settings page, plus any session cookie the person pasted
             var allowed = settings.WebAllowedDomains ?? [];
             var reader = new WebReader(
-                new HttpWebFetcher(),
+                fetcher,
                 () => allowed,
                 host => cookies.TryGet(host, out var header) ? header : null);
             sources.Add(new WebInfoSource(settings.WebSources, reader));
@@ -173,6 +191,12 @@ public sealed class CogniCustosRuntime
 
     /// <summary>Session cookies for approved web domains: memory only, gone when the app closes.</summary>
     public WebSessionCookies WebCookies { get; private init; } = new();
+
+    /// <summary>
+    /// How a page is fetched. Swappable so the whole web → pending chain can be tested without
+    /// the network, and so a cookie-bearing or sidecar fetcher can be dropped in later.
+    /// </summary>
+    public IWebFetcher WebFetcher { get; set; } = new HttpWebFetcher();
 
     /// <summary>
     /// Switch to the bundled model and, when it is actually registered, let the raw store
@@ -257,7 +281,8 @@ public sealed class CogniCustosRuntime
         mailSource.UseSelection(() => Candidates(mailSource, settingsPath));
 
         var webCookies = new WebSessionCookies();
-        var poller = new InfoPoller(raw, gate, BuildSources(settingsPath, mailSource, webCookies), settingsPath);
+        var webFetcher = new HttpWebFetcher();
+        var poller = new InfoPoller(raw, gate, BuildSources(settingsPath, mailSource, webCookies, webFetcher), settingsPath);
         var emailAccounts = new EmailAccountsService(settingsPath);
         var webSources = new WebSourcesService(settingsPath);
         var selfDocs = new SelfDocs(appRoot ?? CogniCustos.Core.SelfDocs.ResolveAppRoot());
@@ -272,6 +297,7 @@ public sealed class CogniCustosRuntime
             EmailAccounts = emailAccounts,
             WebSources = webSources,
         WebCookies = webCookies,
+        WebFetcher = webFetcher,
             MailFolders = ThunderbirdMail.DiscoverFolders(ThunderbirdMail.DiscoverProfiles()),
             SettingsPath = settingsPath,
             MailSource = mailSource,

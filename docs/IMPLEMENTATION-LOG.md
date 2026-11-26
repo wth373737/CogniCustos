@@ -2005,3 +2005,62 @@ Ui.Shots  → drawer 状态可见新按钮（第 3 行右）
 现在点按钮是"跳到配置页"。如果你希望它像点读那样**开一个自己的面板**
 （输入/粘贴网址 → 直接读 → 显示正文），那就需要一个 ReaderPage 式的视图与
 `IWebReaderService` 抽屉面板；`WebReader` 与判定逻辑可以直接复用，不动 Core。
+
+---
+
+## 2026-11-26 · 网页按钮改成"读一次"：抓取 → 关键词 → 待确认
+
+### 1. 语义对齐（按用户澄清）
+
+和「检查邮箱」一个意思：**按一下 → 现在就去读 → 重要信息进"待确认"**。
+不是跳到设置页（上一版那样），也不需要自动化/定时。
+
+### 2. 实现
+
+```
+抽屉按钮 ─► CheckWebCommand ─► IShellDataSource.FetchWebNow()
+                                  └─ CogniCustosRuntime.RunWebFetchAsync()
+                                       └─ Poller.RunSourcesAsync(web only, today)
+                                            └─ 关键词命中 → ApprovalGate.ProposeSet → 待确认
+```
+
+两个关键点：
+
+- **只跑网页源**，不碰邮件/收件夹；
+- **不消耗"今天已抓过"的标记**：`RunAsync`（定时）调用 `RunSourcesAsync` 后再 `MarkRan`，
+  手动点一下不会把当天的自动抓取吃掉。这条有自检盯着。
+
+顺带把抓取器变成可注入（`CogniCustosRuntime.WebFetcher`），
+所以"网页 → 待确认"整条链可以离线断言，也为以后换 cookie/侧车实现留了位置。
+
+### 3. 实测
+
+```
+端点：本地桩页（含"期末考试 / deadline 2026-12-10"）
+RunWebFetchAsync → 抓到 1 条，其中 1 条像重要变化，已生成 1 个待确认提议
+Poller.IsDue(today) 仍为 true（手动不消耗定时标记）
+```
+
+真实站点：`--web-check https://www.usm.my/ --allow` 后 `--web-check --fetch` →
+`抓取 1 个网页，发现 0 条重要变化`（该首页没有命中关键词，符合预期）。
+
+### 4. 命令行
+
+```
+--web-check <url> [--allow]   读一次并打印判定（--allow 会同时把网址加入列表并允许域名）
+--web-check --fetch           跑一次网页抓取，打印摘要与待确认标题
+```
+
+### 5. 验证
+
+```bash
+Selftest   → passed=127（+1：桩网页 → 1 条待确认；且手动抓取不消耗当日定时）
+Ui.Tests   → ALL PASS（88：点按钮 → 抓取一次、抽屉关闭、toast 显示结果、不打开设置页）
+Ui.Shots   → ALL OK
+```
+
+### 6. 遗留
+
+- 关键词是**规则**（考试/作业/截止/deadline…），不是模型判断；模型判定在“重要邮件”那条链里已经存在，
+  要不要给它也开一个开关，是产品选择。
+- 「聊天群读取」还是空的（它的按钮位置已经留好）。

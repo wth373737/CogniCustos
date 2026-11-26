@@ -325,13 +325,27 @@ public sealed class InfoPoller
 
     public async Task<PollResult> RunAsync(DateTime today, CancellationToken ct = default)
     {
+        var result = await RunSourcesAsync(_sources, today, ct).ConfigureAwait(false);
+
+        // only the scheduled run consumes the day; a manual subset run must not
+        MarkRan(today);
+        return result;
+    }
+
+    /// <summary>
+    /// Run only some sources (the drawer's web tile uses this): the same pipeline, without
+    /// consuming the daily marker, so "read the web now" does not eat today's scheduled run.
+    /// </summary>
+    public async Task<PollResult> RunSourcesAsync(IReadOnlyList<IInfoSource> sources, DateTime today,
+        CancellationToken ct = default)
+    {
         var fetched = 0;
         var important = 0;
         var skipped = 0;
         var proposalIds = new List<string>();
         var titles = new List<string>();
 
-        foreach (var source in _sources)
+        foreach (var source in sources)
         {
             IReadOnlyList<FetchedItem> items;
             try
@@ -401,8 +415,7 @@ public sealed class InfoPoller
             }
         }
 
-        MarkRan(today);
-        return new PollResult(fetched, important, proposalIds, titles, _sources.Count, skipped);
+        return new PollResult(fetched, important, proposalIds, titles, sources.Count, skipped);
     }
 }
 

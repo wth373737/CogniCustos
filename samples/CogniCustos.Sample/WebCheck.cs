@@ -17,6 +17,19 @@ public static class WebCheck
     {
         try { Console.OutputEncoding = System.Text.Encoding.UTF8; } catch { }
 
+        var root0 = AppRuntime.Home();
+        if (args.Contains("--fetch", StringComparer.Ordinal))
+        {
+            var (rt0, _) = AppRuntime.Build(root0, borrowLocalModel: false);
+            var polled = rt0.RunWebFetchAsync().GetAwaiter().GetResult();
+            Console.WriteLine(polled is null
+                ? "nothing to read: add a page and allow its domain first"
+                : polled.Summary);
+            if (polled is not null && polled.ProposalIds.Count > 0)
+                Console.WriteLine("pending: " + string.Join(", ", polled.Titles));
+            return polled is null ? 2 : 0;
+        }
+
         var url = args.Skip(1).FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal));
         if (string.IsNullOrWhiteSpace(url))
         {
@@ -30,7 +43,14 @@ public static class WebCheck
         var sources = new WebSourcesService(Path.Combine(state, "settings.json"));
 
         if (args.Contains("--allow", StringComparer.Ordinal))
-            Console.WriteLine("allow: " + string.Join(" ", sources.Allow(url).Message));
+        {
+            // allow = "add this page to the list and approve its domain", which is what a person
+            // means when they point the tool at a URL
+            var added = sources.Add(url);
+            var approval = sources.Allow(url);
+            Console.WriteLine("add   : " + added.Message);
+            Console.WriteLine("allow : " + approval.Message);
+        }
 
         var allowed = sources.IsAllowed(url);
         var domains = string.Join(", ", sources.AllowedDomains);

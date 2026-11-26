@@ -15,7 +15,7 @@ AI 只能提出变更，用户确认后才落库；本地小模型（Qwen2.5-0.5
 | 示例应用 | `dotnet run --project samples/CogniCustos.Sample` | 同一个外壳 + 真后端；可交互点击 |
 | **模型自检** | `CogniCustos.Sample.exe --model-check [--gpu]` | 下载内置模型（带 %）→ 切换 → 提问 → 模型摘要 → 判定器验证，打印全部耗时 |
 | **无界面自检** | `…/CogniCustos.Sample.exe --check` | 端到端：写入提议 → 卡片两落点 → 确认 → 审批门落库 |
-| **单元自检** | `dotnet run --project src/CogniCustos.Selftest` | **126** 条断言（含 PDF 页数/像素/文字层/框选/PNG、提示词不变量与编辑规则） |
+| **单元自检** | `dotnet run --project src/CogniCustos.Selftest` | **127** 条断言（含 PDF 页数/像素/文字层/框选/PNG、提示词不变量与编辑规则） |
 | 界面自检 | `dotnet run --project tools/CogniCustos.Ui.Tests` | **88** 条断言（视图模型 + 交互路径，Headless） |
 | 界面截图 | `dotnet run --project tools/CogniCustos.Ui.Shots -- <out> 1280 720` | 所有页面状态渲染成 PNG（`ALL OK`） |
 | **点读** | 抽屉最下面一行「点读文件」 | 打开 PDF → 通读概要 + 页码目录 → 页面上拖框选中 → 「询问 AI 教导」（旁边可写更具体的问题） |
@@ -106,7 +106,7 @@ models/builtin/             内置模型（model.json 记 sha256）
 
 ```
 dotnet build CogniCustos.slnx -c Debug   → 0 errors
-Selftest                                   → passed=126
+Selftest                                   → passed=127
 Ui.Tests                                   → ALL PASS（88）
 Sample --check                             → OK（两落点卡片 + 审批门落库）
 Ui.Shots                                   → ALL OK（含 reader / reader-ask / advanced）

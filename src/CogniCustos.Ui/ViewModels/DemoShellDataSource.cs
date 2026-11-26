@@ -197,6 +197,8 @@ public sealed class DemoShellDataSource : IShellDataSource
 
     public IReadOnlyList<string> WebAllowedDomains() => _demoAllowed;
 
+    public string FetchWebNow() => "演示：读到 2 个网页，生成 1 条待确认";
+
     private static readonly List<string> _demoAllowed = ["www.usm.my"];
 
     public string? AllowWebDomain(string domain)

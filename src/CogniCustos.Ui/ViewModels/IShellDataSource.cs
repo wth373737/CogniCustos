@@ -100,6 +100,12 @@ public interface IShellDataSource
 
     IReadOnlyList<string> WebSources();
 
+    /// <summary>
+    /// Read the configured pages now (the drawer tile): keywords become pending proposals, and
+    /// the returned line says what happened.
+    /// </summary>
+    string FetchWebNow();
+
     string? AddWebSource(string url);
 
     bool RemoveWebSource(string url);
