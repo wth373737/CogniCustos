@@ -73,6 +73,7 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         });
         ToggleLanguageMenuCommand = new RelayCommand(() => IsLanguageMenuOpen = !IsLanguageMenuOpen);
         GoHomeCommand = new RelayCommand(GoHome);
+        OpenWebReadingCommand = new RelayCommand(OpenWebReading);
         SubmitInputCommand = new RelayCommand(SubmitInput);
         MicCommand = new RelayCommand(ToggleListening);   // press to start, press again to stop
         CheckMailCommand = new RelayCommand(() => _ = CheckMailAsync());
@@ -149,6 +150,17 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
     public RelayCommand ToggleLanguageMenuCommand { get; }
     public RelayCommand GoHomeCommand { get; }
     public RelayCommand SubmitInputCommand { get; }
+
+    /// <summary>The drawer's web tile: open the page list, where a domain is allowed and read.</summary>
+    public RelayCommand OpenWebReadingCommand { get; }
+
+    private void OpenWebReading()
+    {
+        Settings.Selected = Settings.Sections.FirstOrDefault(s => s.Key == "Section.WebsiteBrowsing")
+                            ?? Settings.Selected;
+        MenuOpen = false;
+        SettingsOpen = true;
+    }
 
     /// <summary>The microphone in the composer: one press, one utterance, text in the box.</summary>
     public RelayCommand MicCommand { get; }

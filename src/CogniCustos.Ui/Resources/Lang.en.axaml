@@ -371,4 +371,5 @@ First, the sentence is defining the term before using it, so read it as a defini
   <x:String x:Key="Settings.Web.CookieUnset">no cookie</x:String>
   <x:String x:Key="Settings.Web.CookieSaved">cookie set for</x:String>
   <x:String x:Key="Settings.Web.CookieCleared">cookie forgotten for</x:String>
+  <x:String x:Key="Tile.ReadWeb">Read a web page</x:String>
 </ResourceDictionary>

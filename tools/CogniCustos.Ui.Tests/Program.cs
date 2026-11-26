@@ -1638,6 +1638,24 @@ internal static class Program
             Check(!shell.Settings.WebBrowsing.Sources.First().HasCookie, "clearing did not take effect");
             Check(!source.CookieHosts.Contains("elearning.usm.my"), "the host still holds the cookie");
         });
+        Test("drawer_web_tile_opens_the_page_list", (_, _) =>
+        {
+            var source = new RecordingSource();
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            shell.ToggleDrawerCommand.Execute(null);
+            Pump();
+            Check(shell.MenuOpen, "the drawer did not open");
+
+            shell.OpenWebReadingCommand.Execute(null);
+            Pump();
+
+            Check(shell.SettingsOpen, "the tile did not open the settings page");
+            Check(!shell.MenuOpen, "the drawer stayed open behind the settings page");
+            Check(shell.Settings.ShowWebBrowsing, "the page list is not the section that opened");
+            Check(shell.Settings.SelectedTitle.Length > 0, "the section has no title");
+        });
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }

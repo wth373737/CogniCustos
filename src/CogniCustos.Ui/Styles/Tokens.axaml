@@ -82,6 +82,7 @@
   <x:String x:Key="GlyphClose">&#xE711;</x:String>
   <x:String x:Key="GlyphChevronRight">&#xE76C;</x:String>
   <x:String x:Key="GlyphPlus">&#xE710;</x:String>
+  <x:String x:Key="GlyphGlobe">&#xE774;</x:String>
   <x:String x:Key="GlyphMic">&#xE720;</x:String>
   <x:String x:Key="GlyphBack">&#xE72B;</x:String>
   <x:String x:Key="GlyphList">&#xE8FD;</x:String>

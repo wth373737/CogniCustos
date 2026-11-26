@@ -427,6 +427,18 @@
                 </StackPanel>
               </Button>
 
+              <!-- third row, right of mail + chat search: read a web page -->
+              <Button Grid.Row="2" Grid.Column="2" Classes="tile" Width="100" Height="112"
+                      Margin="0,0,0,18" HorizontalAlignment="Center"
+                      Command="{Binding OpenWebReadingCommand}"
+                      ToolTip.Tip="{DynamicResource Tile.ReadWeb}">
+                <StackPanel Spacing="8" VerticalAlignment="Center">
+                  <TextBlock Classes="glyph" Text="{StaticResource GlyphGlobe}" FontSize="30" HorizontalAlignment="Center" />
+                  <TextBlock Text="{DynamicResource Tile.ReadWeb}" FontSize="11"
+                             Foreground="{StaticResource InkSoft}" TextAlignment="Center"
+                             Width="86" TextWrapping="Wrap" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Button>
               <!-- one extra row at the bottom: open a document and have it explained -->
               <Button Grid.Row="3" Grid.Column="0" Classes="tile" Width="100" Height="112"
                       Margin="0,0,0,18" HorizontalAlignment="Center"

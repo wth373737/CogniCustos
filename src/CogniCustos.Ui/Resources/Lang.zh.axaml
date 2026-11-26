@@ -370,4 +370,5 @@
   <x:String x:Key="Settings.Web.CookieUnset">未设置</x:String>
   <x:String x:Key="Settings.Web.CookieSaved">已为该域名设置 Cookie：</x:String>
   <x:String x:Key="Settings.Web.CookieCleared">已清除该域名的 Cookie：</x:String>
+  <x:String x:Key="Tile.ReadWeb">读取网页</x:String>
 </ResourceDictionary>
