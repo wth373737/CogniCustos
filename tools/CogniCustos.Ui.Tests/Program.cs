@@ -1583,6 +1583,33 @@ internal static class Program
             Check(shell.InputText.Length == 0, "a stopped capture added text anyway");
         });
 
+        Test("web_section_approves_a_domain_and_reads_once", (_, _) =>
+        {
+            var source = new RecordingSource();
+            source.Pages.Add("https://elearning.usm.my/notices");
+            var shell = new ShellViewModel(source);
+            Pump();
+
+            var row = shell.Settings.WebBrowsing.Sources.First();
+            Check(!row.Approved, "a new page must start unapproved");
+            Check(row.ApprovedLabel.Length > 0, "the row does not say whether it is allowed");
+
+            // approving reaches the store and flips the row
+            row.AllowCommand.Execute(null);
+            Pump();
+            Check(source.WebDomains.Contains("elearning.usm.my"),
+                $"the approval did not reach the store: {string.Join(",", source.WebDomains)}");
+            Check(shell.Settings.WebBrowsing.Sources.First().Approved, "the row still says not allowed");
+
+            // reading once puts the verdict on the row
+            row = shell.Settings.WebBrowsing.Sources.First();
+            row.ReadOnceCommand.Execute(null);
+            Pump();
+            Pump();
+            Check(row.HasVerdict, "reading once left no verdict");
+            Check(row.Verdict.Contains("12"), $"the verdict lost the result: {row.Verdict}");
+        });
+
         Console.WriteLine(_failures == 0 ? "ALL PASS" : $"{_failures} FAILURE(S)");
         return _failures == 0 ? 0 : 1;
     }
@@ -1871,6 +1898,11 @@ internal sealed class RecordingSource : IShellDataSource
     public List<string> Languages { get; } = [];
 
     public void LanguageChanged(string culture) => Languages.Add(culture);
+    public IReadOnlyList<string> WebAllowedDomains() => WebDomains;
+    public List<string> WebDomains { get; } = [];
+    public string? AllowWebDomain(string domain) { WebDomains.Add(domain); return null; }
+    public string? RevokeWebDomain(string domain) { WebDomains.Remove(domain); return null; }
+    public Task<string> ReadWebOnceAsync(string url) => Task.FromResult("read 12 chars");
 
     public VoiceInfo SpeechStatus() => new(VoiceOk, "system", VoiceOk ? "ok" : "没有可用的麦克风");
 
@@ -2018,6 +2050,11 @@ internal sealed class RefusingSource : IShellDataSource
     public List<string> Languages { get; } = [];
 
     public void LanguageChanged(string culture) => Languages.Add(culture);
+    public IReadOnlyList<string> WebAllowedDomains() => WebDomains;
+    public List<string> WebDomains { get; } = [];
+    public string? AllowWebDomain(string domain) { WebDomains.Add(domain); return null; }
+    public string? RevokeWebDomain(string domain) { WebDomains.Remove(domain); return null; }
+    public Task<string> ReadWebOnceAsync(string url) => Task.FromResult("read 12 chars");
 
     public VoiceInfo SpeechStatus() => new(VoiceOk, "system", VoiceOk ? "ok" : "没有可用的麦克风");
 

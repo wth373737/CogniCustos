@@ -675,6 +675,27 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
 
     // ---------- retrieval: web pages ----------
 
+    /// <summary>Re-read the sources after an approval change, so the rows show the new state.</summary>
+    private void RefreshWebSources()
+    {
+        Settings.WebBrowsing.SetAllowedDomains(_source.WebAllowedDomains());
+        Settings.WebBrowsing.SetSources(_source.WebSources());
+    }
+
+    /// <summary>Read one page now and put the verdict on its row; never opens a login form.</summary>
+    private async Task ReadWebOnceAsync(WebSourceRow row)
+    {
+        row.ShowVerdict(Localizer.Get("Settings.Web.Reading"));
+        try
+        {
+            row.ShowVerdict(await _source.ReadWebOnceAsync(row.Url).ConfigureAwait(true));
+        }
+        catch (Exception ex)
+        {
+            row.ShowVerdict(ex.Message);
+        }
+    }
+
     private void AddWebSource(string url)
     {
         if (_source.AddWebSource(url) is { } failure)
@@ -818,6 +839,19 @@ public sealed class ShellViewModel : ObservableObject, ILocalizedViewModel
         Settings.EmailRetrieval.MailboxToggleRequested += ToggleMailbox;
         Settings.EmailRetrieval.OnlyMailboxRequested += OnlyMailbox;
         Settings.WebBrowsing.AddRequested += AddWebSource;
+        Settings.WebBrowsing.AllowRequested += row =>
+        {
+            var failure = _source.AllowWebDomain(row.Host);
+            Settings.WebBrowsing.ShowStatus(failure ?? Localizer.Get("Settings.Web.AllowOk") + " " + row.Host);
+            RefreshWebSources();
+        };
+        Settings.WebBrowsing.RevokeRequested += row =>
+        {
+            var failure = _source.RevokeWebDomain(row.Host);
+            Settings.WebBrowsing.ShowStatus(failure ?? Localizer.Get("Settings.Web.RevokeOk") + " " + row.Host);
+            RefreshWebSources();
+        };
+        Settings.WebBrowsing.ReadOnceRequested += row => _ = ReadWebOnceAsync(row);
         Settings.WebBrowsing.RemoveRequested += RemoveWebSource;
     }
 

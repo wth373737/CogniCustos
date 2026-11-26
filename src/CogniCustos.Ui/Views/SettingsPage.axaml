@@ -441,16 +441,31 @@
               <ItemsControl ItemsSource="{Binding Settings.WebBrowsing.Sources}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate>
-                    <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
                       <StackPanel Grid.Column="0" Spacing="1">
-                        <TextBlock Text="{Binding Host}" FontSize="13" Foreground="#FF2B2B32" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <TextBlock Text="{Binding Host}" FontSize="13" Foreground="#FF2B2B32" />
+                          <Border Background="#FFF4F6F5" CornerRadius="4" Padding="5,0">
+                            <TextBlock Text="{Binding ApprovedLabel}" FontSize="9.5"
+                                       Foreground="{Binding ApprovedBrush}" />
+                          </Border>
+                        </StackPanel>
                         <TextBlock Text="{Binding Url}" FontSize="11.5" Foreground="#FF93A29F"
                                    TextTrimming="CharacterEllipsis" />
                         <TextBlock Text="{Binding Access}" FontSize="11.5" Foreground="#FF6D7C79" />
+                        <TextBlock Text="{Binding Verdict}" FontSize="11"
+                                   Foreground="#FF3C4A47" TextWrapping="Wrap"
+                                   IsVisible="{Binding HasVerdict}" />
                       </StackPanel>
-                      <Button Grid.Column="1" Classes="danger" VerticalAlignment="Center"
-                              Content="{DynamicResource Settings.Web.Remove}"
-                              Command="{Binding DeleteCommand}" />
+                      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                                  VerticalAlignment="Center">
+                        <Button Classes="dialog" Content="{DynamicResource Settings.Web.Allow}"
+                                Command="{Binding AllowCommand}" />
+                        <Button Classes="dialog" Content="{DynamicResource Settings.Web.ReadOnce}"
+                                Command="{Binding ReadOnceCommand}" />
+                        <Button Classes="danger" Content="{DynamicResource Settings.Web.Remove}"
+                                Command="{Binding DeleteCommand}" />
+                      </StackPanel>
                     </Grid>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>

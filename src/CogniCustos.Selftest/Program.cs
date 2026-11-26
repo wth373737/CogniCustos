@@ -1723,6 +1723,57 @@ internal static class Program
                    && voice.Status().Engine == "system"
                    && heard.Text == "from system";
         });
+        await Check("web: a domain that is not allowed is never fetched", async () =>
+        {
+            var handler = new StubWebHandler("<html><title>t</title><body>hello world content</body></html>");
+            var reader = new WebReader(new HttpWebFetcher(handler), () => ["allowed.example"]);
+
+            var page = await reader.ReadAsync("https://blocked.example/page");
+
+            return page.Verdict == WebVerdict.NotAllowed
+                   && handler.Requests.Count == 0      // the gate is before the network, not after
+                   && page.Detail.Contains("blocked.example", StringComparison.Ordinal);
+        });
+
+        await Check("web: an approved page yields its title and readable text", async () =>
+        {
+            var html = "<html><head><title>Notices &amp; dates</title><style>.x{}</style></head>"
+                       + "<body><script>var a=1;</script><h1>Week 12</h1><p>The final test is on 27 Nov.</p></body></html>";
+            var handler = new StubWebHandler(html);
+            var reader = new WebReader(new HttpWebFetcher(handler), () => ["usm.my"]);
+
+            var page = await reader.ReadAsync("https://elearning.usm.my/notices");
+
+            Console.WriteLine($"      verdict={page.Verdict} status={page.Status} type='{page.ContentType}' title='{page.Title}' len={page.Text.Length} reqs={handler.Requests.Count}");
+            return page.Verdict == WebVerdict.Read
+                   && handler.Requests.Count == 1
+                   && handler.Requests[0].Method == HttpMethod.Get
+                   && page.Title == "Notices & dates"
+                   && page.Text.Contains("The final test is on 27 Nov.")
+                   && !page.Text.Contains("var a=1")
+                   && !page.Text.Contains("<h1>");
+        });
+
+        await Check("web: a sign-in page is reported as needing a login, not stored as content", async () =>
+        {
+            var html = "<html><title>Sign in</title><body>Please sign in with your account and password</body></html>";
+            var reader = new WebReader(new HttpWebFetcher(new StubWebHandler(html)), () => ["elearning.usm.my"]);
+
+            var page = await reader.ReadAsync("https://elearning.usm.my/login/index.php");
+
+            Console.WriteLine($"      verdict={page.Verdict} title='{page.Title}' len={page.Text.Length} detail='{page.Detail}'");
+            return page.Verdict == WebVerdict.NeedsLogin && page.Text.Length == 0;
+        });
+
+        await Check("web: a PDF is reported as not HTML instead of being read as text", async () =>
+        {
+            var handler = new StubWebHandler("%PDF-1.4 binary", "application/pdf");
+            var reader = new WebReader(new HttpWebFetcher(handler), () => ["example.com"]);
+
+            var page = await reader.ReadAsync("https://example.com/file.pdf");
+
+            return page.Verdict == WebVerdict.NotHtml && page.ContentType.Contains("pdf");
+        });
         Console.WriteLine($"passed={_passed} failed={_failed}");
         try { Directory.Delete(root, true); } catch { }
         return _failed == 0 ? 0 : 1;
@@ -1903,6 +1954,31 @@ internal static class Program
     private static string Tail(string text) =>
         text.Length > 60 ? "…" + text[^60..].Replace("\n", " ") : text.Replace("\n", " ");
 
+    /// <summary>A handler that answers with one canned body, and records what it was asked for.</summary>
+    private sealed class StubWebHandler : HttpMessageHandler
+    {
+        private readonly string _body;
+        private readonly string _contentType;
+
+        public StubWebHandler(string body, string contentType = "text/html")
+        {
+            _body = body;
+            _contentType = contentType;
+        }
+
+        public List<HttpRequestMessage> Requests { get; } = [];
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Requests.Add(request);
+            var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(_body, System.Text.Encoding.UTF8, _contentType),
+                RequestMessage = request
+            };
+            return Task.FromResult(response);
+        }
+    }
     private static string Trim(string text) =>
         text.Length > 40 ? text[..40].Replace("\n", " ") + "…" : text.Replace("\n", " ");
 

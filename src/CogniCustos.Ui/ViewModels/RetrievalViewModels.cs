@@ -376,23 +376,81 @@ public sealed class EmailRetrievalViewModel : ObservableObject
     }
 }
 
-/// <summary>One row in 网页浏览配置.</summary>
+/// <summary>One row in 网页浏览配置: a page, its domain's approval, and a read-once check.</summary>
 public sealed class WebSourceRow : ObservableObject
 {
-    public WebSourceRow(string url)
+    private bool _approved;
+    private string _verdict = string.Empty;
+
+    public WebSourceRow(string url, bool approved = false)
     {
         Url = url;
-        Host = Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : url;
+        Host = HostOf(url);
+        _approved = approved;
+
         DeleteCommand = new RelayCommand(() => DeleteRequested?.Invoke(this));
+        AllowCommand = new RelayCommand(() => AllowRequested?.Invoke(this));
+        RevokeCommand = new RelayCommand(() => RevokeRequested?.Invoke(this), () => Approved);
+        ReadOnceCommand = new RelayCommand(() => ReadOnceRequested?.Invoke(this));
     }
 
     public string Url { get; }
     public string Host { get; }
-    public string Access => "只读 GET · 表单提交被禁止";
+
+    /// <summary>The host of a URL; what an approval names.</summary>
+    public static string HostOf(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.Host : url;
+    public string Access => Localizer.Get("Settings.Web.Access");
+
+    /// <summary>Whether this page's domain may be fetched at all.</summary>
+    public bool Approved
+    {
+        get => _approved;
+        private set
+        {
+            if (!Set(ref _approved, value)) return;
+            OnPropertyChanged(nameof(ApprovedLabel));
+            OnPropertyChanged(nameof(ApprovedBrush));
+            RevokeCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public string ApprovedLabel => Localizer.Get(Approved ? "Settings.Web.Allowed" : "Settings.Web.NotAllowed");
+
+    public string ApprovedBrush => Approved ? "#FF2E6B5A" : "#FF8A5A1E";
+
+    /// <summary>What the last read returned: read / needs login / not allowed / failed.</summary>
+    public string Verdict
+    {
+        get => _verdict;
+        private set
+        {
+            if (!Set(ref _verdict, value)) return;
+            OnPropertyChanged(nameof(HasVerdict));
+        }
+    }
+
+    public bool HasVerdict => _verdict.Length > 0;
+
+    public void SetApproved(bool approved) => Approved = approved;
+
+    public void ShowVerdict(string verdict) => Verdict = verdict;
 
     public RelayCommand DeleteCommand { get; }
+    public RelayCommand AllowCommand { get; }
+    public RelayCommand RevokeCommand { get; }
+    public RelayCommand ReadOnceCommand { get; }
 
     public event Action<WebSourceRow>? DeleteRequested;
+    public event Action<WebSourceRow>? AllowRequested;
+    public event Action<WebSourceRow>? RevokeRequested;
+    public event Action<WebSourceRow>? ReadOnceRequested;
+
+    public void RefreshText()
+    {
+        OnPropertyChanged(nameof(Access));
+        OnPropertyChanged(nameof(ApprovedLabel));
+    }
 }
 
 /// <summary>
@@ -416,11 +474,30 @@ public sealed class WebBrowsingViewModel : ObservableObject
 
     public event Action<string>? AddRequested;
     public event Action<string>? RemoveRequested;
+    public event Action<WebSourceRow>? AllowRequested;
+    public event Action<WebSourceRow>? RevokeRequested;
+    public event Action<WebSourceRow>? ReadOnceRequested;
 
     public string NewUrl
     {
         get => _newUrl;
         set => Set(ref _newUrl, value);
+    }
+
+    /// <summary>The allow-list, so the rows can show which domain is approved.</summary>
+    public IReadOnlyList<string> AllowedDomains { get; private set; } = [];
+
+    public void SetAllowedDomains(IEnumerable<string> domains) => AllowedDomains = domains.ToList();
+
+    public bool IsDomainAllowed(string host) =>
+        AllowedDomains.Any(d => DomainCovers(d, host));
+
+    /// <summary>An approved parent domain covers its subdomains; a subdomain does not cover its parent.</summary>
+    private static bool DomainCovers(string allowed, string host)
+    {
+        var a = (allowed ?? string.Empty).Trim().TrimStart('.').ToLowerInvariant();
+        var h = (host ?? string.Empty).ToLowerInvariant();
+        return a.Length > 0 && (h == a || h.EndsWith("." + a, StringComparison.Ordinal));
     }
 
     public string Status
@@ -442,8 +519,11 @@ public sealed class WebBrowsingViewModel : ObservableObject
         Sources.Clear();
         foreach (var url in urls)
         {
-            var row = new WebSourceRow(url);
+            var row = new WebSourceRow(url, IsDomainAllowed(WebSourceRow.HostOf(url)));
             row.DeleteRequested += r => RemoveRequested?.Invoke(r.Url);
+            row.AllowRequested += r => AllowRequested?.Invoke(r);
+            row.RevokeRequested += r => RevokeRequested?.Invoke(r);
+            row.ReadOnceRequested += r => ReadOnceRequested?.Invoke(r);
             Sources.Add(row);
         }
 

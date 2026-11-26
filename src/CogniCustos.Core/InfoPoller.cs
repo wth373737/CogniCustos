@@ -179,59 +179,53 @@ public sealed class InfoKeywords
     }
 }
 
-/// <summary>Reads configured web pages and keeps their readable text.</summary>
+/// <summary>
+/// Reads configured web pages through <see cref="WebReader"/>, so the poller obeys the same
+/// allow-list as the settings page's "read once" button: a site nobody approved contributes
+/// nothing, and a sign-in wall is reported instead of being stored as if it were content.
+/// </summary>
 public sealed class WebInfoSource : IInfoSource
 {
     private readonly IReadOnlyList<string> _urls;
-    private readonly HttpMessageHandler? _handler;
+    private readonly WebReader? _reader;
+    private readonly IReadOnlyList<string> _notes;
 
-    public WebInfoSource(IReadOnlyList<string> urls, HttpMessageHandler? handler = null)
+    public WebInfoSource(IReadOnlyList<string> urls, WebReader? reader = null)
     {
         _urls = urls;
-        _handler = handler;
+        _reader = reader;
+        _notes = [];
     }
 
+    public WebInfoSource(IReadOnlyList<string> urls, IReadOnlyList<string> notes, WebReader reader)
+        : this(urls, reader) => _notes = notes;
+
     public string Kind => "web";
+
+    /// <summary>Why a source contributed nothing, in one line each (shown by --fetch-now).</summary>
+    public IReadOnlyList<string> Notes => _notes;
 
     public async Task<IReadOnlyList<FetchedItem>> FetchAsync(CancellationToken ct)
     {
         var items = new List<FetchedItem>();
-        using var http = _handler is null ? new HttpClient() : new HttpClient(_handler);
-        http.Timeout = TimeSpan.FromSeconds(20);
+        if (_reader is null) return items;
 
         foreach (var url in _urls)
         {
-            try
+            var page = await _reader.ReadAsync(url, ct).ConfigureAwait(false);
+            if (!page.Ok)
             {
-                var html = await http.GetStringAsync(url, ct).ConfigureAwait(false);
-                var title = Regex.Match(html, @"<title[^>]*>(?<t>.*?)</title>",
-                    RegexOptions.IgnoreCase | RegexOptions.Singleline).Groups["t"].Value;
-                var text = Readable(html);
-                items.Add(new FetchedItem("web", new Uri(url).Host, Clean(title), text, url,
-                    $"web:{url}|{text.Length}|{text.GetHashCode():X}"));
+                // the verdict is the point: "not allowed" and "needs a login" are different
+                // outcomes, and both must be visible rather than silently skipped
+                if (_notes is List<string> list) list.Add(url + " → " + page.Detail);
+                continue;
             }
-            catch
-            {
-                // a dead page must not stop the run; it simply contributes nothing
-            }
+
+            items.Add(new FetchedItem("web", page.Host, page.Title, page.Text, page.Url,
+                $"web:{url}|{page.Text.Length}|{page.Text.GetHashCode():X}"));
         }
 
         return items;
-    }
-
-    private static string Clean(string text) =>
-        Regex.Replace(System.Net.WebUtility.HtmlDecode(text ?? ""), @"\s+", " ").Trim();
-
-    /// <summary>Tags out, entities decoded, blank lines collapsed: enough for a summary.</summary>
-    private static string Readable(string html)
-    {
-        var withoutScripts = Regex.Replace(html, @"<(script|style)[^>]*>.*?</\1>",
-            " ", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        var text = Regex.Replace(withoutScripts, "<[^>]+>", " ");
-        text = System.Net.WebUtility.HtmlDecode(text);
-        text = Regex.Replace(text, @"[ \t]+", " ");
-        text = Regex.Replace(text, @"(\r?\n\s*){2,}", "\n");
-        return text.Trim();
     }
 }
 
@@ -413,8 +407,9 @@ public sealed class InfoPoller
 }
 
 /// <summary>
-/// The web list as the settings page edits it: add and remove pages, each just a URL.
-/// The poller reads the same list, so a change takes effect on the next run.
+/// The web list as the settings page edits it: add and remove pages, and approve the domains that
+/// may actually be read. Adding a URL does not start reading it — that is the point, and it is the
+/// same rule the cookie plugin on this machine follows for a new site.
 /// </summary>
 public sealed class WebSourcesService
 {
@@ -423,6 +418,17 @@ public sealed class WebSourcesService
     public WebSourcesService(string settingsPath) => _settingsPath = settingsPath;
 
     public IReadOnlyList<string> Urls => SettingsStore.Load(_settingsPath).WebSources ?? [];
+
+    /// <summary>Domains the person approved; a URL outside these is never fetched.</summary>
+    public IReadOnlyList<string> AllowedDomains =>
+        SettingsStore.Load(_settingsPath).WebAllowedDomains ?? [];
+
+    public bool IsAllowed(string url) =>
+        WebReader.HostOf(url) is { Length: > 0 } host &&
+        AllowedDomains.Any(d => WebReader.DomainAllows(d, host));
+
+    /// <summary>The host a URL belongs to: what the person approves.</summary>
+    public static string HostOf(string url) => WebReader.HostOf(url);
 
     public (bool Ok, string Message) Add(string url)
     {
@@ -437,7 +443,11 @@ public sealed class WebSourcesService
 
         urls.Add(url);
         SettingsStore.Save(_settingsPath, settings with { WebSources = urls });
-        return (true, $"已添加 {uri.Host}");
+
+        var approved = IsAllowed(url);
+        return (true, approved
+            ? $"已添加 {uri.Host}"
+            : $"已添加 {uri.Host}，但还没有允许读取这个域名（点「允许」之后才会抓取）。");
     }
 
     public bool Remove(string url)
@@ -446,6 +456,32 @@ public sealed class WebSourcesService
         var urls = (settings.WebSources ?? []).Where(u => u != url).ToList();
         SettingsStore.Save(_settingsPath, settings with { WebSources = urls });
         return true;
+    }
+
+    /// <summary>Approve one domain (exact host, or a parent domain to cover its subdomains).</summary>
+    public (bool Ok, string Message) Allow(string domainOrUrl)
+    {
+        var domain = (domainOrUrl ?? string.Empty).Trim().TrimStart('.');
+        if (domain.Contains("://", StringComparison.Ordinal)) domain = HostOf(domain);
+        if (domain.Length == 0) return (false, "请填写要允许的域名。");
+
+        var settings = SettingsStore.Load(_settingsPath);
+        var domains = (settings.WebAllowedDomains ?? []).ToList();
+        if (domains.Any(d => WebReader.DomainAllows(d, domain))) return (true, $"{domain} 已经在允许列表里");
+
+        domains.Add(domain.ToLowerInvariant());
+        SettingsStore.Save(_settingsPath, settings with { WebAllowedDomains = domains });
+        return (true, $"已允许读取 {domain}");
+    }
+
+    public (bool Ok, string Message) Revoke(string domain)
+    {
+        var settings = SettingsStore.Load(_settingsPath);
+        var domains = (settings.WebAllowedDomains ?? [])
+            .Where(d => !string.Equals(d, domain, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        SettingsStore.Save(_settingsPath, settings with { WebAllowedDomains = domains });
+        return (true, $"已撤销 {domain}");
     }
 }
 
@@ -462,7 +498,14 @@ public static class InfoSources
             sources.Add(new ThunderbirdMailSource());
 
         if (settings.WebSources is { Count: > 0 })
-            sources.Add(new WebInfoSource(settings.WebSources, handler));
+        {
+            // the same gate the settings page uses: nothing is read from an unapproved domain
+            var allowed = settings.WebAllowedDomains ?? [];
+            var reader = new WebReader(
+                handler is null ? new HttpWebFetcher() : new HttpWebFetcher(handler),
+                () => allowed);
+            sources.Add(new WebInfoSource(settings.WebSources, reader));
+        }
 
         if (!string.IsNullOrWhiteSpace(settings.InboxPath))
             sources.Add(new InboxInfoSource(settings.InboxPath!));

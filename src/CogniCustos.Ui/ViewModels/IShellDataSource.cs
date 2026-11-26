@@ -144,6 +144,18 @@ public interface IShellDataSource
     /// </summary>
     Task<CloudTestResult> TestCloudAsync(string model, string url, string apiKey);
 
+    /// <summary>The domains already approved for reading.</summary>
+    IReadOnlyList<string> WebAllowedDomains();
+
+    /// <summary>Approve one domain for web reading (a new site is never read before this).</summary>
+    string? AllowWebDomain(string domain);
+
+    /// <summary>Withdraw an approval; from then on nothing is fetched from that domain.</summary>
+    string? RevokeWebDomain(string domain);
+
+    /// <summary>Fetch exactly the configured pages that an approved domain covers.</summary>
+    Task<string> ReadWebOnceAsync(string url);
+
     /// <summary>Which speech recogniser the microphone button would use, and why not when not.</summary>
     VoiceInfo SpeechStatus();
 

@@ -1854,3 +1854,69 @@ Ui.Shots   → ALL OK
 
 - 停止时保留的是"最新假设"，可能包含半句；要不要丢半句是可配置的产品选择，现在是保留。
 - 模型引擎仍只有接口。
+
+---
+
+## 2026-11-26 · 网页读取：白名单门禁 + 判定（而不是"抓到什么算什么"）
+
+### 1. 改之前是什么样
+
+`WebInfoSource` 直接 `GetStringAsync(url)`，正则去标签，抓不到就"静默跳过"。
+也就是说：**没有允许名单**（配置了网址就去读）、**没有判定**（登录页会被当成正文存下来），
+失败也不告诉任何人。
+
+### 2. 现在的结构（对齐本机 cookie 插件的做法）
+
+```
+WebReader ──(域名不在允许列表)──► NotAllowed（根本不发请求）
+    └── HttpWebFetcher ──► Read / NeedsLogin / NoText / NotHtml / HttpError / Failed
+```
+
+- **允许列表**：`settings.json` 里的 `WebAllowedDomains`；父域覆盖子域（允许 `usm.my` 覆盖
+  `elearning.usm.my`），但允许子域不覆盖父域。
+- **只用 GET**，永不提交表单——和插件的 `readOnlyMethods` 一个意思。
+- **判定**：登录路径（/login、/sso、/cas…）或"短正文 + 登录字样" → `NeedsLogin`；
+  非 HTML → `NotHtml`；正文 < 40 字 → `NoText`；非 2xx → `HttpError`。
+- **轮询也走同一道门**：`InfoPoller` 构造的 `WebInfoSource` 用的是同一个 `WebReader`，
+  所以"设置里允许"是唯一开关，不存在"绕过去读"的路径。
+
+### 3. 界面（网页浏览配置）
+
+每行显示：域名 + 「已允许 / 尚未允许」+ 网址 + 只读说明 + 三个按钮
+**允许此域名 / 读一次 / 删除**；读到什么、为什么没读到，直接显示在那一行下面。
+
+### 4. 实测
+
+```
+--web-check https://www.usm.my/            → NotAllowed（0 次请求）
+--web-check https://www.usm.my/ --allow    → Read · 6631 字 · "Universiti Sains Malaysia"
+--web-check https://elearning.usm.my/my/   → HttpError 404（该站对非浏览器/未登录访问就是这样）
+```
+
+公开页可读；课程页需要登录 —— 这就是本机 cookie 插件持有 `elearning.usm.my` 12 个 cookie 的原因。
+
+### 5. 还没做：登录后的页面
+
+我们的抓取器目前**没有任何 cookie 来源**。本机插件那边的情况（`cookie_whitelist_status`）：
+
+- 允许名单：`elearning.usm.my`；vault 里 12 个 cookie，TTL 120 分钟；
+- 只读方法：GET/HEAD/OPTIONS；扩展已连接，接收端在 `127.0.0.1:47821`；
+- 它的原则：**新域名必须先经用户明确批准**，cookie 值永不返回。
+
+两条可行路线（需要你选一条）：
+
+1. **会话 Cookie**：在设置里为某个已允许的域名粘贴一次 Cookie 头，只存在内存里（不落盘），
+   关掉程序即失效。简单、可审计，但要手抄。
+2. **侧车浏览器**：复用本机插件那套（它已经有 cookie 和只读浏览），CogniCustos 通过本地接口
+   请它读一页并把正文交回。CogniCustos 不接触 cookie，架构最干净；代价是要依赖那个插件在场。
+
+无论哪条，`WebReader` 与界面都不用改——`IWebFetcher` 已经是两个实现的位置。
+
+### 6. 验证
+
+```bash
+Selftest   → passed=124（+4：未允许不发请求、允许后取标题正文并去脚本、登录页判为 NeedsLogin、PDF 判为 NotHtml）
+Ui.Tests   → ALL PASS（86，+1：允许域名落到存储并翻转行状态；读一次把判定显示在行上）
+Ui.Shots   → ALL OK
+--web-check 真实站点：见上表
+```

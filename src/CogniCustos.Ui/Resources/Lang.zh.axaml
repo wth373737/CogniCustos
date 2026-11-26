@@ -119,7 +119,6 @@
   <x:String x:Key="Settings.Email.Test">测试</x:String>
   <x:String x:Key="Settings.Email.Remove">删除</x:String>
   <x:String x:Key="Settings.Web.Header">网页浏览配置</x:String>
-  <x:String x:Key="Settings.Web.Note">每日抓取会读取的页面。只发 GET，不会提交表单。需要登录的站点，Cookie 由浏览器插件提供，并按域名逐个向你确认。</x:String>
   <x:String x:Key="Settings.Web.Add">添加网页</x:String>
   <x:String x:Key="Settings.Web.Remove">删除</x:String>
   <x:String x:Key="Settings.Web.Watermark">https://…</x:String>
@@ -355,4 +354,13 @@
   <x:String x:Key="Composer.MicUnavailable">麦克风不可用。</x:String>
   <x:String x:Key="Composer.Stopping">正在停止…</x:String>
   <x:String x:Key="Composer.Stopped">已停止，没有添加内容。</x:String>
+  <x:String x:Key="Settings.Web.Access">只读 GET · 永不提交表单</x:String>
+  <x:String x:Key="Settings.Web.Allowed">已允许</x:String>
+  <x:String x:Key="Settings.Web.NotAllowed">尚未允许</x:String>
+  <x:String x:Key="Settings.Web.Allow">允许此域名</x:String>
+  <x:String x:Key="Settings.Web.ReadOnce">读一次</x:String>
+  <x:String x:Key="Settings.Web.Reading">正在读…</x:String>
+  <x:String x:Key="Settings.Web.AllowOk">已允许</x:String>
+  <x:String x:Key="Settings.Web.RevokeOk">已撤销</x:String>
+  <x:String x:Key="Settings.Web.Note">只有当您允许某个域名后才会去读它，而且只用 GET：永远不提交表单。需要登录的页面会如实返回"需要登录"，而不是把登录页当成正文存下来。</x:String>
 </ResourceDictionary>

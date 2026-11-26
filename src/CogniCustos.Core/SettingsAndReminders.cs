@@ -15,6 +15,13 @@ public sealed record AppSettings
     /// <summary>Run the bundled model on the GPU (Vulkan) instead of the CPU.</summary>
     public bool UseGpu { get; init; }
 
+    /// <summary>
+    /// Domains the person explicitly allowed for web reading. Nothing is fetched from a host
+    /// that is not covered here: a new site stays unread until it is approved, the same way the
+    /// cookie plugin on this machine treats a new domain.
+    /// </summary>
+    public System.Collections.Generic.List<string>? WebAllowedDomains { get; init; }
+
     /// <summary>Pages the daily poll reads (empty = nothing to fetch from the web).</summary>
     public System.Collections.Generic.List<string>? WebSources { get; init; }
 

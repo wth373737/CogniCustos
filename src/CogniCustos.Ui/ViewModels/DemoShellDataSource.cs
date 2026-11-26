@@ -195,6 +195,21 @@ public sealed class DemoShellDataSource : IShellDataSource
         return new PromptEditResult(null, text, false);
     }
 
+    public IReadOnlyList<string> WebAllowedDomains() => _demoAllowed;
+
+    private static readonly List<string> _demoAllowed = ["www.usm.my"];
+
+    public string? AllowWebDomain(string domain)
+    {
+        if (!_demoAllowed.Contains(domain)) _demoAllowed.Add(domain);
+        return null;
+    }
+
+    public string? RevokeWebDomain(string domain) { _demoAllowed.Remove(domain); return null; }
+
+    public Task<string> ReadWebOnceAsync(string url) =>
+        Task.FromResult("演示：读到 6631 字 · Universiti Sains Malaysia");
+
     public VoiceInfo SpeechStatus() => new(true, "system", "演示：系统语音识别");
 
     public Task<VoiceResult> ListenAsync(CancellationToken ct = default) =>

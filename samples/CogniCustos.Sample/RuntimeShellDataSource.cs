@@ -239,8 +239,6 @@ public sealed class RuntimeShellDataSource : IShellDataSource
 
     public string ImportEmailAccounts() => _rt.EmailAccounts.ImportFromThunderbird().Message;
 
-    public IReadOnlyList<string> WebSources() => _rt.WebSources.Urls;
-
     public string? AddWebSource(string url)
     {
         var (ok, message) = _rt.WebSources.Add(url);
@@ -497,6 +495,41 @@ public sealed class RuntimeShellDataSource : IShellDataSource
     /// </summary>
     /// <summary>The UI language decides the language the model answers in.</summary>
     public void LanguageChanged(string culture) => PromptCatalog.ConfigureLanguage(culture);
+
+    // ---------- web reading ----------
+
+    public IReadOnlyList<string> WebSources() => _rt.WebSources.Urls;
+
+    public IReadOnlyList<string> WebAllowedDomains() => _rt.WebSources.AllowedDomains;
+
+    public string? AllowWebDomain(string domain)
+    {
+        var (ok, message) = _rt.WebSources.Allow(domain);
+        return ok ? null : message;
+    }
+
+    public string? RevokeWebDomain(string domain)
+    {
+        var (ok, message) = _rt.WebSources.Revoke(domain);
+        return ok ? null : message;
+    }
+
+    /// <summary>Read one page now and report the verdict in one line.</summary>
+    public async Task<string> ReadWebOnceAsync(string url)
+    {
+        var reader = new WebReader(new HttpWebFetcher(), () => _rt.WebSources.AllowedDomains);
+        var page = await reader.ReadAsync(url).ConfigureAwait(false);
+
+        return page.Verdict switch
+        {
+            WebVerdict.Read => $"读到 {page.Text.Length} 字 · {page.Title}",
+            WebVerdict.NotAllowed => page.Detail,
+            WebVerdict.NeedsLogin => "需要登录：" + page.Detail,
+            WebVerdict.NotHtml => page.Detail,
+            WebVerdict.NoText => page.Detail,
+            _ => page.Detail,
+        };
+    }
 
     // ---------- microphone ----------
 

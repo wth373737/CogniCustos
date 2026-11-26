@@ -119,7 +119,6 @@
   <x:String x:Key="Settings.Email.Test">Test</x:String>
   <x:String x:Key="Settings.Email.Remove">Remove</x:String>
   <x:String x:Key="Settings.Web.Header">Website browsing</x:String>
-  <x:String x:Key="Settings.Web.Note">Pages the daily fetch reads. Only GET is used; forms are never submitted. Cookies for signed-in sites come from the browser cookie plugin, which asks for each domain separately.</x:String>
   <x:String x:Key="Settings.Web.Add">Add page</x:String>
   <x:String x:Key="Settings.Web.Remove">Remove</x:String>
   <x:String x:Key="Settings.Web.Watermark">https://…</x:String>
@@ -356,4 +355,13 @@ First, the sentence is defining the term before using it, so read it as a defini
   <x:String x:Key="Composer.MicUnavailable">The microphone is not available.</x:String>
   <x:String x:Key="Composer.Stopping">Stopping…</x:String>
   <x:String x:Key="Composer.Stopped">Stopped. Nothing was added.</x:String>
+  <x:String x:Key="Settings.Web.Access">read-only GET · forms are never submitted</x:String>
+  <x:String x:Key="Settings.Web.Allowed">allowed</x:String>
+  <x:String x:Key="Settings.Web.NotAllowed">not allowed yet</x:String>
+  <x:String x:Key="Settings.Web.Allow">Allow domain</x:String>
+  <x:String x:Key="Settings.Web.ReadOnce">Read once</x:String>
+  <x:String x:Key="Settings.Web.Reading">reading…</x:String>
+  <x:String x:Key="Settings.Web.AllowOk">allowed</x:String>
+  <x:String x:Key="Settings.Web.RevokeOk">withdrawn</x:String>
+  <x:String x:Key="Settings.Web.Note">A domain is only read after you allow it, and only with a GET: no form is ever submitted. Pages that need a login come back as "needs a login" instead of an empty article.</x:String>
 </ResourceDictionary>
